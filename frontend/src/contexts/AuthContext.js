@@ -31,10 +31,10 @@ export function AuthProvider({ children }) {
     loadStaff();
   }, [loadStaff]);
 
-  const login = async (email, password, schema = 'demo') => {
-    const data = await client.post('/auth/login', { email, password, schema });
+  const login = async (email, password, db_schema = 'demo') => {
+    const data = await client.post('/auth/login', { email, password, db_schema });
     localStorage.setItem('dt_token', data.access_token);
-    localStorage.setItem('dt_schema', schema);
+    localStorage.setItem('dt_schema', db_schema);
     setStaff(data.staff);
     return data;
   };

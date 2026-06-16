@@ -559,7 +559,7 @@ class TenantProfileResponse(BaseModel):
 class StaffLoginRequest(BaseModel):
     email: EmailStr
     password: str
-    db_schema: Optional[str] = Field(default="demo", alias="schema")
+    db_schema: Optional[str] = "demo"
 
 class StaffLoginResponse(BaseModel):
     access_token: str
