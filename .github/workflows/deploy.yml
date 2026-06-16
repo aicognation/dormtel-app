@@ -15,7 +15,7 @@ jobs:
 
       - name: Create deployment archive
         run: |
-          tar czf /tmp/dormtel-deploy.tar.gz \
+          tar czf dormtel-deploy.tar.gz \
             --exclude='node_modules' --exclude='build' --exclude='dist' \
             --exclude='__pycache__' --exclude='*.pyc' --exclude='.git' \
             --exclude='.env' --exclude='postgres_data' \
@@ -27,7 +27,7 @@ jobs:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           key: ${{ secrets.ECS_SSH_KEY }}
-          source: "/tmp/dormtel-deploy.tar.gz"
+          source: "dormtel-deploy.tar.gz"
           target: "/opt/dormtel/"
 
       - name: Extract and deploy on ECS
