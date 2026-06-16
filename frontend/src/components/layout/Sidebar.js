@@ -101,6 +101,7 @@ export default function Sidebar({ isOpen, onToggle }) {
         {/* Footer */}
         <div className="absolute bottom-0 left-0 right-0 p-4 border-t border-brand-navy-light">
           <p className="text-xs text-gray-400 text-center">DormTel Automation v1.0</p>
+          <p className="text-[10px] text-brand-gold text-center mt-0.5">CI/CD Enabled</p>
         </div>
       </aside>
     </>

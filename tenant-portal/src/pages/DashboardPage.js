@@ -35,6 +35,7 @@ export default function DashboardPage() {
         <p className="text-xs text-gray-400 mt-0.5">
           Room {data.room_number} · {data.building} · Bed {data.bed_number}
         </p>
+        <p className="text-[10px] text-brand-navy mt-1">Last updated: {new Date().toLocaleDateString('en-PH')}</p>
       </div>
 
       {/* Contract Status */}
