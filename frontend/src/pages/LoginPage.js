@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { useAuth } from '../contexts/AuthContext';
-import { LogIn, Eye, EyeOff, Building2 } from 'lucide-react';
+import { LogIn, Eye, EyeOff, Building2, Database } from 'lucide-react';
 import toast from 'react-hot-toast';
 
 export default function LoginPage() {
@@ -9,6 +9,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [schema, setSchema] = useState('demo');
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 
@@ -20,7 +21,7 @@ export default function LoginPage() {
     e.preventDefault();
     setIsLoading(true);
     try {
-      await login(email, password);
+      await login(email, password, schema);
       toast.success('Welcome back!');
       navigate('/');
     } catch (err) {
@@ -42,6 +43,24 @@ export default function LoginPage() {
         </div>
 
         <form onSubmit={handleSubmit} className="space-y-5">
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Database</label>
+            <div className="relative">
+              <Database className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+              <select
+                value={schema}
+                onChange={(e) => setSchema(e.target.value)}
+                className="w-full pl-9 pr-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-transparent text-sm"
+              >
+                <option value="demo">Demo</option>
+                <option value="pilot">Pilot</option>
+              </select>
+            </div>
+            <p className="text-xs text-gray-400 mt-1">
+              {schema === 'demo' ? 'Demo environment for training and testing.' : 'Pilot environment for live operations.'}
+            </p>
+          </div>
+
           <div>
             <label className="block text-sm font-medium text-gray-700 mb-1">Email</label>
             <input

@@ -559,6 +559,7 @@ class TenantProfileResponse(BaseModel):
 class StaffLoginRequest(BaseModel):
     email: EmailStr
     password: str
+    schema: Optional[str] = "demo"
 
 class StaffLoginResponse(BaseModel):
     access_token: str

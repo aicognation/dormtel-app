@@ -1,11 +1,11 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, text
 from datetime import datetime, timedelta
 from uuid import UUID
 import uuid
 
-from app.database import get_db
+from app.database import get_db, ALLOWED_SCHEMAS, DEFAULT_SCHEMA
 from app import models, schemas, auth
 
 router = APIRouter()
@@ -13,6 +13,10 @@ router = APIRouter()
 
 @router.post("/login", response_model=schemas.StaffLoginResponse)
 async def login(payload: schemas.StaffLoginRequest, db: AsyncSession = Depends(get_db)):
+    # Validate and apply selected schema for login
+    schema = payload.schema if payload.schema in ALLOWED_SCHEMAS else DEFAULT_SCHEMA
+    await db.execute(text(f"SET search_path TO {schema}, public"))
+
     result = await db.execute(select(models.Staff).where(models.Staff.email == payload.email))
     staff = result.scalar_one_or_none()
     if not staff or not staff.password_hash:
@@ -25,7 +29,7 @@ async def login(payload: schemas.StaffLoginRequest, db: AsyncSession = Depends(g
     staff.last_login_at = datetime.utcnow()
     await db.commit()
 
-    access_token = auth.create_access_token(data={"sub": str(staff.id), "role": staff.role})
+    access_token = auth.create_access_token(data={"sub": str(staff.id), "role": staff.role, "schema": schema})
     return schemas.StaffLoginResponse(
         access_token=access_token,
         staff=schemas.StaffOut.model_validate(staff),
