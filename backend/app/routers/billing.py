@@ -699,6 +699,7 @@ async def upload_daily_meter_sheet(
         col_water_days = None
         col_water_bill = None
         col_misc = {}
+        header_map = {}  # map normalized header name -> column index
 
         for idx, val in enumerate(header_row):
             if val is None:
@@ -707,6 +708,7 @@ async def upload_daily_meter_sheet(
                 date_cols.append((idx, val))
             elif isinstance(val, str):
                 vup = val.upper().strip()
+                header_map[vup] = idx
                 if vup == "TOTAL USAGE":
                     col_total_usage = idx
                 elif "# OF DAYS" in vup and "WATER" in vup:
