@@ -9,7 +9,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app.models import Inquiry, Checkpoint
-from app.schemas import InquiryCreate, InquiryOut
+from app.schemas import InquiryCreate, InquiryOut, InquiryAdminResponse
 
 router = APIRouter()
 
@@ -58,6 +58,19 @@ async def create_inquiry(payload: InquiryCreate, db: AsyncSession = Depends(get_
         source=payload.source,
         external_id=payload.external_id,
         content=payload.content,
+        property_code=payload.property_code or "DT01",
+        prospect_name=payload.prospect_name,
+        prospect_phone=payload.prospect_phone,
+        prospect_email=payload.prospect_email,
+        school=payload.school,
+        course=payload.course,
+        review_center=payload.review_center,
+        exam_date=payload.exam_date,
+        first_time_dormer=payload.first_time_dormer,
+        previous_dorm=payload.previous_dorm,
+        desired_move_in_date=payload.desired_move_in_date,
+        length_of_stay=payload.length_of_stay,
+        inquiry_form_data=payload.inquiry_form_data,
         sentiment_score=Decimal(str(round(sentiment, 2))),
         lead_score=lead,
         status="new",
@@ -83,6 +96,28 @@ async def list_inquiries(
     if filters:
         stmt = stmt.where(and_(*filters))
     stmt = stmt.order_by(Inquiry.created_at.desc())
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+@router.get("/tenant", response_model=List[InquiryOut])
+async def list_tenant_inquiries(db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(Inquiry)
+        .where(Inquiry.resident_id.is_not(None))
+        .order_by(Inquiry.created_at.desc())
+    )
+    result = await db.execute(stmt)
+    return result.scalars().all()
+
+
+@router.get("/convertible", response_model=List[InquiryOut])
+async def list_convertible_inquiries(db: AsyncSession = Depends(get_db)):
+    stmt = (
+        select(Inquiry)
+        .where(Inquiry.status.in_(["new", "responded", "escalated"]))
+        .order_by(Inquiry.created_at.desc())
+    )
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -119,6 +154,25 @@ async def respond_to_inquiry(inquiry_id: uuid.UUID, db: AsyncSession = Depends(g
         )
 
     return {"status": "responded", "auto_response": auto_text}
+
+
+@router.patch("/{inquiry_id}/respond", response_model=InquiryOut)
+async def respond_to_inquiry_manual(
+    inquiry_id: uuid.UUID,
+    payload: InquiryAdminResponse,
+    db: AsyncSession = Depends(get_db),
+):
+    stmt = select(Inquiry).where(Inquiry.id == inquiry_id)
+    result = await db.execute(stmt)
+    inquiry = result.scalar_one_or_none()
+    if not inquiry:
+        raise HTTPException(status_code=404, detail="Inquiry not found")
+
+    inquiry.response = payload.response
+    inquiry.status = "responded"
+    await db.commit()
+    await db.refresh(inquiry)
+    return inquiry
 
 
 @router.post("/{inquiry_id}/escalate", response_model=dict)

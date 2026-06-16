@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, extract, and_
+from sqlalchemy.orm import selectinload
 from datetime import datetime, timedelta
 from decimal import Decimal
 import calendar
@@ -8,8 +9,17 @@ from uuid import UUID
 
 from app.database import get_db
 from app import models, schemas
+from app import auth
 
 router = APIRouter()
+
+
+def _is_end_of_month(d) -> bool:
+    """Flag if date is within the last 3 days of its month."""
+    if not d:
+        return False
+    days_in_month = calendar.monthrange(d.year, d.month)[1]
+    return (days_in_month - d.day) <= 2
 
 
 @router.post("/", response_model=schemas.MoveOutOut)
@@ -22,9 +32,11 @@ async def create_moveout(payload: schemas.MoveOutCreate, db: AsyncSession = Depe
     moveout = models.MoveOut(
         resident_id=payload.resident_id,
         requested_date=payload.requested_date,
+        actual_date=payload.actual_date,
         reason=payload.reason,
         forwarding_contact=payload.forwarding_contact,
         status="requested",
+        is_end_of_month_flag=_is_end_of_month(payload.requested_date),
     )
     db.add(moveout)
     await db.flush()
@@ -63,7 +75,7 @@ async def complete_clearance(moveout_id: UUID, db: AsyncSession = Depends(get_db
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
 
-    moveout_date = moveout.actual_date or moveout.requested_date
+    moveout_date = moveout.actual_date or moveout.extended_date or moveout.requested_date
     if not moveout_date:
         raise HTTPException(status_code=400, detail="No move-out date available")
 
@@ -164,6 +176,42 @@ async def complete_moveout(moveout_id: UUID, db: AsyncSession = Depends(get_db))
     moveout.accounting_resolved_at = datetime.utcnow()
     resident.status = "moved_out"
 
+    # Free the bed and update room status
+    if resident.bed_id:
+        bed_result = await db.execute(select(models.Bed).where(models.Bed.id == resident.bed_id))
+        bed = bed_result.scalar_one_or_none()
+        if bed:
+            bed.status = "available"
+            room = bed.room
+            if room and room.status == "full":
+                room.status = "available"
+        resident.bed_id = None
+
+    await db.commit()
+    await db.refresh(moveout)
+    return moveout
+
+
+@router.post("/{moveout_id}/extend", response_model=schemas.MoveOutOut)
+async def extend_moveout(
+    moveout_id: UUID,
+    payload: schemas.MoveOutExtendRequest,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
+    result = await db.execute(select(models.MoveOut).where(models.MoveOut.id == moveout_id))
+    moveout = result.scalar_one_or_none()
+    if not moveout:
+        raise HTTPException(status_code=404, detail="Move-out not found")
+
+    if moveout.status not in ("requested", "clearance"):
+        raise HTTPException(status_code=400, detail="Can only extend move-outs in requested or clearance status")
+
+    moveout.extended_date = payload.extended_date
+    moveout.extension_reason = payload.extension_reason
+    moveout.extended_by = current_staff.id
+    moveout.is_end_of_month_flag = _is_end_of_month(payload.extended_date)
+
     await db.commit()
     await db.refresh(moveout)
     return moveout
@@ -173,12 +221,53 @@ async def complete_moveout(moveout_id: UUID, db: AsyncSession = Depends(get_db))
 async def list_moveouts(
     status: str = Query(None),
     resident_id: UUID = Query(None),
+    year: int = Query(None),
+    month: int = Query(None),
     db: AsyncSession = Depends(get_db),
 ):
-    query = select(models.MoveOut)
+    query = (
+        select(models.MoveOut, models.Resident, models.Bed, models.Room)
+        .join(models.Resident, models.MoveOut.resident_id == models.Resident.id)
+        .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
+        .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+        .order_by(models.MoveOut.requested_date.desc())
+    )
+
     if status:
         query = query.where(models.MoveOut.status == status)
     if resident_id:
         query = query.where(models.MoveOut.resident_id == resident_id)
+    if year and month:
+        query = query.where(
+            and_(
+                extract("year", models.MoveOut.requested_date) == year,
+                extract("month", models.MoveOut.requested_date) == month,
+            )
+        )
+    elif year:
+        query = query.where(extract("year", models.MoveOut.requested_date) == year)
+
     result = await db.execute(query)
-    return result.scalars().all()
+    rows = result.all()
+
+    out = []
+    for moveout, resident, bed, room in rows:
+        out.append(schemas.MoveOutOut(
+            id=moveout.id,
+            resident_id=moveout.resident_id,
+            resident_name=resident.full_name if resident else None,
+            room_number=room.room_number if room else None,
+            bed_code=bed.bed_code if bed else None,
+            requested_date=moveout.requested_date,
+            actual_date=moveout.actual_date,
+            extended_date=moveout.extended_date,
+            extension_reason=moveout.extension_reason,
+            reason=moveout.reason,
+            forwarding_contact=moveout.forwarding_contact,
+            status=moveout.status,
+            is_end_of_month_flag=moveout.is_end_of_month_flag,
+            refund_amount=moveout.refund_amount,
+            final_billing_id=moveout.final_billing_id,
+            created_at=moveout.created_at,
+        ))
+    return out

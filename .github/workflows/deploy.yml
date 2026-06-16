@@ -1,0 +1,93 @@
+name: Deploy DormTel to ECS
+
+on:
+  push:
+    branches: [master, main]
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    name: Build and Deploy to Alibaba Cloud ECS
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Transfer code to ECS
+        uses: appleboy/scp-action@v0.1.7
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          source: "backend,frontend,tenant-portal,docker-compose.prod.yml,.env"
+          target: "/opt/dormtel/"
+          strip_components: 0
+          rm: true
+
+      - name: Build and deploy on ECS
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/dormtel
+            echo "=== Building and starting services ==="
+            docker compose -f docker-compose.prod.yml up -d --build api frontend tenant-portal
+            echo "=== Waiting for services to start ==="
+            sleep 15
+
+      - name: Run database migrations
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          script: |
+            set -e
+            cd /opt/dormtel
+            echo "=== Running Alembic migrations ==="
+            docker compose -f docker-compose.prod.yml exec api alembic upgrade head || true
+            echo "=== Adding any missing columns ==="
+            docker compose -f docker-compose.prod.yml exec -T db psql -U dormtel -d dormtel -c "
+            ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS inquiry_type VARCHAR(50);
+            ALTER TABLE inquiries ADD COLUMN IF NOT EXISTS response TEXT;
+            ALTER TABLE service_requests ADD COLUMN IF NOT EXISTS assigned_to UUID;
+            ALTER TABLE demo.inquiries ADD COLUMN IF NOT EXISTS inquiry_type VARCHAR(50);
+            ALTER TABLE demo.inquiries ADD COLUMN IF NOT EXISTS response TEXT;
+            ALTER TABLE demo.service_requests ADD COLUMN IF NOT EXISTS assigned_to UUID;
+            ALTER TABLE pilot.inquiries ADD COLUMN IF NOT EXISTS inquiry_type VARCHAR(50);
+            ALTER TABLE pilot.inquiries ADD COLUMN IF NOT EXISTS response TEXT;
+            ALTER TABLE pilot.service_requests ADD COLUMN IF NOT EXISTS assigned_to UUID;
+            " || true
+
+      - name: Health check
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          script: |
+            set -e
+            echo "=== API Health ==="
+            curl -sf http://localhost:8090/health || exit 1
+            echo "=== Tenant Portal via Nginx ==="
+            curl -sf -H 'Host: dormtel.bayanaihan.net' http://localhost/ || exit 1
+            echo "=== Admin Portal via Nginx ==="
+            curl -sf -H 'Host: dormtel-admin.bayanaihan.net' http://localhost/ || exit 1
+            echo "=== Non-DormTel containers check ==="
+            docker ps --format 'table {{.Names}}\t{{.Status}}' | grep -E 'crm-|jets-|aced-'
+            echo "=== Deployment successful ==="
+
+      - name: Notify on failure
+        if: failure()
+        uses: appleboy/ssh-action@v1.0.3
+        with:
+          host: ${{ secrets.ECS_HOST }}
+          username: ${{ secrets.ECS_USER }}
+          key: ${{ secrets.ECS_SSH_KEY }}
+          script: |
+            cd /opt/dormtel
+            echo "=== Deployment failed - checking logs ==="
+            docker compose -f docker-compose.prod.yml logs --tail=50 api

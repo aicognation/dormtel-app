@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select
+from sqlalchemy import select, func
+from sqlalchemy.orm import selectinload
 from datetime import date, datetime
 from decimal import Decimal
 from uuid import UUID
@@ -22,79 +23,130 @@ class ReservationCreateRequest(BaseModel):
     monthly_rate: Decimal
     id_type: Optional[str] = None
     id_number: Optional[str] = None
-    room_id: Optional[UUID] = None
-    bed_number: Optional[int] = None
-    move_in_date: Optional[date] = None
-
-
-class RoomOut(BaseModel):
-    id: UUID
-    room_number: str
-    building: Optional[str] = None
-    capacity: int
-    occupied_beds: int
-    rate_per_bed: Decimal
-    status: str
-
-    class Config:
-        from_attributes = True
+    bed_id: Optional[UUID] = None
+    move_in_date: date
+    move_out_date: date
+    inquiry_id: Optional[UUID] = None
+    school: Optional[str] = None
+    course: Optional[str] = None
+    review_center: Optional[str] = None
+    exam_date: Optional[date] = None
+    is_first_time_dormer: Optional[bool] = True
+    address: Optional[str] = None
+    deposit_paid: Optional[Decimal] = Decimal("0")
 
 
 @router.post("/reservations", response_model=schemas.ResidentOut, status_code=status.HTTP_201_CREATED)
 async def create_reservation(payload: ReservationCreateRequest, db: AsyncSession = Depends(get_db)):
-    room = None
+    inquiry = None
+    if payload.inquiry_id:
+        result = await db.execute(
+            select(models.Inquiry).where(models.Inquiry.id == payload.inquiry_id)
+        )
+        inquiry = result.scalar_one_or_none()
+        if not inquiry:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Inquiry not found")
+        if inquiry.status == "converted":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Inquiry already converted")
 
-    if payload.room_id:
-        result = await db.execute(select(models.Room).where(models.Room.id == payload.room_id))
-        room = result.scalar_one_or_none()
-        if not room:
-            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
-        if room.occupied_beds >= room.capacity:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Room is full")
+    bed = None
+
+    if payload.bed_id:
+        result = await db.execute(
+            select(models.Bed)
+            .where(models.Bed.id == payload.bed_id)
+            .options(selectinload(models.Bed.room))
+        )
+        bed = result.scalar_one_or_none()
+        if not bed:
+            raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Bed not found")
+        if bed.status != "available":
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bed is not available")
     else:
         result = await db.execute(
-            select(models.Room)
-            .where(models.Room.status == "available")
-            .order_by(models.Room.room_number)
+            select(models.Bed)
+            .where(models.Bed.status == "available")
+            .order_by(models.Bed.bed_code)
         )
-        room = result.scalar_one_or_none()
-        if not room:
-            result = await db.execute(
-                select(models.Room)
-                .where(models.Room.occupied_beds < models.Room.capacity)
-                .order_by(models.Room.room_number)
+        bed = result.scalar_one_or_none()
+        if not bed:
+            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No available beds")
+
+    # Update bed status
+    bed.status = "reserved"
+
+    # Update room status if all beds are now taken
+    room = bed.room
+    if room:
+        beds_result = await db.execute(
+            select(func.count(models.Bed.id))
+            .where(
+                models.Bed.room_id == room.id,
+                models.Bed.status == "available"
             )
-            room = result.scalar_one_or_none()
-        if not room:
-            raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No available rooms")
+        )
+        available_beds = beds_result.scalar() or 0
+        if available_beds == 0:
+            room.status = "full"
 
-    assigned_bed = payload.bed_number
-    if assigned_bed is None:
-        assigned_bed = room.occupied_beds + 1
+    if payload.move_out_date <= payload.move_in_date:
+        raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Move-out date must be after move-in date")
 
-    room.occupied_beds += 1
-    if room.occupied_beds >= room.capacity:
-        room.status = "full"
+    # Pre-fill from inquiry if available
+    full_name = payload.full_name
+    email = payload.email
+    phone = payload.phone
+    school = payload.school
+    course = payload.course
+    review_center = payload.review_center
+    exam_date = payload.exam_date
+    is_first_time_dormer = payload.is_first_time_dormer
+    address = payload.address
+
+    if inquiry:
+        full_name = full_name or inquiry.prospect_name or ""
+        email = email or inquiry.prospect_email or ""
+        phone = phone or inquiry.prospect_phone or ""
+        school = school or inquiry.school
+        course = course or inquiry.course
+        review_center = review_center or inquiry.review_center
+        exam_date = exam_date or inquiry.exam_date
+        if inquiry.first_time_dormer is not None:
+            is_first_time_dormer = inquiry.first_time_dormer
 
     resident = models.Resident(
         id=uuid.uuid4(),
-        full_name=payload.full_name,
-        email=payload.email,
-        phone=payload.phone,
+        full_name=full_name,
+        email=email,
+        phone=phone,
         id_type=payload.id_type,
         id_number=payload.id_number,
         status="reserved",
-        room_id=room.id,
-        bed_number=assigned_bed,
+        bed_id=bed.id,
         move_in_date=payload.move_in_date,
+        move_out_date=payload.move_out_date,
+        contract_end_date=payload.move_out_date,
         monthly_rate=payload.monthly_rate,
-        deposit_paid=Decimal("0"),
+        deposit_paid=payload.deposit_paid or Decimal("0"),
+        school=school,
+        course=course,
+        review_center=review_center,
+        exam_date=exam_date,
+        is_first_time_dormer=is_first_time_dormer,
+        address=address,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
     db.add(resident)
     await db.commit()
     await db.refresh(resident)
+
+    # Link inquiry to resident and mark as converted
+    if inquiry:
+        inquiry.resident_id = resident.id
+        inquiry.status = "converted"
+        await db.commit()
+
     return resident
 
 
@@ -161,15 +213,97 @@ async def activate_movein(resident_id: UUID, db: AsyncSession = Depends(get_db))
     resident.status = "active"
     if not resident.move_in_date:
         resident.move_in_date = date.today()
+
+    # Update bed status to occupied
+    if resident.bed_id:
+        bed_result = await db.execute(select(models.Bed).where(models.Bed.id == resident.bed_id))
+        bed = bed_result.scalar_one_or_none()
+        if bed:
+            bed.status = "occupied"
+
     await db.commit()
     await db.refresh(resident)
     return resident
 
 
-@router.get("/rooms", response_model=list[RoomOut])
-async def list_available_rooms(db: AsyncSession = Depends(get_db)):
+@router.get("/rooms", response_model=list[schemas.RoomWithBedsOut])
+async def list_rooms_with_beds(db: AsyncSession = Depends(get_db)):
     result = await db.execute(
-        select(models.Room).where(models.Room.occupied_beds < models.Room.capacity)
+        select(models.Room)
+        .options(selectinload(models.Room.beds).selectinload(models.Bed.resident))
+        .order_by(models.Room.room_number)
     )
     rooms = result.scalars().all()
-    return rooms
+
+    output = []
+    for room in rooms:
+        occupied_count = sum(1 for b in room.beds if b.resident and b.resident.status == "active")
+        reserved_count = sum(1 for b in room.beds if b.resident and b.resident.status == "reserved")
+        available_count = len(room.beds) - occupied_count - reserved_count
+
+        rates = [b.rate_per_bed for b in room.beds if b.rate_per_bed is not None]
+        min_rate = min(rates) if rates else None
+        max_rate = max(rates) if rates else None
+
+        room_data = schemas.RoomWithBedsOut(
+            id=room.id,
+            room_number=room.room_number,
+            display_room_number=room.display_room_number,
+            property_code=room.property_code,
+            building=room.building,
+            capacity=room.capacity,
+            status=room.status,
+            beds=[
+                schemas.BedOut(
+                    id=bed.id,
+                    bed_code=bed.bed_code,
+                    bed_number=bed.bed_number,
+                    bed_type=bed.bed_type,
+                    rate_per_bed=bed.rate_per_bed,
+                    status=bed.status,
+                    resident=schemas.ResidentMiniOut(
+                        id=bed.resident.id,
+                        full_name=bed.resident.full_name,
+                        status=bed.resident.status
+                    ) if bed.resident else None
+                )
+                for bed in room.beds
+            ],
+            occupied_count=occupied_count,
+            reserved_count=reserved_count,
+            available_count=available_count,
+            min_rate=min_rate,
+            max_rate=max_rate,
+        )
+        output.append(room_data)
+
+    return output
+
+
+@router.get("/rooms/{room_id}/tenants", response_model=list[schemas.BedOut])
+async def get_room_tenants(room_id: UUID, db: AsyncSession = Depends(get_db)):
+    result = await db.execute(
+        select(models.Bed)
+        .where(models.Bed.room_id == room_id)
+        .options(selectinload(models.Bed.resident))
+        .order_by(models.Bed.bed_number)
+    )
+    beds = result.scalars().all()
+    if not beds:
+        raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail="Room not found")
+    return [
+        schemas.BedOut(
+            id=bed.id,
+            bed_code=bed.bed_code,
+            bed_number=bed.bed_number,
+            bed_type=bed.bed_type,
+            rate_per_bed=bed.rate_per_bed,
+            status=bed.status,
+            resident=schemas.ResidentMiniOut(
+                id=bed.resident.id,
+                full_name=bed.resident.full_name,
+                status=bed.resident.status
+            ) if bed.resident else None
+        )
+        for bed in beds
+    ]

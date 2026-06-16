@@ -1,0 +1,40 @@
+{
+  "pptxFile": "./slides.html",
+  "outputDir": "./video-output",
+  "voice": {
+    "name": "en-US-AndrewMultilingualNeural",
+    "rate": "-5%"
+  },
+  "slides": [
+    {
+      "voiceover": "Welcome to DormTel. My Dorm, My Home. Today we'll walk you through our dormitory operations automation platform. DormTel eliminates manual processes and gives dormitory owners complete visibility into their business, from first inquiry to final move-out."
+    },
+    {
+      "voiceover": "If you're managing a dormitory today, you know the chaos. Inquiries are scattered across Facebook, Instagram, TikTok, and walk-ins. Billing calculations are done in spreadsheets, prone to errors. Payment reconciliation from GCash, Maya, and bank transfers is a nightmare. There's no real-time visibility into occupancy or revenue. And move-out processes get lost in paperwork and chat threads."
+    },
+    {
+      "voiceover": "DormTel solves all of this with five integrated modules that cover your entire workflow. Module one handles Inquiry Management across all channels. Module two provides Digital Onboarding from reservation to move-in. Module three automates your Billing calculations. Module four handles Payment Reconciliation in real time. And module five manages the entire Move-Out Processing pipeline."
+    },
+    {
+      "voiceover": "Let's start with the Operations Dashboard. At a glance, you can see today's revenue of thirty-six thousand eight hundred pesos from five transactions. Six new inquiries awaiting response. Eighteen total reservations across all buildings. Four pending bills needing manager approval. Three scheduled move-ins coming up. And two active move-outs in progress. Quick action buttons let you jump directly to any task."
+    },
+    {
+      "voiceover": "Module one is Inquiry Management. DormTel captures leads from every channel — Facebook, Instagram, TikTok, walk-ins, and phone calls. Each inquiry is automatically scored. Sentiment analysis rates the tone from zero to one. Lead scoring from zero to one hundred prioritizes who to follow up with first. The pipeline tracks each inquiry from New, to Responded, to Escalated, to Converted into a paying resident."
+    },
+    {
+      "voiceover": "Module two is Digital Onboarding. Turn an inquiry into a move-in within minutes. Our smart room search lets you type to filter across twenty-five rooms in three buildings — Tower A, Tower B, and Tower C. The reservation form includes government ID verification. Once submitted, the system automatically generates a payment link for GCash or Maya. And when payment is confirmed, one click activates the move-in."
+    },
+    {
+      "voiceover": "Module three is Automated Billing. Say goodbye to spreadsheet errors. Staff submit meter readings per building, and the system auto-calculates each resident's share: rent plus electric plus water plus other charges. A built-in approval workflow ensures manager sign-off before distribution. And variance detection flags any consumption anomalies for review, catching issues before bills go out."
+    },
+    {
+      "voiceover": "Module four is Payment Reconciliation. Every peso is accounted for. DormTel supports GCash, Maya, bank transfers, and cash payments. Webhooks capture real-time payments instantly. The Daily Sales Report shows today's total — thirty-six thousand eight hundred pesos across five transactions. Payments are auto-matched to resident billings, and any unmatched payments are flagged for manual reconciliation."
+    },
+    {
+      "voiceover": "Module five is Move-Out Processing. When a resident needs to leave, the structured workflow ensures nothing falls through the cracks. It starts with a formal request, then clearance generation for room inspection. Final billing is computed with prorated charges. Any refund due is processed and tracked. And every step is logged in a complete audit trail for your records."
+    },
+    {
+      "voiceover": "DormTel is ready to automate your dormitory. The platform currently manages twenty-five rooms, eighteen active residents, twelve live inquiries, across five fully integrated modules. Visit dormtel dot quriosity dot cloud to explore the live demo in your browser. Thank you for watching, and we look forward to helping you transform your dormitory operations."
+    }
+  ]
+}

@@ -1,0 +1,99 @@
+[Script Info]
+Title: Auto-generated karaoke captions
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H0000D6FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,3,2,0,2,40,40,50,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.00,0:00:02.40,Default,,0,0,0,,{\kf38}Welcome{\kf0} {\kf22}to{\kf0} {\kf54}DormTell.{\kf0} {\kf14}My{\kf0} {\kf16}dorm{\kf0} {\kf24}my{\kf0} {\kf24}home.
+Dialogue: 0,0:00:02.90,0:00:05.08,Default,,0,0,0,,{\kf16}Today{\kf0} {\kf24}we'll{\kf0} {\kf26}walk{\kf0} {\kf24}you{\kf0} {\kf40}through{\kf0} {\kf18}our{\kf0} {\kf70}dormitory
+Dialogue: 0,0:00:05.08,0:00:09.50,Default,,0,0,0,,{\kf66}operations{\kf0} {\kf74}automation{\kf0} {\kf76}platform.{\kf0} {\kf46}DormTell{\kf0} {\kf50}eliminates{\kf0} {\kf68}manual
+Dialogue: 0,0:00:09.50,0:00:13.42,Default,,0,0,0,,{\kf60}processes{\kf0} {\kf62}and{\kf0} {\kf26}gives{\kf0} {\kf76}dormitory{\kf0} {\kf30}owners{\kf0} {\kf54}complete{\kf0} {\kf84}visibility
+Dialogue: 0,0:00:13.42,0:00:16.66,Default,,0,0,0,,{\kf48}into{\kf0} {\kf18}their{\kf0} {\kf42}business{\kf0} {\kf74}from{\kf0} {\kf40}first{\kf0} {\kf44}inquiry{\kf0} {\kf58}to
+Dialogue: 0,0:00:16.66,0:00:17.54,Default,,0,0,0,,{\kf34}final{\kf0} {\kf22}move{\kf0} {\kf32}out.
+Dialogue: 0,0:00:19.64,0:00:21.82,Default,,0,0,0,,{\kf6}If{\kf0} {\kf8}you're{\kf0} {\kf36}managing{\kf0} {\kf16}a{\kf0} {\kf62}dormitory{\kf0} {\kf32}today,{\kf0} {\kf16}you
+Dialogue: 0,0:00:21.82,0:00:24.84,Default,,0,0,0,,{\kf14}know{\kf0} {\kf16}the{\kf0} {\kf36}chaos.{\kf0} {\kf48}Inquiries{\kf0} {\kf18}are{\kf0} {\kf50}scattered{\kf0} {\kf38}across
+Dialogue: 0,0:00:24.84,0:00:28.88,Default,,0,0,0,,{\kf62}Facebook,{\kf0} {\kf46}Instagram,{\kf0} {\kf34}TikTok,{\kf0} {\kf4}and{\kf0} {\kf50}Walkins.{\kf0} {\kf20}Billing
+Dialogue: 0,0:00:28.88,0:00:31.56,Default,,0,0,0,,{\kf42}calculations{\kf0} {\kf32}are{\kf0} {\kf22}done{\kf0} {\kf14}in{\kf0} {\kf84}spreadsheets,{\kf0} {\kf12}prone{\kf0} {\kf18}to
+Dialogue: 0,0:00:31.56,0:00:35.50,Default,,0,0,0,,{\kf26}errors,{\kf0} {\kf24}payment{\kf0} {\kf72}reconciliation{\kf0} {\kf48}from{\kf0} {\kf24}G{\kf0} {\kf56}-Cache,{\kf0} {\kf28}Maya,
+Dialogue: 0,0:00:36.02,0:00:38.82,Default,,0,0,0,,{\kf10}and{\kf0} {\kf30}bank{\kf0} {\kf50}transfers{\kf0} {\kf56}is{\kf0} {\kf8}a{\kf0} {\kf36}nightmare.{\kf0} {\kf30}There's
+Dialogue: 0,0:00:38.82,0:00:42.18,Default,,0,0,0,,{\kf18}no{\kf0} {\kf28}real{\kf0} {\kf32}-time{\kf0} {\kf64}visibility{\kf0} {\kf54}into{\kf0} {\kf76}occupancy{\kf0} {\kf64}or
+Dialogue: 0,0:00:42.18,0:00:44.96,Default,,0,0,0,,{\kf42}revenue{\kf0} {\kf64}and{\kf0} {\kf24}move{\kf0} {\kf22}out{\kf0} {\kf58}processes{\kf0} {\kf28}get{\kf0} {\kf40}lost
+Dialogue: 0,0:00:44.96,0:00:46.92,Default,,0,0,0,,{\kf28}in{\kf0} {\kf44}paperwork{\kf0} {\kf50}and{\kf0} {\kf32}chat{\kf0} {\kf42}threads.
+Dialogue: 0,0:00:49.16,0:00:52.24,Default,,0,0,0,,{\kf72}DormTell{\kf0} {\kf76}solves{\kf0} {\kf40}all{\kf0} {\kf18}of{\kf0} {\kf22}this{\kf0} {\kf22}with{\kf0} {\kf58}five
+Dialogue: 0,0:00:52.24,0:00:55.14,Default,,0,0,0,,{\kf64}integrated{\kf0} {\kf46}modules{\kf0} {\kf38}that{\kf0} {\kf24}cover{\kf0} {\kf22}your{\kf0} {\kf36}entire{\kf0} {\kf60}workflow.
+Dialogue: 0,0:00:55.64,0:00:59.80,Default,,0,0,0,,{\kf54}Module{\kf0} {\kf64}one{\kf0} {\kf48}handles{\kf0} {\kf80}inquiry{\kf0} {\kf72}management{\kf0} {\kf42}across{\kf0} {\kf56}all
+Dialogue: 0,0:00:59.80,0:01:04.34,Default,,0,0,0,,{\kf44}channels.{\kf0} {\kf64}Module{\kf0} {\kf44}two{\kf0} {\kf60}provides{\kf0} {\kf72}digital{\kf0} {\kf100}onboarding{\kf0} {\kf36}from
+Dialogue: 0,0:01:04.34,0:01:08.06,Default,,0,0,0,,{\kf46}reservation{\kf0} {\kf56}to{\kf0} {\kf26}move{\kf0} {\kf26}in.{\kf0} {\kf26}Module{\kf0} {\kf62}three{\kf0} {\kf80}automates
+Dialogue: 0,0:01:08.06,0:01:12.20,Default,,0,0,0,,{\kf50}your{\kf0} {\kf40}billing{\kf0} {\kf68}calculations.{\kf0} {\kf52}Module{\kf0} {\kf58}four{\kf0} {\kf38}handles{\kf0} {\kf44}payment
+Dialogue: 0,0:01:12.20,0:01:16.02,Default,,0,0,0,,{\kf58}reconciliation{\kf0} {\kf82}in{\kf0} {\kf24}real{\kf0} {\kf38}-time{\kf0} {\kf60}and{\kf0} {\kf50}Module{\kf0} {\kf70}five
+Dialogue: 0,0:01:16.02,0:01:19.16,Default,,0,0,0,,{\kf48}manages{\kf0} {\kf30}the{\kf0} {\kf60}entire{\kf0} {\kf30}move{\kf0} {\kf28}out{\kf0} {\kf60}processing{\kf0} {\kf58}pipeline.
+Dialogue: 0,0:01:21.10,0:01:23.79,Default,,0,0,0,,{\kf52}Let's{\kf0} {\kf18}start{\kf0} {\kf20}with{\kf0} {\kf10}the{\kf0} {\kf52}operations{\kf0} {\kf54}dashboard.{\kf0} {\kf12}At
+Dialogue: 0,0:01:23.79,0:01:26.13,Default,,0,0,0,,{\kf6}a{\kf0} {\kf40}glance,{\kf0} {\kf62}you{\kf0} {\kf12}can{\kf0} {\kf24}see{\kf0} {\kf50}today's{\kf0} {\kf40}revenue
+Dialogue: 0,0:01:26.13,0:01:30.19,Default,,0,0,0,,{\kf28}of{\kf0} {\kf66}36{\kf0} {\kf114},800{\kf0} {\kf66}pesos{\kf0} {\kf30}from{\kf0} {\kf36}five{\kf0} {\kf66}transactions,
+Dialogue: 0,0:01:30.87,0:01:34.43,Default,,0,0,0,,{\kf26}six{\kf0} {\kf24}new{\kf0} {\kf48}inquiries{\kf0} {\kf44}awaiting{\kf0} {\kf46}response,{\kf0} {\kf30}18{\kf0} {\kf56}total
+Dialogue: 0,0:01:34.43,0:01:38.41,Default,,0,0,0,,{\kf66}reservations{\kf0} {\kf78}across{\kf0} {\kf62}all{\kf0} {\kf44}buildings,{\kf0} {\kf26}for{\kf0} {\kf24}pending{\kf0} {\kf40}bills
+Dialogue: 0,0:01:38.41,0:01:41.73,Default,,0,0,0,,{\kf52}needing{\kf0} {\kf54}manager{\kf0} {\kf44}approval,{\kf0} {\kf24}three{\kf0} {\kf40}scheduled{\kf0} {\kf30}move{\kf0} {\kf34}-ins
+Dialogue: 0,0:01:41.73,0:01:44.15,Default,,0,0,0,,{\kf44}coming{\kf0} {\kf30}up,{\kf0} {\kf22}and{\kf0} {\kf30}two{\kf0} {\kf28}active{\kf0} {\kf24}move{\kf0} {\kf26}-outs
+Dialogue: 0,0:01:44.15,0:01:46.65,Default,,0,0,0,,{\kf20}in{\kf0} {\kf40}progress.{\kf0} {\kf14}Quick{\kf0} {\kf34}action{\kf0} {\kf30}buttons{\kf0} {\kf22}let{\kf0} {\kf10}you
+Dialogue: 0,0:01:46.65,0:01:48.91,Default,,0,0,0,,{\kf26}jump{\kf0} {\kf56}directly{\kf0} {\kf60}to{\kf0} {\kf30}any{\kf0} {\kf54}task.
+Dialogue: 0,0:01:51.13,0:01:54.81,Default,,0,0,0,,{\kf30}Module{\kf0} {\kf36}one{\kf0} {\kf48}is{\kf0} {\kf42}inquiry{\kf0} {\kf66}management.{\kf0} {\kf40}DormTell{\kf0} {\kf46}captures
+Dialogue: 0,0:01:54.81,0:01:58.95,Default,,0,0,0,,{\kf36}leads{\kf0} {\kf28}from{\kf0} {\kf42}every{\kf0} {\kf46}channel,{\kf0} {\kf48}Facebook,{\kf0} {\kf42}Instagram,{\kf0} {\kf24}TikTok,
+Dialogue: 0,0:01:59.61,0:02:02.31,Default,,0,0,0,,{\kf12}walk{\kf0} {\kf32}-ins,{\kf0} {\kf4}and{\kf0} {\kf28}phone{\kf0} {\kf32}calls.{\kf0} {\kf18}Each{\kf0} {\kf46}inquiry
+Dialogue: 0,0:02:02.31,0:02:06.11,Default,,0,0,0,,{\kf62}is{\kf0} {\kf58}automatically{\kf0} {\kf54}scored.{\kf0} {\kf28}Sentiment{\kf0} {\kf50}analysis{\kf0} {\kf42}rates{\kf0} {\kf24}the
+Dialogue: 0,0:02:06.11,0:02:09.09,Default,,0,0,0,,{\kf34}tone{\kf0} {\kf58}from{\kf0} {\kf46}zero{\kf0} {\kf28}to{\kf0} {\kf32}one.{\kf0} {\kf24}Let's{\kf0} {\kf22}scoring
+Dialogue: 0,0:02:09.09,0:02:12.03,Default,,0,0,0,,{\kf24}from{\kf0} {\kf38}zero{\kf0} {\kf36}to{\kf0} {\kf46}100{\kf0} {\kf108}prioritizes{\kf0} {\kf32}who{\kf0} {\kf10}to
+Dialogue: 0,0:02:12.03,0:02:14.83,Default,,0,0,0,,{\kf36}follow{\kf0} {\kf32}up{\kf0} {\kf14}with{\kf0} {\kf42}first.{\kf0} {\kf8}The{\kf0} {\kf38}pipeline{\kf0} {\kf46}tracks
+Dialogue: 0,0:02:14.83,0:02:18.91,Default,,0,0,0,,{\kf72}each{\kf0} {\kf68}inquiry{\kf0} {\kf46}from{\kf0} {\kf36}new{\kf0} {\kf58}to{\kf0} {\kf62}responded,{\kf0} {\kf12}to
+Dialogue: 0,0:02:18.91,0:02:21.81,Default,,0,0,0,,{\kf72}escalated,{\kf0} {\kf10}to{\kf0} {\kf40}converted{\kf0} {\kf42}into{\kf0} {\kf18}a{\kf0} {\kf28}paying{\kf0} {\kf48}resident.
+Dialogue: 0,0:02:23.83,0:02:26.81,Default,,0,0,0,,{\kf40}Module{\kf0} {\kf38}two{\kf0} {\kf48}is{\kf0} {\kf36}digital{\kf0} {\kf60}onboarding.{\kf0} {\kf56}Turn{\kf0} {\kf20}an
+Dialogue: 0,0:02:26.81,0:02:29.43,Default,,0,0,0,,{\kf42}inquiry{\kf0} {\kf82}into{\kf0} {\kf16}a{\kf0} {\kf22}move{\kf0} {\kf24}-in{\kf0} {\kf32}within{\kf0} {\kf44}minutes.
+Dialogue: 0,0:02:29.75,0:02:31.57,Default,,0,0,0,,{\kf40}Our{\kf0} {\kf26}smart{\kf0} {\kf26}room{\kf0} {\kf40}search{\kf0} {\kf12}lets{\kf0} {\kf14}you{\kf0} {\kf24}type
+Dialogue: 0,0:02:31.57,0:02:34.49,Default,,0,0,0,,{\kf18}to{\kf0} {\kf40}filter{\kf0} {\kf40}across{\kf0} {\kf72}25{\kf0} {\kf48}rooms{\kf0} {\kf30}in{\kf0} {\kf44}three
+Dialogue: 0,0:02:34.49,0:02:38.09,Default,,0,0,0,,{\kf48}buildings.{\kf0} {\kf24}Tower{\kf0} {\kf50}A,{\kf0} {\kf18}Tower{\kf0} {\kf26}B,{\kf0} {\kf32}and{\kf0} {\kf26}Tower
+Dialogue: 0,0:02:38.09,0:02:41.73,Default,,0,0,0,,{\kf28}C.{\kf0} {\kf20}The{\kf0} {\kf40}reservation{\kf0} {\kf62}form{\kf0} {\kf58}includes{\kf0} {\kf60}government{\kf0} {\kf52}ID
+Dialogue: 0,0:02:41.73,0:02:45.39,Default,,0,0,0,,{\kf68}verification.{\kf0} {\kf30}Once{\kf0} {\kf52}submitted,{\kf0} {\kf6}the{\kf0} {\kf36}system{\kf0} {\kf74}automatically
+Dialogue: 0,0:02:45.39,0:02:47.97,Default,,0,0,0,,{\kf54}generates{\kf0} {\kf18}a{\kf0} {\kf32}payment{\kf0} {\kf40}link{\kf0} {\kf34}for{\kf0} {\kf26}G{\kf0} {\kf54}-Cache
+Dialogue: 0,0:02:47.97,0:02:50.61,Default,,0,0,0,,{\kf34}or{\kf0} {\kf38}Maya.{\kf0} {\kf12}And{\kf0} {\kf12}when{\kf0} {\kf36}payment{\kf0} {\kf20}is{\kf0} {\kf58}confirmed,
+Dialogue: 0,0:02:51.03,0:02:52.91,Default,,0,0,0,,{\kf26}one{\kf0} {\kf30}click{\kf0} {\kf56}activates{\kf0} {\kf30}the{\kf0} {\kf26}move{\kf0} {\kf20}-in.
+Dialogue: 0,0:02:54.93,0:02:58.23,Default,,0,0,0,,{\kf32}Module{\kf0} {\kf50}three{\kf0} {\kf50}is{\kf0} {\kf58}automated{\kf0} {\kf48}billing.{\kf0} {\kf10}Say{\kf0} {\kf28}goodbye
+Dialogue: 0,0:02:58.23,0:03:01.55,Default,,0,0,0,,{\kf26}to{\kf0} {\kf46}spreadsheet{\kf0} {\kf48}errors.{\kf0} {\kf36}Staff{\kf0} {\kf48}submit{\kf0} {\kf42}meter{\kf0} {\kf36}readings
+Dialogue: 0,0:03:01.55,0:03:04.43,Default,,0,0,0,,{\kf26}per{\kf0} {\kf38}building,{\kf0} {\kf28}and{\kf0} {\kf8}the{\kf0} {\kf36}system{\kf0} {\kf38}auto{\kf0} {\kf80}calculates
+Dialogue: 0,0:03:04.43,0:03:07.51,Default,,0,0,0,,{\kf32}each{\kf0} {\kf64}resident's{\kf0} {\kf14}share.{\kf0} {\kf18}Rent{\kf0} {\kf24}plus{\kf0} {\kf50}electric{\kf0} {\kf38}plus
+Dialogue: 0,0:03:07.51,0:03:10.29,Default,,0,0,0,,{\kf38}water{\kf0} {\kf30}plus{\kf0} {\kf48}other{\kf0} {\kf42}charges.{\kf0} {\kf10}A{\kf0} {\kf20}built{\kf0} {\kf22}-in
+Dialogue: 0,0:03:10.29,0:03:14.11,Default,,0,0,0,,{\kf48}approval{\kf0} {\kf70}workflow{\kf0} {\kf66}ensures{\kf0} {\kf58}manager{\kf0} {\kf40}sign{\kf0} {\kf34}-off{\kf0} {\kf66}before
+Dialogue: 0,0:03:14.11,0:03:18.13,Default,,0,0,0,,{\kf74}distribution.{\kf0} {\kf12}And{\kf0} {\kf40}variance{\kf0} {\kf54}detection{\kf0} {\kf44}flags,{\kf0} {\kf16}any{\kf0} {\kf58}consumption
+Dialogue: 0,0:03:18.13,0:03:21.75,Default,,0,0,0,,{\kf70}anomalies{\kf0} {\kf20}for{\kf0} {\kf34}review.{\kf0} {\kf44}Catching{\kf0} {\kf34}issues{\kf0} {\kf50}before{\kf0} {\kf46}bills
+Dialogue: 0,0:03:21.75,0:03:22.37,Default,,0,0,0,,{\kf26}go{\kf0} {\kf36}out.
+Dialogue: 0,0:03:24.26,0:03:28.37,Default,,0,0,0,,{\kf47}Module{\kf0} {\kf48}four{\kf0} {\kf54}is{\kf0} {\kf42}payment{\kf0} {\kf66}reconciliation.{\kf0} {\kf20}Every{\kf0} {\kf56}payso
+Dialogue: 0,0:03:28.37,0:03:32.07,Default,,0,0,0,,{\kf40}is{\kf0} {\kf38}accounted{\kf0} {\kf40}for.{\kf0} {\kf46}Dormtel{\kf0} {\kf54}supports{\kf0} {\kf34}G{\kf0} {\kf60}-Cache,
+Dialogue: 0,0:03:32.63,0:03:36.51,Default,,0,0,0,,{\kf34}Maya,{\kf0} {\kf10}bank{\kf0} {\kf48}transfers,{\kf0} {\kf26}and{\kf0} {\kf34}cash{\kf0} {\kf36}payments.{\kf0} {\kf40}Webhooks
+Dialogue: 0,0:03:36.51,0:03:39.73,Default,,0,0,0,,{\kf44}capture{\kf0} {\kf46}real{\kf0} {\kf28}-time{\kf0} {\kf44}payments{\kf0} {\kf72}instantly.{\kf0} {\kf8}The{\kf0} {\kf22}Daily
+Dialogue: 0,0:03:39.73,0:03:44.79,Default,,0,0,0,,{\kf26}Sales{\kf0} {\kf48}Report{\kf0} {\kf68}shows{\kf0} {\kf94}today's{\kf0} {\kf36}total.{\kf0} {\kf46}36{\kf0} {\kf136},800
+Dialogue: 0,0:03:44.79,0:03:48.85,Default,,0,0,0,,{\kf60}pesos{\kf0} {\kf58}across{\kf0} {\kf60}five{\kf0} {\kf68}transactions.{\kf0} {\kf48}Payments{\kf0} {\kf20}are{\kf0} {\kf36}auto
+Dialogue: 0,0:03:48.85,0:03:51.99,Default,,0,0,0,,{\kf40}-matched{\kf0} {\kf22}to{\kf0} {\kf40}resident{\kf0} {\kf40}buildings,{\kf0} {\kf28}and{\kf0} {\kf38}any{\kf0} {\kf60}unmatched
+Dialogue: 0,0:03:51.99,0:03:54.61,Default,,0,0,0,,{\kf36}payments{\kf0} {\kf20}are{\kf0} {\kf70}flagged{\kf0} {\kf10}for{\kf0} {\kf44}manual{\kf0} {\kf82}reconciliation.
+Dialogue: 0,0:03:56.73,0:03:59.89,Default,,0,0,0,,{\kf34}Module{\kf0} {\kf56}five{\kf0} {\kf44}is{\kf0} {\kf32}move{\kf0} {\kf22}-out{\kf0} {\kf60}processing.{\kf0} {\kf18}When
+Dialogue: 0,0:03:59.89,0:04:02.67,Default,,0,0,0,,{\kf12}a{\kf0} {\kf44}resident{\kf0} {\kf48}needs{\kf0} {\kf26}to{\kf0} {\kf36}leave,{\kf0} {\kf10}the{\kf0} {\kf40}structured
+Dialogue: 0,0:04:02.67,0:04:05.89,Default,,0,0,0,,{\kf64}workflow{\kf0} {\kf70}ensures{\kf0} {\kf60}nothing{\kf0} {\kf60}falls{\kf0} {\kf28}through{\kf0} {\kf14}the{\kf0} {\kf26}cracks.
+Dialogue: 0,0:04:06.61,0:04:08.97,Default,,0,0,0,,{\kf16}It{\kf0} {\kf24}starts{\kf0} {\kf20}with{\kf0} {\kf10}a{\kf0} {\kf40}formal{\kf0} {\kf50}request,{\kf0} {\kf24}then
+Dialogue: 0,0:04:08.97,0:04:12.45,Default,,0,0,0,,{\kf50}clearance{\kf0} {\kf72}generation{\kf0} {\kf22}for{\kf0} {\kf24}room{\kf0} {\kf50}inspection.{\kf0} {\kf38}Final{\kf0} {\kf36}billing
+Dialogue: 0,0:04:12.45,0:04:16.23,Default,,0,0,0,,{\kf38}is{\kf0} {\kf56}computed{\kf0} {\kf40}with{\kf0} {\kf80}charges.{\kf0} {\kf28}Any{\kf0} {\kf40}refund{\kf0} {\kf34}due
+Dialogue: 0,0:04:16.23,0:04:19.33,Default,,0,0,0,,{\kf32}is{\kf0} {\kf52}processed{\kf0} {\kf36}and{\kf0} {\kf46}tracked,{\kf0} {\kf24}and{\kf0} {\kf38}every{\kf0} {\kf40}step
+Dialogue: 0,0:04:19.33,0:04:21.93,Default,,0,0,0,,{\kf44}is{\kf0} {\kf40}logged{\kf0} {\kf44}in{\kf0} {\kf6}a{\kf0} {\kf40}complete{\kf0} {\kf42}audit{\kf0} {\kf44}trail
+Dialogue: 0,0:04:21.93,0:04:22.81,Default,,0,0,0,,{\kf40}for{\kf0} {\kf12}your{\kf0} {\kf36}records.
+Dialogue: 0,0:04:25.14,0:04:27.98,Default,,0,0,0,,{\kf50}Dormtel{\kf0} {\kf26}is{\kf0} {\kf24}ready{\kf0} {\kf24}to{\kf0} {\kf50}automate{\kf0} {\kf32}your{\kf0} {\kf78}dormitory.
+Dialogue: 0,0:04:28.44,0:04:32.22,Default,,0,0,0,,{\kf10}The{\kf0} {\kf40}platform{\kf0} {\kf52}currently{\kf0} {\kf56}manages{\kf0} {\kf84}25{\kf0} {\kf58}rooms,{\kf0} {\kf28}18
+Dialogue: 0,0:04:32.22,0:04:36.60,Default,,0,0,0,,{\kf42}active{\kf0} {\kf42}residents,{\kf0} {\kf20}12{\kf0} {\kf46}live{\kf0} {\kf76}inquiries{\kf0} {\kf78}across{\kf0} {\kf72}five
+Dialogue: 0,0:04:36.60,0:04:41.86,Default,,0,0,0,,{\kf58}fully{\kf0} {\kf50}integrated{\kf0} {\kf52}modules.{\kf0} {\kf32}Visit{\kf0} {\kf88}dormtel{\kf0} {\kf98}.curiosity{\kf0} {\kf74}.cloud
+Dialogue: 0,0:04:41.86,0:04:44.26,Default,,0,0,0,,{\kf48}to{\kf0} {\kf52}explore{\kf0} {\kf18}the{\kf0} {\kf38}live{\kf0} {\kf44}demo{\kf0} {\kf30}in{\kf0} {\kf10}your
+Dialogue: 0,0:04:44.26,0:04:46.92,Default,,0,0,0,,{\kf34}browser.{\kf0} {\kf32}Thank{\kf0} {\kf20}you{\kf0} {\kf14}for{\kf0} {\kf42}watching,{\kf0} {\kf24}and{\kf0} {\kf14}we
+Dialogue: 0,0:04:46.92,0:04:48.84,Default,,0,0,0,,{\kf14}look{\kf0} {\kf40}forward{\kf0} {\kf14}to{\kf0} {\kf22}helping{\kf0} {\kf18}you{\kf0} {\kf58}transform{\kf0} {\kf26}your
+Dialogue: 0,0:04:48.84,0:04:49.94,Default,,0,0,0,,{\kf54}dormitory{\kf0} {\kf56}operations.

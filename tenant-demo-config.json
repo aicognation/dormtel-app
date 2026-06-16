@@ -1,0 +1,173 @@
+{
+  "appName": "DormTel Tenant Portal",
+  "appUrl": "https://dormtel.bayanaihan.net/tenant",
+  "outputDir": "./tenant-demo-output",
+  "viewport": { "width": 390, "height": 844 },
+  "auth": {
+    "loginUrl": "https://dormtel.bayanaihan.net/tenant/login",
+    "steps": [
+      { "action": "wait", "delay": 2000 },
+      { "action": "type", "selector": "input[type=\"email\"]", "value": "juan.delacruz@email.com" },
+      { "action": "click", "selector": "button[type=\"submit\"]" },
+      { "action": "wait", "delay": 3000 }
+    ]
+  },
+  "voice": {
+    "name": "en-US-AndrewMultilingualNeural",
+    "rate": "-5%"
+  },
+  "theme": {
+    "primary": "#3b82f6",
+    "accent": "#60a5fa",
+    "dark": "#0f172a",
+    "logoMark": "DT",
+    "fontHeading": "Inter",
+    "fontBody": "Inter"
+  },
+  "slides": [
+    {
+      "type": "title",
+      "title": "DormTel Tenant Portal",
+      "subtitle": "Self-Service Resident App",
+      "tagline": "Your dorm, in your hands.",
+      "badges": ["Mobile-First", "Real-Time Billing", "Online Payments", "Maintenance Requests"],
+      "voiceover": "Welcome to the DormTel Tenant Portal — a fully mobile-first self-service app that puts every resident in control of their dormitory experience. From paying bills to reporting maintenance issues, everything is just a tap away."
+    },
+    {
+      "type": "content",
+      "title": "The Problem",
+      "category": "Context",
+      "screenshotFile": "screenshots/01-the-problem.png",
+      "caption": "Residents lack visibility, payments are manual, and maintenance requests get lost.",
+      "voiceover": "Managing dorm life has always been a hassle. Residents have no visibility into their bills, payments require physical visits, and maintenance requests often fall through the cracks. Admins spend hours answering the same questions over and over."
+    },
+    {
+      "type": "content",
+      "title": "The Solution",
+      "category": "Overview",
+      "screenshotFile": "screenshots/02-the-solution.png",
+      "caption": "A mobile-first self-service portal that empowers every resident.",
+      "voiceover": "DormTel's Tenant Portal solves all of this. Built as a mobile-first progressive web app, residents can log in with just their email, check their balance, pay bills, and file maintenance requests — all without ever calling the admin."
+    },
+    {
+      "type": "content",
+      "title": "Easy Login",
+      "category": "Authentication",
+      "route": "/login",
+      "delay": 2000,
+      "caption": "<strong>No password needed</strong> — just enter your registered email to access your portal instantly.",
+      "voiceover": "Logging in is effortless. Residents simply enter their registered email address and gain instant access to their personal portal. No passwords to forget, no accounts to create."
+    },
+    {
+      "type": "content",
+      "title": "Dashboard",
+      "category": "Home",
+      "route": "/dashboard",
+      "delay": 3000,
+      "caption": "<strong>At a glance:</strong> outstanding balance, billing stats, service request status, and announcements.",
+      "voiceover": "The dashboard is the heart of the portal. Juan can see his outstanding balance, how many bills are pending or paid, how many service requests he's submitted, and the latest announcements — all on a single screen."
+    },
+    {
+      "type": "content",
+      "title": "Announcements Feed",
+      "category": "Home",
+      "route": "/dashboard",
+      "delay": 4000,
+      "caption": "<strong>Stay informed</strong> with real-time announcements from building management.",
+      "voiceover": "The announcements feed keeps residents informed about maintenance schedules, WiFi password changes, fire drills, and billing reminders — pushed directly by building management in real time."
+    },
+    {
+      "type": "content",
+      "title": "Current Bill",
+      "category": "Billing",
+      "route": "/bills",
+      "delay": 3000,
+      "caption": "<strong>Transparent billing</strong> — see every charge itemized: rent, electricity, water, and extras.",
+      "voiceover": "The billing page shows a full breakdown of the current month's charges — monthly rent, electricity, water, internet, and any additional fees — completely transparent so residents always know exactly what they're paying for."
+    },
+    {
+      "type": "content",
+      "title": "Billing History",
+      "category": "Billing",
+      "route": "/bills",
+      "delay": 4500,
+      "caption": "<strong>Full billing history</strong> — browse and expand past billing periods.",
+      "voiceover": "Residents can scroll through their complete billing history, expanding any past period to see the detailed breakdown. No more digging through old messages to find a past bill."
+    },
+    {
+      "type": "content",
+      "title": "Online Payment",
+      "category": "Payments",
+      "route": "/pay",
+      "delay": 3000,
+      "caption": "<strong>Pay your way</strong> — choose GCash, Maya, or bank transfer in seconds.",
+      "voiceover": "The payment page lets residents choose their preferred payment method — GCash, Maya, or direct bank transfer. The outstanding amount is pre-filled, making the process fast and error-free."
+    },
+    {
+      "type": "content",
+      "title": "Payment History",
+      "category": "Payments",
+      "route": "/pay",
+      "delay": 5000,
+      "caption": "<strong>Every payment logged</strong> — with timestamps, amounts, and reference numbers.",
+      "voiceover": "After submitting, a payment receipt is generated immediately with a unique reference number. All past payments are stored in the payment history, giving residents a clear audit trail of every transaction."
+    },
+    {
+      "type": "content",
+      "title": "Service Requests",
+      "category": "Maintenance",
+      "route": "/requests",
+      "delay": 3000,
+      "caption": "<strong>Report issues by category</strong> — aircon, plumbing, electrical, WiFi, pest control, and more.",
+      "voiceover": "Filing a maintenance request is as easy as tapping a category icon. Whether it's a broken aircon, leaking faucet, or WiFi issue, residents can submit detailed requests with location and priority — right from their phone."
+    },
+    {
+      "type": "content",
+      "title": "Request Tracking",
+      "category": "Maintenance",
+      "route": "/requests",
+      "delay": 5000,
+      "caption": "<strong>Track every request</strong> — from submitted, to in-progress, to resolved with notes.",
+      "voiceover": "Once submitted, residents can track the status of every request — from acknowledged to in-progress to resolved. When the admin adds resolution notes, they appear directly in the request card."
+    },
+    {
+      "type": "content",
+      "title": "Move-Out Scheduling",
+      "category": "Move-Out",
+      "route": "/moveout",
+      "delay": 3000,
+      "caption": "<strong>Plan your departure</strong> — schedule move-out date, provide reason and forwarding contact.",
+      "voiceover": "When it's time to leave, residents can schedule their move-out directly from the portal. They specify their intended move-out date, the reason for leaving, and a forwarding contact for deposit refund coordination."
+    },
+    {
+      "type": "content",
+      "title": "My Profile",
+      "category": "Profile",
+      "route": "/profile",
+      "delay": 3000,
+      "caption": "<strong>All your details</strong> — room assignment, bed code, contract dates, and current balance.",
+      "voiceover": "The profile page displays the resident's full details — name, contact info, room and bed assignment, move-in date, contract end date, and current ledger balance. Everything in one place."
+    },
+    {
+      "type": "content",
+      "title": "Architecture",
+      "category": "Technical",
+      "screenshotFile": "screenshots/14-architecture.png",
+      "caption": "React 18 + FastAPI + PostgreSQL — containerized with Docker, deployed on VPS.",
+      "voiceover": "Under the hood, the Tenant Portal is a standalone React 18 single-page app — completely separate from the admin portal to ensure zero interference. The FastAPI backend uses async SQLAlchemy and PostgreSQL, all containerized with Docker and served through nginx."
+    },
+    {
+      "type": "end",
+      "title": "DormTel Tenant Portal",
+      "subtitle": "Smarter Dormitory Management",
+      "metrics": [
+        { "value": "7", "label": "Core Features" },
+        { "value": "11", "label": "API Endpoints" },
+        { "value": "100%", "label": "Mobile-First" }
+      ],
+      "cta": "Try it live",
+      "url": "dormtel.bayanaihan.net/tenant",
+      "voiceover": "DormTel's Tenant Portal delivers seven core features across eleven API endpoints, all built mobile-first for the modern resident. Transparent billing, online payments, maintenance tracking, and self-service move-out — all in one seamless experience. Thank you for watching."
+    }
+  ]
+}

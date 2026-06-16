@@ -1,0 +1,3119 @@
+{
+  "language": "en",
+  "duration": 292.1766875,
+  "segments": [
+    {
+      "start": 0.0,
+      "end": 6.48,
+      "text": "Welcome to DormTell. My dorm my home. Today we'll walk you through our dormitory operations automation",
+      "words": [
+        {
+          "word": "Welcome",
+          "start": 0.0,
+          "end": 0.38
+        },
+        {
+          "word": "to",
+          "start": 0.38,
+          "end": 0.6
+        },
+        {
+          "word": "DormTell.",
+          "start": 0.6,
+          "end": 1.14
+        },
+        {
+          "word": "My",
+          "start": 1.62,
+          "end": 1.76
+        },
+        {
+          "word": "dorm",
+          "start": 1.76,
+          "end": 1.92
+        },
+        {
+          "word": "my",
+          "start": 1.92,
+          "end": 2.16
+        },
+        {
+          "word": "home.",
+          "start": 2.16,
+          "end": 2.4
+        },
+        {
+          "word": "Today",
+          "start": 2.9,
+          "end": 3.06
+        },
+        {
+          "word": "we'll",
+          "start": 3.06,
+          "end": 3.3
+        },
+        {
+          "word": "walk",
+          "start": 3.3,
+          "end": 3.56
+        },
+        {
+          "word": "you",
+          "start": 3.56,
+          "end": 3.8
+        },
+        {
+          "word": "through",
+          "start": 3.8,
+          "end": 4.2
+        },
+        {
+          "word": "our",
+          "start": 4.2,
+          "end": 4.38
+        },
+        {
+          "word": "dormitory",
+          "start": 4.38,
+          "end": 5.08
+        },
+        {
+          "word": "operations",
+          "start": 5.08,
+          "end": 5.74
+        },
+        {
+          "word": "automation",
+          "start": 5.74,
+          "end": 6.48
+        }
+      ]
+    },
+    {
+      "start": 6.48,
+      "end": 13.9,
+      "text": "platform. DormTell eliminates manual processes and gives dormitory owners complete visibility into",
+      "words": [
+        {
+          "word": "platform.",
+          "start": 6.48,
+          "end": 7.24
+        },
+        {
+          "word": "DormTell",
+          "start": 7.86,
+          "end": 8.32
+        },
+        {
+          "word": "eliminates",
+          "start": 8.32,
+          "end": 8.82
+        },
+        {
+          "word": "manual",
+          "start": 8.82,
+          "end": 9.5
+        },
+        {
+          "word": "processes",
+          "start": 9.5,
+          "end": 10.1
+        },
+        {
+          "word": "and",
+          "start": 10.1,
+          "end": 10.72
+        },
+        {
+          "word": "gives",
+          "start": 10.72,
+          "end": 10.98
+        },
+        {
+          "word": "dormitory",
+          "start": 10.98,
+          "end": 11.74
+        },
+        {
+          "word": "owners",
+          "start": 11.74,
+          "end": 12.04
+        },
+        {
+          "word": "complete",
+          "start": 12.04,
+          "end": 12.58
+        },
+        {
+          "word": "visibility",
+          "start": 12.58,
+          "end": 13.42
+        },
+        {
+          "word": "into",
+          "start": 13.42,
+          "end": 13.9
+        }
+      ]
+    },
+    {
+      "start": 13.9,
+      "end": 21.96,
+      "text": "their business from first inquiry to final move out. If you're managing a dormitory today, you know",
+      "words": [
+        {
+          "word": "their",
+          "start": 13.9,
+          "end": 14.08
+        },
+        {
+          "word": "business",
+          "start": 14.08,
+          "end": 14.5
+        },
+        {
+          "word": "from",
+          "start": 14.5,
+          "end": 15.24
+        },
+        {
+          "word": "first",
+          "start": 15.24,
+          "end": 15.64
+        },
+        {
+          "word": "inquiry",
+          "start": 15.64,
+          "end": 16.08
+        },
+        {
+          "word": "to",
+          "start": 16.08,
+          "end": 16.66
+        },
+        {
+          "word": "final",
+          "start": 16.66,
+          "end": 17.0
+        },
+        {
+          "word": "move",
+          "start": 17.0,
+          "end": 17.22
+        },
+        {
+          "word": "out.",
+          "start": 17.22,
+          "end": 17.54
+        },
+        {
+          "word": "If",
+          "start": 19.64,
+          "end": 19.7
+        },
+        {
+          "word": "you're",
+          "start": 19.7,
+          "end": 19.78
+        },
+        {
+          "word": "managing",
+          "start": 19.78,
+          "end": 20.14
+        },
+        {
+          "word": "a",
+          "start": 20.14,
+          "end": 20.3
+        },
+        {
+          "word": "dormitory",
+          "start": 20.3,
+          "end": 20.92
+        },
+        {
+          "word": "today,",
+          "start": 20.92,
+          "end": 21.24
+        },
+        {
+          "word": "you",
+          "start": 21.66,
+          "end": 21.82
+        },
+        {
+          "word": "know",
+          "start": 21.82,
+          "end": 21.96
+        }
+      ]
+    },
+    {
+      "start": 21.96,
+      "end": 29.3,
+      "text": "the chaos. Inquiries are scattered across Facebook, Instagram, TikTok, and Walkins. Billing calculations",
+      "words": [
+        {
+          "word": "the",
+          "start": 21.96,
+          "end": 22.12
+        },
+        {
+          "word": "chaos.",
+          "start": 22.12,
+          "end": 22.48
+        },
+        {
+          "word": "Inquiries",
+          "start": 23.3,
+          "end": 23.78
+        },
+        {
+          "word": "are",
+          "start": 23.78,
+          "end": 23.96
+        },
+        {
+          "word": "scattered",
+          "start": 23.96,
+          "end": 24.46
+        },
+        {
+          "word": "across",
+          "start": 24.46,
+          "end": 24.84
+        },
+        {
+          "word": "Facebook,",
+          "start": 24.84,
+          "end": 25.46
+        },
+        {
+          "word": "Instagram,",
+          "start": 25.92,
+          "end": 26.38
+        },
+        {
+          "word": "TikTok,",
+          "start": 26.82,
+          "end": 27.16
+        },
+        {
+          "word": "and",
+          "start": 27.52,
+          "end": 27.56
+        },
+        {
+          "word": "Walkins.",
+          "start": 27.56,
+          "end": 28.06
+        },
+        {
+          "word": "Billing",
+          "start": 28.68,
+          "end": 28.88
+        },
+        {
+          "word": "calculations",
+          "start": 28.88,
+          "end": 29.3
+        }
+      ]
+    },
+    {
+      "start": 29.3,
+      "end": 36.42,
+      "text": "are done in spreadsheets, prone to errors, payment reconciliation from G-Cache, Maya, and bank",
+      "words": [
+        {
+          "word": "are",
+          "start": 29.3,
+          "end": 29.62
+        },
+        {
+          "word": "done",
+          "start": 29.62,
+          "end": 29.84
+        },
+        {
+          "word": "in",
+          "start": 29.84,
+          "end": 29.98
+        },
+        {
+          "word": "spreadsheets,",
+          "start": 29.98,
+          "end": 30.82
+        },
+        {
+          "word": "prone",
+          "start": 31.26,
+          "end": 31.38
+        },
+        {
+          "word": "to",
+          "start": 31.38,
+          "end": 31.56
+        },
+        {
+          "word": "errors,",
+          "start": 31.56,
+          "end": 31.82
+        },
+        {
+          "word": "payment",
+          "start": 32.52,
+          "end": 32.76
+        },
+        {
+          "word": "reconciliation",
+          "start": 32.76,
+          "end": 33.48
+        },
+        {
+          "word": "from",
+          "start": 33.48,
+          "end": 33.96
+        },
+        {
+          "word": "G",
+          "start": 33.96,
+          "end": 34.2
+        },
+        {
+          "word": "-Cache,",
+          "start": 34.2,
+          "end": 34.76
+        },
+        {
+          "word": "Maya,",
+          "start": 35.22,
+          "end": 35.5
+        },
+        {
+          "word": "and",
+          "start": 36.02,
+          "end": 36.12
+        },
+        {
+          "word": "bank",
+          "start": 36.12,
+          "end": 36.42
+        }
+      ]
+    },
+    {
+      "start": 36.42,
+      "end": 43.7,
+      "text": "transfers is a nightmare. There's no real-time visibility into occupancy or revenue and move out",
+      "words": [
+        {
+          "word": "transfers",
+          "start": 36.42,
+          "end": 36.92
+        },
+        {
+          "word": "is",
+          "start": 36.92,
+          "end": 37.48
+        },
+        {
+          "word": "a",
+          "start": 37.48,
+          "end": 37.56
+        },
+        {
+          "word": "nightmare.",
+          "start": 37.56,
+          "end": 37.92
+        },
+        {
+          "word": "There's",
+          "start": 38.52,
+          "end": 38.82
+        },
+        {
+          "word": "no",
+          "start": 38.82,
+          "end": 39.0
+        },
+        {
+          "word": "real",
+          "start": 39.0,
+          "end": 39.28
+        },
+        {
+          "word": "-time",
+          "start": 39.28,
+          "end": 39.6
+        },
+        {
+          "word": "visibility",
+          "start": 39.6,
+          "end": 40.24
+        },
+        {
+          "word": "into",
+          "start": 40.24,
+          "end": 40.78
+        },
+        {
+          "word": "occupancy",
+          "start": 40.78,
+          "end": 41.54
+        },
+        {
+          "word": "or",
+          "start": 41.54,
+          "end": 42.18
+        },
+        {
+          "word": "revenue",
+          "start": 42.18,
+          "end": 42.6
+        },
+        {
+          "word": "and",
+          "start": 42.6,
+          "end": 43.24
+        },
+        {
+          "word": "move",
+          "start": 43.24,
+          "end": 43.48
+        },
+        {
+          "word": "out",
+          "start": 43.48,
+          "end": 43.7
+        }
+      ]
+    },
+    {
+      "start": 43.7,
+      "end": 52.88,
+      "text": "processes get lost in paperwork and chat threads. DormTell solves all of this with five integrated",
+      "words": [
+        {
+          "word": "processes",
+          "start": 43.7,
+          "end": 44.28
+        },
+        {
+          "word": "get",
+          "start": 44.28,
+          "end": 44.56
+        },
+        {
+          "word": "lost",
+          "start": 44.56,
+          "end": 44.96
+        },
+        {
+          "word": "in",
+          "start": 44.96,
+          "end": 45.24
+        },
+        {
+          "word": "paperwork",
+          "start": 45.24,
+          "end": 45.68
+        },
+        {
+          "word": "and",
+          "start": 45.68,
+          "end": 46.18
+        },
+        {
+          "word": "chat",
+          "start": 46.18,
+          "end": 46.5
+        },
+        {
+          "word": "threads.",
+          "start": 46.5,
+          "end": 46.92
+        },
+        {
+          "word": "DormTell",
+          "start": 49.16,
+          "end": 49.88
+        },
+        {
+          "word": "solves",
+          "start": 49.88,
+          "end": 50.64
+        },
+        {
+          "word": "all",
+          "start": 50.64,
+          "end": 51.04
+        },
+        {
+          "word": "of",
+          "start": 51.04,
+          "end": 51.22
+        },
+        {
+          "word": "this",
+          "start": 51.22,
+          "end": 51.44
+        },
+        {
+          "word": "with",
+          "start": 51.44,
+          "end": 51.66
+        },
+        {
+          "word": "five",
+          "start": 51.66,
+          "end": 52.24
+        },
+        {
+          "word": "integrated",
+          "start": 52.24,
+          "end": 52.88
+        }
+      ]
+    },
+    {
+      "start": 52.88,
+      "end": 60.24,
+      "text": "modules that cover your entire workflow. Module one handles inquiry management across all channels.",
+      "words": [
+        {
+          "word": "modules",
+          "start": 52.88,
+          "end": 53.34
+        },
+        {
+          "word": "that",
+          "start": 53.34,
+          "end": 53.72
+        },
+        {
+          "word": "cover",
+          "start": 53.72,
+          "end": 53.96
+        },
+        {
+          "word": "your",
+          "start": 53.96,
+          "end": 54.18
+        },
+        {
+          "word": "entire",
+          "start": 54.18,
+          "end": 54.54
+        },
+        {
+          "word": "workflow.",
+          "start": 54.54,
+          "end": 55.14
+        },
+        {
+          "word": "Module",
+          "start": 55.64,
+          "end": 56.18
+        },
+        {
+          "word": "one",
+          "start": 56.18,
+          "end": 56.82
+        },
+        {
+          "word": "handles",
+          "start": 56.82,
+          "end": 57.3
+        },
+        {
+          "word": "inquiry",
+          "start": 57.3,
+          "end": 58.1
+        },
+        {
+          "word": "management",
+          "start": 58.1,
+          "end": 58.82
+        },
+        {
+          "word": "across",
+          "start": 58.82,
+          "end": 59.24
+        },
+        {
+          "word": "all",
+          "start": 59.24,
+          "end": 59.8
+        },
+        {
+          "word": "channels.",
+          "start": 59.8,
+          "end": 60.24
+        }
+      ]
+    },
+    {
+      "start": 60.58,
+      "end": 68.56,
+      "text": "Module two provides digital onboarding from reservation to move in. Module three automates your",
+      "words": [
+        {
+          "word": "Module",
+          "start": 60.58,
+          "end": 61.22
+        },
+        {
+          "word": "two",
+          "start": 61.22,
+          "end": 61.66
+        },
+        {
+          "word": "provides",
+          "start": 61.66,
+          "end": 62.26
+        },
+        {
+          "word": "digital",
+          "start": 62.26,
+          "end": 62.98
+        },
+        {
+          "word": "onboarding",
+          "start": 62.98,
+          "end": 63.98
+        },
+        {
+          "word": "from",
+          "start": 63.98,
+          "end": 64.34
+        },
+        {
+          "word": "reservation",
+          "start": 64.34,
+          "end": 64.8
+        },
+        {
+          "word": "to",
+          "start": 64.8,
+          "end": 65.36
+        },
+        {
+          "word": "move",
+          "start": 65.36,
+          "end": 65.62
+        },
+        {
+          "word": "in.",
+          "start": 65.62,
+          "end": 65.88
+        },
+        {
+          "word": "Module",
+          "start": 66.38,
+          "end": 66.64
+        },
+        {
+          "word": "three",
+          "start": 66.64,
+          "end": 67.26
+        },
+        {
+          "word": "automates",
+          "start": 67.26,
+          "end": 68.06
+        },
+        {
+          "word": "your",
+          "start": 68.06,
+          "end": 68.56
+        }
+      ]
+    },
+    {
+      "start": 68.56,
+      "end": 76.5,
+      "text": "billing calculations. Module four handles payment reconciliation in real-time and Module five manages",
+      "words": [
+        {
+          "word": "billing",
+          "start": 68.56,
+          "end": 68.96
+        },
+        {
+          "word": "calculations.",
+          "start": 68.96,
+          "end": 69.64
+        },
+        {
+          "word": "Module",
+          "start": 70.28,
+          "end": 70.8
+        },
+        {
+          "word": "four",
+          "start": 70.8,
+          "end": 71.38
+        },
+        {
+          "word": "handles",
+          "start": 71.38,
+          "end": 71.76
+        },
+        {
+          "word": "payment",
+          "start": 71.76,
+          "end": 72.2
+        },
+        {
+          "word": "reconciliation",
+          "start": 72.2,
+          "end": 72.78
+        },
+        {
+          "word": "in",
+          "start": 72.78,
+          "end": 73.6
+        },
+        {
+          "word": "real",
+          "start": 73.6,
+          "end": 73.84
+        },
+        {
+          "word": "-time",
+          "start": 73.84,
+          "end": 74.22
+        },
+        {
+          "word": "and",
+          "start": 74.22,
+          "end": 74.82
+        },
+        {
+          "word": "Module",
+          "start": 74.82,
+          "end": 75.32
+        },
+        {
+          "word": "five",
+          "start": 75.32,
+          "end": 76.02
+        },
+        {
+          "word": "manages",
+          "start": 76.02,
+          "end": 76.5
+        }
+      ]
+    },
+    {
+      "start": 76.5,
+      "end": 84.25,
+      "text": "the entire move out processing pipeline. Let's start with the operations dashboard. At a glance,",
+      "words": [
+        {
+          "word": "the",
+          "start": 76.5,
+          "end": 76.8
+        },
+        {
+          "word": "entire",
+          "start": 76.8,
+          "end": 77.4
+        },
+        {
+          "word": "move",
+          "start": 77.4,
+          "end": 77.7
+        },
+        {
+          "word": "out",
+          "start": 77.7,
+          "end": 77.98
+        },
+        {
+          "word": "processing",
+          "start": 77.98,
+          "end": 78.58
+        },
+        {
+          "word": "pipeline.",
+          "start": 78.58,
+          "end": 79.16
+        },
+        {
+          "word": "Let's",
+          "start": 81.03,
+          "end": 81.55
+        },
+        {
+          "word": "start",
+          "start": 81.55,
+          "end": 81.73
+        },
+        {
+          "word": "with",
+          "start": 81.73,
+          "end": 81.93
+        },
+        {
+          "word": "the",
+          "start": 81.93,
+          "end": 82.03
+        },
+        {
+          "word": "operations",
+          "start": 82.03,
+          "end": 82.55
+        },
+        {
+          "word": "dashboard.",
+          "start": 82.55,
+          "end": 83.09
+        },
+        {
+          "word": "At",
+          "start": 83.67,
+          "end": 83.79
+        },
+        {
+          "word": "a",
+          "start": 83.79,
+          "end": 83.85
+        },
+        {
+          "word": "glance,",
+          "start": 83.85,
+          "end": 84.25
+        }
+      ]
+    },
+    {
+      "start": 84.25,
+      "end": 92.29,
+      "text": "you can see today's revenue of 36,800 pesos from five transactions, six new inquiries awaiting",
+      "words": [
+        {
+          "word": "you",
+          "start": 84.25,
+          "end": 84.87
+        },
+        {
+          "word": "can",
+          "start": 84.87,
+          "end": 84.99
+        },
+        {
+          "word": "see",
+          "start": 84.99,
+          "end": 85.23
+        },
+        {
+          "word": "today's",
+          "start": 85.23,
+          "end": 85.73
+        },
+        {
+          "word": "revenue",
+          "start": 85.73,
+          "end": 86.13
+        },
+        {
+          "word": "of",
+          "start": 86.13,
+          "end": 86.41
+        },
+        {
+          "word": "36",
+          "start": 86.41,
+          "end": 87.07
+        },
+        {
+          "word": ",800",
+          "start": 87.07,
+          "end": 88.21
+        },
+        {
+          "word": "pesos",
+          "start": 88.21,
+          "end": 88.87
+        },
+        {
+          "word": "from",
+          "start": 88.87,
+          "end": 89.17
+        },
+        {
+          "word": "five",
+          "start": 89.17,
+          "end": 89.53
+        },
+        {
+          "word": "transactions,",
+          "start": 89.53,
+          "end": 90.19
+        },
+        {
+          "word": "six",
+          "start": 90.87,
+          "end": 91.13
+        },
+        {
+          "word": "new",
+          "start": 91.13,
+          "end": 91.37
+        },
+        {
+          "word": "inquiries",
+          "start": 91.37,
+          "end": 91.85
+        },
+        {
+          "word": "awaiting",
+          "start": 91.85,
+          "end": 92.29
+        }
+      ]
+    },
+    {
+      "start": 92.29,
+      "end": 99.91,
+      "text": "response, 18 total reservations across all buildings, for pending bills needing manager approval,",
+      "words": [
+        {
+          "word": "response,",
+          "start": 92.29,
+          "end": 92.75
+        },
+        {
+          "word": "18",
+          "start": 93.57,
+          "end": 93.87
+        },
+        {
+          "word": "total",
+          "start": 93.87,
+          "end": 94.43
+        },
+        {
+          "word": "reservations",
+          "start": 94.43,
+          "end": 95.09
+        },
+        {
+          "word": "across",
+          "start": 95.09,
+          "end": 95.87
+        },
+        {
+          "word": "all",
+          "start": 95.87,
+          "end": 96.49
+        },
+        {
+          "word": "buildings,",
+          "start": 96.49,
+          "end": 96.93
+        },
+        {
+          "word": "for",
+          "start": 97.51,
+          "end": 97.77
+        },
+        {
+          "word": "pending",
+          "start": 97.77,
+          "end": 98.01
+        },
+        {
+          "word": "bills",
+          "start": 98.01,
+          "end": 98.41
+        },
+        {
+          "word": "needing",
+          "start": 98.41,
+          "end": 98.93
+        },
+        {
+          "word": "manager",
+          "start": 98.93,
+          "end": 99.47
+        },
+        {
+          "word": "approval,",
+          "start": 99.47,
+          "end": 99.91
+        }
+      ]
+    },
+    {
+      "start": 100.45,
+      "end": 106.33,
+      "text": "three scheduled move-ins coming up, and two active move-outs in progress. Quick action buttons",
+      "words": [
+        {
+          "word": "three",
+          "start": 100.45,
+          "end": 100.69
+        },
+        {
+          "word": "scheduled",
+          "start": 100.69,
+          "end": 101.09
+        },
+        {
+          "word": "move",
+          "start": 101.09,
+          "end": 101.39
+        },
+        {
+          "word": "-ins",
+          "start": 101.39,
+          "end": 101.73
+        },
+        {
+          "word": "coming",
+          "start": 101.73,
+          "end": 102.17
+        },
+        {
+          "word": "up,",
+          "start": 102.17,
+          "end": 102.47
+        },
+        {
+          "word": "and",
+          "start": 102.85,
+          "end": 103.07
+        },
+        {
+          "word": "two",
+          "start": 103.07,
+          "end": 103.37
+        },
+        {
+          "word": "active",
+          "start": 103.37,
+          "end": 103.65
+        },
+        {
+          "word": "move",
+          "start": 103.65,
+          "end": 103.89
+        },
+        {
+          "word": "-outs",
+          "start": 103.89,
+          "end": 104.15
+        },
+        {
+          "word": "in",
+          "start": 104.15,
+          "end": 104.35
+        },
+        {
+          "word": "progress.",
+          "start": 104.35,
+          "end": 104.75
+        },
+        {
+          "word": "Quick",
+          "start": 105.55,
+          "end": 105.69
+        },
+        {
+          "word": "action",
+          "start": 105.69,
+          "end": 106.03
+        },
+        {
+          "word": "buttons",
+          "start": 106.03,
+          "end": 106.33
+        }
+      ]
+    },
+    {
+      "start": 106.33,
+      "end": 115.45,
+      "text": "let you jump directly to any task. Module one is inquiry management. DormTell captures leads from",
+      "words": [
+        {
+          "word": "let",
+          "start": 106.33,
+          "end": 106.55
+        },
+        {
+          "word": "you",
+          "start": 106.55,
+          "end": 106.65
+        },
+        {
+          "word": "jump",
+          "start": 106.65,
+          "end": 106.91
+        },
+        {
+          "word": "directly",
+          "start": 106.91,
+          "end": 107.47
+        },
+        {
+          "word": "to",
+          "start": 107.47,
+          "end": 108.07
+        },
+        {
+          "word": "any",
+          "start": 108.07,
+          "end": 108.37
+        },
+        {
+          "word": "task.",
+          "start": 108.37,
+          "end": 108.91
+        },
+        {
+          "word": "Module",
+          "start": 111.13,
+          "end": 111.43
+        },
+        {
+          "word": "one",
+          "start": 111.43,
+          "end": 111.79
+        },
+        {
+          "word": "is",
+          "start": 111.79,
+          "end": 112.27
+        },
+        {
+          "word": "inquiry",
+          "start": 112.27,
+          "end": 112.69
+        },
+        {
+          "word": "management.",
+          "start": 112.69,
+          "end": 113.35
+        },
+        {
+          "word": "DormTell",
+          "start": 113.95,
+          "end": 114.35
+        },
+        {
+          "word": "captures",
+          "start": 114.35,
+          "end": 114.81
+        },
+        {
+          "word": "leads",
+          "start": 114.81,
+          "end": 115.17
+        },
+        {
+          "word": "from",
+          "start": 115.17,
+          "end": 115.45
+        }
+      ]
+    },
+    {
+      "start": 115.45,
+      "end": 124.05,
+      "text": "every channel, Facebook, Instagram, TikTok, walk-ins, and phone calls. Each inquiry is automatically scored.",
+      "words": [
+        {
+          "word": "every",
+          "start": 115.45,
+          "end": 115.87
+        },
+        {
+          "word": "channel,",
+          "start": 115.87,
+          "end": 116.33
+        },
+        {
+          "word": "Facebook,",
+          "start": 116.77,
+          "end": 117.25
+        },
+        {
+          "word": "Instagram,",
+          "start": 117.77,
+          "end": 118.19
+        },
+        {
+          "word": "TikTok,",
+          "start": 118.71,
+          "end": 118.95
+        },
+        {
+          "word": "walk",
+          "start": 119.61,
+          "end": 119.73
+        },
+        {
+          "word": "-ins,",
+          "start": 119.73,
+          "end": 120.05
+        },
+        {
+          "word": "and",
+          "start": 120.37,
+          "end": 120.41
+        },
+        {
+          "word": "phone",
+          "start": 120.41,
+          "end": 120.69
+        },
+        {
+          "word": "calls.",
+          "start": 120.69,
+          "end": 121.01
+        },
+        {
+          "word": "Each",
+          "start": 121.67,
+          "end": 121.85
+        },
+        {
+          "word": "inquiry",
+          "start": 121.85,
+          "end": 122.31
+        },
+        {
+          "word": "is",
+          "start": 122.31,
+          "end": 122.93
+        },
+        {
+          "word": "automatically",
+          "start": 122.93,
+          "end": 123.51
+        },
+        {
+          "word": "scored.",
+          "start": 123.51,
+          "end": 124.05
+        }
+      ]
+    },
+    {
+      "start": 124.67,
+      "end": 131.61,
+      "text": "Sentiment analysis rates the tone from zero to one. Let's scoring from zero to 100 prioritizes",
+      "words": [
+        {
+          "word": "Sentiment",
+          "start": 124.67,
+          "end": 124.95
+        },
+        {
+          "word": "analysis",
+          "start": 124.95,
+          "end": 125.45
+        },
+        {
+          "word": "rates",
+          "start": 125.45,
+          "end": 125.87
+        },
+        {
+          "word": "the",
+          "start": 125.87,
+          "end": 126.11
+        },
+        {
+          "word": "tone",
+          "start": 126.11,
+          "end": 126.45
+        },
+        {
+          "word": "from",
+          "start": 126.45,
+          "end": 127.03
+        },
+        {
+          "word": "zero",
+          "start": 127.03,
+          "end": 127.49
+        },
+        {
+          "word": "to",
+          "start": 127.49,
+          "end": 127.77
+        },
+        {
+          "word": "one.",
+          "start": 127.77,
+          "end": 128.09
+        },
+        {
+          "word": "Let's",
+          "start": 128.63,
+          "end": 128.87
+        },
+        {
+          "word": "scoring",
+          "start": 128.87,
+          "end": 129.09
+        },
+        {
+          "word": "from",
+          "start": 129.09,
+          "end": 129.33
+        },
+        {
+          "word": "zero",
+          "start": 129.33,
+          "end": 129.71
+        },
+        {
+          "word": "to",
+          "start": 129.71,
+          "end": 130.07
+        },
+        {
+          "word": "100",
+          "start": 130.07,
+          "end": 130.53
+        },
+        {
+          "word": "prioritizes",
+          "start": 130.53,
+          "end": 131.61
+        }
+      ]
+    },
+    {
+      "start": 131.61,
+      "end": 138.25,
+      "text": "who to follow up with first. The pipeline tracks each inquiry from new to responded,",
+      "words": [
+        {
+          "word": "who",
+          "start": 131.61,
+          "end": 131.93
+        },
+        {
+          "word": "to",
+          "start": 131.93,
+          "end": 132.03
+        },
+        {
+          "word": "follow",
+          "start": 132.03,
+          "end": 132.39
+        },
+        {
+          "word": "up",
+          "start": 132.39,
+          "end": 132.71
+        },
+        {
+          "word": "with",
+          "start": 132.71,
+          "end": 132.85
+        },
+        {
+          "word": "first.",
+          "start": 132.85,
+          "end": 133.27
+        },
+        {
+          "word": "The",
+          "start": 133.91,
+          "end": 133.99
+        },
+        {
+          "word": "pipeline",
+          "start": 133.99,
+          "end": 134.37
+        },
+        {
+          "word": "tracks",
+          "start": 134.37,
+          "end": 134.83
+        },
+        {
+          "word": "each",
+          "start": 134.83,
+          "end": 135.55
+        },
+        {
+          "word": "inquiry",
+          "start": 135.55,
+          "end": 136.23
+        },
+        {
+          "word": "from",
+          "start": 136.23,
+          "end": 136.69
+        },
+        {
+          "word": "new",
+          "start": 136.69,
+          "end": 137.05
+        },
+        {
+          "word": "to",
+          "start": 137.05,
+          "end": 137.63
+        },
+        {
+          "word": "responded,",
+          "start": 137.63,
+          "end": 138.25
+        }
+      ]
+    },
+    {
+      "start": 138.79,
+      "end": 146.05,
+      "text": "to escalated, to converted into a paying resident. Module two is digital onboarding.",
+      "words": [
+        {
+          "word": "to",
+          "start": 138.79,
+          "end": 138.91
+        },
+        {
+          "word": "escalated,",
+          "start": 138.91,
+          "end": 139.63
+        },
+        {
+          "word": "to",
+          "start": 139.95,
+          "end": 140.05
+        },
+        {
+          "word": "converted",
+          "start": 140.05,
+          "end": 140.45
+        },
+        {
+          "word": "into",
+          "start": 140.45,
+          "end": 140.87
+        },
+        {
+          "word": "a",
+          "start": 140.87,
+          "end": 141.05
+        },
+        {
+          "word": "paying",
+          "start": 141.05,
+          "end": 141.33
+        },
+        {
+          "word": "resident.",
+          "start": 141.33,
+          "end": 141.81
+        },
+        {
+          "word": "Module",
+          "start": 143.83,
+          "end": 144.23
+        },
+        {
+          "word": "two",
+          "start": 144.23,
+          "end": 144.61
+        },
+        {
+          "word": "is",
+          "start": 144.61,
+          "end": 145.09
+        },
+        {
+          "word": "digital",
+          "start": 145.09,
+          "end": 145.45
+        },
+        {
+          "word": "onboarding.",
+          "start": 145.45,
+          "end": 146.05
+        }
+      ]
+    },
+    {
+      "start": 146.05,
+      "end": 152.55,
+      "text": "Turn an inquiry into a move-in within minutes. Our smart room search lets you type to filter across",
+      "words": [
+        {
+          "word": "Turn",
+          "start": 146.05,
+          "end": 146.61
+        },
+        {
+          "word": "an",
+          "start": 146.61,
+          "end": 146.81
+        },
+        {
+          "word": "inquiry",
+          "start": 146.81,
+          "end": 147.23
+        },
+        {
+          "word": "into",
+          "start": 147.23,
+          "end": 148.05
+        },
+        {
+          "word": "a",
+          "start": 148.05,
+          "end": 148.21
+        },
+        {
+          "word": "move",
+          "start": 148.21,
+          "end": 148.43
+        },
+        {
+          "word": "-in",
+          "start": 148.43,
+          "end": 148.67
+        },
+        {
+          "word": "within",
+          "start": 148.67,
+          "end": 148.99
+        },
+        {
+          "word": "minutes.",
+          "start": 148.99,
+          "end": 149.43
+        },
+        {
+          "word": "Our",
+          "start": 149.75,
+          "end": 150.15
+        },
+        {
+          "word": "smart",
+          "start": 150.15,
+          "end": 150.41
+        },
+        {
+          "word": "room",
+          "start": 150.41,
+          "end": 150.67
+        },
+        {
+          "word": "search",
+          "start": 150.67,
+          "end": 151.07
+        },
+        {
+          "word": "lets",
+          "start": 151.07,
+          "end": 151.19
+        },
+        {
+          "word": "you",
+          "start": 151.19,
+          "end": 151.33
+        },
+        {
+          "word": "type",
+          "start": 151.33,
+          "end": 151.57
+        },
+        {
+          "word": "to",
+          "start": 151.57,
+          "end": 151.75
+        },
+        {
+          "word": "filter",
+          "start": 151.75,
+          "end": 152.15
+        },
+        {
+          "word": "across",
+          "start": 152.15,
+          "end": 152.55
+        }
+      ]
+    },
+    {
+      "start": 152.55,
+      "end": 160.61,
+      "text": "25 rooms in three buildings. Tower A, Tower B, and Tower C. The reservation form includes",
+      "words": [
+        {
+          "word": "25",
+          "start": 152.55,
+          "end": 153.27
+        },
+        {
+          "word": "rooms",
+          "start": 153.27,
+          "end": 153.75
+        },
+        {
+          "word": "in",
+          "start": 153.75,
+          "end": 154.05
+        },
+        {
+          "word": "three",
+          "start": 154.05,
+          "end": 154.49
+        },
+        {
+          "word": "buildings.",
+          "start": 154.49,
+          "end": 154.97
+        },
+        {
+          "word": "Tower",
+          "start": 155.57,
+          "end": 155.81
+        },
+        {
+          "word": "A,",
+          "start": 155.81,
+          "end": 156.31
+        },
+        {
+          "word": "Tower",
+          "start": 156.83,
+          "end": 157.01
+        },
+        {
+          "word": "B,",
+          "start": 157.01,
+          "end": 157.27
+        },
+        {
+          "word": "and",
+          "start": 157.51,
+          "end": 157.83
+        },
+        {
+          "word": "Tower",
+          "start": 157.83,
+          "end": 158.09
+        },
+        {
+          "word": "C.",
+          "start": 158.09,
+          "end": 158.37
+        },
+        {
+          "word": "The",
+          "start": 158.81,
+          "end": 159.01
+        },
+        {
+          "word": "reservation",
+          "start": 159.01,
+          "end": 159.41
+        },
+        {
+          "word": "form",
+          "start": 159.41,
+          "end": 160.03
+        },
+        {
+          "word": "includes",
+          "start": 160.03,
+          "end": 160.61
+        }
+      ]
+    },
+    {
+      "start": 160.61,
+      "end": 166.83,
+      "text": "government ID verification. Once submitted, the system automatically generates a payment link",
+      "words": [
+        {
+          "word": "government",
+          "start": 160.61,
+          "end": 161.21
+        },
+        {
+          "word": "ID",
+          "start": 161.21,
+          "end": 161.73
+        },
+        {
+          "word": "verification.",
+          "start": 161.73,
+          "end": 162.41
+        },
+        {
+          "word": "Once",
+          "start": 162.99,
+          "end": 163.29
+        },
+        {
+          "word": "submitted,",
+          "start": 163.29,
+          "end": 163.81
+        },
+        {
+          "word": "the",
+          "start": 164.23,
+          "end": 164.29
+        },
+        {
+          "word": "system",
+          "start": 164.29,
+          "end": 164.65
+        },
+        {
+          "word": "automatically",
+          "start": 164.65,
+          "end": 165.39
+        },
+        {
+          "word": "generates",
+          "start": 165.39,
+          "end": 165.93
+        },
+        {
+          "word": "a",
+          "start": 165.93,
+          "end": 166.11
+        },
+        {
+          "word": "payment",
+          "start": 166.11,
+          "end": 166.43
+        },
+        {
+          "word": "link",
+          "start": 166.43,
+          "end": 166.83
+        }
+      ]
+    },
+    {
+      "start": 166.83,
+      "end": 175.75,
+      "text": "for G-Cache or Maya. And when payment is confirmed, one click activates the move-in. Module three",
+      "words": [
+        {
+          "word": "for",
+          "start": 166.83,
+          "end": 167.17
+        },
+        {
+          "word": "G",
+          "start": 167.17,
+          "end": 167.43
+        },
+        {
+          "word": "-Cache",
+          "start": 167.43,
+          "end": 167.97
+        },
+        {
+          "word": "or",
+          "start": 167.97,
+          "end": 168.31
+        },
+        {
+          "word": "Maya.",
+          "start": 168.31,
+          "end": 168.69
+        },
+        {
+          "word": "And",
+          "start": 169.23,
+          "end": 169.35
+        },
+        {
+          "word": "when",
+          "start": 169.35,
+          "end": 169.47
+        },
+        {
+          "word": "payment",
+          "start": 169.47,
+          "end": 169.83
+        },
+        {
+          "word": "is",
+          "start": 169.83,
+          "end": 170.03
+        },
+        {
+          "word": "confirmed,",
+          "start": 170.03,
+          "end": 170.61
+        },
+        {
+          "word": "one",
+          "start": 171.03,
+          "end": 171.29
+        },
+        {
+          "word": "click",
+          "start": 171.29,
+          "end": 171.59
+        },
+        {
+          "word": "activates",
+          "start": 171.59,
+          "end": 172.15
+        },
+        {
+          "word": "the",
+          "start": 172.15,
+          "end": 172.45
+        },
+        {
+          "word": "move",
+          "start": 172.45,
+          "end": 172.71
+        },
+        {
+          "word": "-in.",
+          "start": 172.71,
+          "end": 172.91
+        },
+        {
+          "word": "Module",
+          "start": 174.93,
+          "end": 175.25
+        },
+        {
+          "word": "three",
+          "start": 175.25,
+          "end": 175.75
+        }
+      ]
+    },
+    {
+      "start": 175.75,
+      "end": 182.19,
+      "text": "is automated billing. Say goodbye to spreadsheet errors. Staff submit meter readings per building,",
+      "words": [
+        {
+          "word": "is",
+          "start": 175.75,
+          "end": 176.25
+        },
+        {
+          "word": "automated",
+          "start": 176.25,
+          "end": 176.83
+        },
+        {
+          "word": "billing.",
+          "start": 176.83,
+          "end": 177.31
+        },
+        {
+          "word": "Say",
+          "start": 177.85,
+          "end": 177.95
+        },
+        {
+          "word": "goodbye",
+          "start": 177.95,
+          "end": 178.23
+        },
+        {
+          "word": "to",
+          "start": 178.23,
+          "end": 178.49
+        },
+        {
+          "word": "spreadsheet",
+          "start": 178.49,
+          "end": 178.95
+        },
+        {
+          "word": "errors.",
+          "start": 178.95,
+          "end": 179.43
+        },
+        {
+          "word": "Staff",
+          "start": 179.93,
+          "end": 180.29
+        },
+        {
+          "word": "submit",
+          "start": 180.29,
+          "end": 180.77
+        },
+        {
+          "word": "meter",
+          "start": 180.77,
+          "end": 181.19
+        },
+        {
+          "word": "readings",
+          "start": 181.19,
+          "end": 181.55
+        },
+        {
+          "word": "per",
+          "start": 181.55,
+          "end": 181.81
+        },
+        {
+          "word": "building,",
+          "start": 181.81,
+          "end": 182.19
+        }
+      ]
+    },
+    {
+      "start": 182.53,
+      "end": 188.67,
+      "text": "and the system auto calculates each resident's share. Rent plus electric plus water plus other",
+      "words": [
+        {
+          "word": "and",
+          "start": 182.53,
+          "end": 182.81
+        },
+        {
+          "word": "the",
+          "start": 182.81,
+          "end": 182.89
+        },
+        {
+          "word": "system",
+          "start": 182.89,
+          "end": 183.25
+        },
+        {
+          "word": "auto",
+          "start": 183.25,
+          "end": 183.63
+        },
+        {
+          "word": "calculates",
+          "start": 183.63,
+          "end": 184.43
+        },
+        {
+          "word": "each",
+          "start": 184.43,
+          "end": 184.75
+        },
+        {
+          "word": "resident's",
+          "start": 184.75,
+          "end": 185.39
+        },
+        {
+          "word": "share.",
+          "start": 185.39,
+          "end": 185.53
+        },
+        {
+          "word": "Rent",
+          "start": 186.21,
+          "end": 186.39
+        },
+        {
+          "word": "plus",
+          "start": 186.39,
+          "end": 186.63
+        },
+        {
+          "word": "electric",
+          "start": 186.63,
+          "end": 187.13
+        },
+        {
+          "word": "plus",
+          "start": 187.13,
+          "end": 187.51
+        },
+        {
+          "word": "water",
+          "start": 187.51,
+          "end": 187.89
+        },
+        {
+          "word": "plus",
+          "start": 187.89,
+          "end": 188.19
+        },
+        {
+          "word": "other",
+          "start": 188.19,
+          "end": 188.67
+        }
+      ]
+    },
+    {
+      "start": 188.67,
+      "end": 195.95,
+      "text": "charges. A built-in approval workflow ensures manager sign-off before distribution. And variance",
+      "words": [
+        {
+          "word": "charges.",
+          "start": 188.67,
+          "end": 189.09
+        },
+        {
+          "word": "A",
+          "start": 189.77,
+          "end": 189.87
+        },
+        {
+          "word": "built",
+          "start": 189.87,
+          "end": 190.07
+        },
+        {
+          "word": "-in",
+          "start": 190.07,
+          "end": 190.29
+        },
+        {
+          "word": "approval",
+          "start": 190.29,
+          "end": 190.77
+        },
+        {
+          "word": "workflow",
+          "start": 190.77,
+          "end": 191.47
+        },
+        {
+          "word": "ensures",
+          "start": 191.47,
+          "end": 192.13
+        },
+        {
+          "word": "manager",
+          "start": 192.13,
+          "end": 192.71
+        },
+        {
+          "word": "sign",
+          "start": 192.71,
+          "end": 193.11
+        },
+        {
+          "word": "-off",
+          "start": 193.11,
+          "end": 193.45
+        },
+        {
+          "word": "before",
+          "start": 193.45,
+          "end": 194.11
+        },
+        {
+          "word": "distribution.",
+          "start": 194.11,
+          "end": 194.85
+        },
+        {
+          "word": "And",
+          "start": 195.43,
+          "end": 195.55
+        },
+        {
+          "word": "variance",
+          "start": 195.55,
+          "end": 195.95
+        }
+      ]
+    },
+    {
+      "start": 195.95,
+      "end": 202.37,
+      "text": "detection flags, any consumption anomalies for review. Catching issues before bills go out.",
+      "words": [
+        {
+          "word": "detection",
+          "start": 195.95,
+          "end": 196.49
+        },
+        {
+          "word": "flags,",
+          "start": 196.49,
+          "end": 196.93
+        },
+        {
+          "word": "any",
+          "start": 197.39,
+          "end": 197.55
+        },
+        {
+          "word": "consumption",
+          "start": 197.55,
+          "end": 198.13
+        },
+        {
+          "word": "anomalies",
+          "start": 198.13,
+          "end": 198.83
+        },
+        {
+          "word": "for",
+          "start": 198.83,
+          "end": 199.03
+        },
+        {
+          "word": "review.",
+          "start": 199.03,
+          "end": 199.37
+        },
+        {
+          "word": "Catching",
+          "start": 200.01,
+          "end": 200.45
+        },
+        {
+          "word": "issues",
+          "start": 200.45,
+          "end": 200.79
+        },
+        {
+          "word": "before",
+          "start": 200.79,
+          "end": 201.29
+        },
+        {
+          "word": "bills",
+          "start": 201.29,
+          "end": 201.75
+        },
+        {
+          "word": "go",
+          "start": 201.75,
+          "end": 202.01
+        },
+        {
+          "word": "out.",
+          "start": 202.01,
+          "end": 202.37
+        }
+      ]
+    },
+    {
+      "start": 204.26,
+      "end": 212.07,
+      "text": "Module four is payment reconciliation. Every payso is accounted for. Dormtel supports G-Cache,",
+      "words": [
+        {
+          "word": "Module",
+          "start": 204.26,
+          "end": 204.73
+        },
+        {
+          "word": "four",
+          "start": 204.73,
+          "end": 205.21
+        },
+        {
+          "word": "is",
+          "start": 205.21,
+          "end": 205.75
+        },
+        {
+          "word": "payment",
+          "start": 205.75,
+          "end": 206.17
+        },
+        {
+          "word": "reconciliation.",
+          "start": 206.17,
+          "end": 206.83
+        },
+        {
+          "word": "Every",
+          "start": 207.61,
+          "end": 207.81
+        },
+        {
+          "word": "payso",
+          "start": 207.81,
+          "end": 208.37
+        },
+        {
+          "word": "is",
+          "start": 208.37,
+          "end": 208.77
+        },
+        {
+          "word": "accounted",
+          "start": 208.77,
+          "end": 209.15
+        },
+        {
+          "word": "for.",
+          "start": 209.15,
+          "end": 209.55
+        },
+        {
+          "word": "Dormtel",
+          "start": 210.13,
+          "end": 210.59
+        },
+        {
+          "word": "supports",
+          "start": 210.59,
+          "end": 211.13
+        },
+        {
+          "word": "G",
+          "start": 211.13,
+          "end": 211.47
+        },
+        {
+          "word": "-Cache,",
+          "start": 211.47,
+          "end": 212.07
+        }
+      ]
+    },
+    {
+      "start": 212.63,
+      "end": 218.85,
+      "text": "Maya, bank transfers, and cash payments. Webhooks capture real-time payments instantly.",
+      "words": [
+        {
+          "word": "Maya,",
+          "start": 212.63,
+          "end": 212.97
+        },
+        {
+          "word": "bank",
+          "start": 213.41,
+          "end": 213.51
+        },
+        {
+          "word": "transfers,",
+          "start": 213.51,
+          "end": 213.99
+        },
+        {
+          "word": "and",
+          "start": 214.41,
+          "end": 214.67
+        },
+        {
+          "word": "cash",
+          "start": 214.67,
+          "end": 215.01
+        },
+        {
+          "word": "payments.",
+          "start": 215.01,
+          "end": 215.37
+        },
+        {
+          "word": "Webhooks",
+          "start": 216.11,
+          "end": 216.51
+        },
+        {
+          "word": "capture",
+          "start": 216.51,
+          "end": 216.95
+        },
+        {
+          "word": "real",
+          "start": 216.95,
+          "end": 217.41
+        },
+        {
+          "word": "-time",
+          "start": 217.41,
+          "end": 217.69
+        },
+        {
+          "word": "payments",
+          "start": 217.69,
+          "end": 218.13
+        },
+        {
+          "word": "instantly.",
+          "start": 218.13,
+          "end": 218.85
+        }
+      ]
+    },
+    {
+      "start": 219.43,
+      "end": 227.25,
+      "text": "The Daily Sales Report shows today's total. 36,800 pesos across five transactions.",
+      "words": [
+        {
+          "word": "The",
+          "start": 219.43,
+          "end": 219.51
+        },
+        {
+          "word": "Daily",
+          "start": 219.51,
+          "end": 219.73
+        },
+        {
+          "word": "Sales",
+          "start": 219.73,
+          "end": 219.99
+        },
+        {
+          "word": "Report",
+          "start": 219.99,
+          "end": 220.47
+        },
+        {
+          "word": "shows",
+          "start": 220.47,
+          "end": 221.15
+        },
+        {
+          "word": "today's",
+          "start": 221.15,
+          "end": 222.09
+        },
+        {
+          "word": "total.",
+          "start": 222.09,
+          "end": 222.45
+        },
+        {
+          "word": "36",
+          "start": 222.97,
+          "end": 223.43
+        },
+        {
+          "word": ",800",
+          "start": 223.43,
+          "end": 224.79
+        },
+        {
+          "word": "pesos",
+          "start": 224.79,
+          "end": 225.39
+        },
+        {
+          "word": "across",
+          "start": 225.39,
+          "end": 225.97
+        },
+        {
+          "word": "five",
+          "start": 225.97,
+          "end": 226.57
+        },
+        {
+          "word": "transactions.",
+          "start": 226.57,
+          "end": 227.25
+        }
+      ]
+    },
+    {
+      "start": 227.81,
+      "end": 233.79,
+      "text": "Payments are auto-matched to resident buildings, and any unmatched payments are flagged for manual",
+      "words": [
+        {
+          "word": "Payments",
+          "start": 227.81,
+          "end": 228.29
+        },
+        {
+          "word": "are",
+          "start": 228.29,
+          "end": 228.49
+        },
+        {
+          "word": "auto",
+          "start": 228.49,
+          "end": 228.85
+        },
+        {
+          "word": "-matched",
+          "start": 228.85,
+          "end": 229.25
+        },
+        {
+          "word": "to",
+          "start": 229.25,
+          "end": 229.47
+        },
+        {
+          "word": "resident",
+          "start": 229.47,
+          "end": 229.87
+        },
+        {
+          "word": "buildings,",
+          "start": 229.87,
+          "end": 230.27
+        },
+        {
+          "word": "and",
+          "start": 230.73,
+          "end": 231.01
+        },
+        {
+          "word": "any",
+          "start": 231.01,
+          "end": 231.39
+        },
+        {
+          "word": "unmatched",
+          "start": 231.39,
+          "end": 231.99
+        },
+        {
+          "word": "payments",
+          "start": 231.99,
+          "end": 232.35
+        },
+        {
+          "word": "are",
+          "start": 232.35,
+          "end": 232.55
+        },
+        {
+          "word": "flagged",
+          "start": 232.55,
+          "end": 233.25
+        },
+        {
+          "word": "for",
+          "start": 233.25,
+          "end": 233.35
+        },
+        {
+          "word": "manual",
+          "start": 233.35,
+          "end": 233.79
+        }
+      ]
+    },
+    {
+      "start": 233.79,
+      "end": 241.55,
+      "text": "reconciliation. Module five is move-out processing. When a resident needs to leave,",
+      "words": [
+        {
+          "word": "reconciliation.",
+          "start": 233.79,
+          "end": 234.61
+        },
+        {
+          "word": "Module",
+          "start": 236.73,
+          "end": 237.07
+        },
+        {
+          "word": "five",
+          "start": 237.07,
+          "end": 237.63
+        },
+        {
+          "word": "is",
+          "start": 237.63,
+          "end": 238.07
+        },
+        {
+          "word": "move",
+          "start": 238.07,
+          "end": 238.39
+        },
+        {
+          "word": "-out",
+          "start": 238.39,
+          "end": 238.61
+        },
+        {
+          "word": "processing.",
+          "start": 238.61,
+          "end": 239.21
+        },
+        {
+          "word": "When",
+          "start": 239.71,
+          "end": 239.89
+        },
+        {
+          "word": "a",
+          "start": 239.89,
+          "end": 240.01
+        },
+        {
+          "word": "resident",
+          "start": 240.01,
+          "end": 240.45
+        },
+        {
+          "word": "needs",
+          "start": 240.45,
+          "end": 240.93
+        },
+        {
+          "word": "to",
+          "start": 240.93,
+          "end": 241.19
+        },
+        {
+          "word": "leave,",
+          "start": 241.19,
+          "end": 241.55
+        }
+      ]
+    },
+    {
+      "start": 242.17,
+      "end": 247.71,
+      "text": "the structured workflow ensures nothing falls through the cracks. It starts with a formal",
+      "words": [
+        {
+          "word": "the",
+          "start": 242.17,
+          "end": 242.27
+        },
+        {
+          "word": "structured",
+          "start": 242.27,
+          "end": 242.67
+        },
+        {
+          "word": "workflow",
+          "start": 242.67,
+          "end": 243.31
+        },
+        {
+          "word": "ensures",
+          "start": 243.31,
+          "end": 244.01
+        },
+        {
+          "word": "nothing",
+          "start": 244.01,
+          "end": 244.61
+        },
+        {
+          "word": "falls",
+          "start": 244.61,
+          "end": 245.21
+        },
+        {
+          "word": "through",
+          "start": 245.21,
+          "end": 245.49
+        },
+        {
+          "word": "the",
+          "start": 245.49,
+          "end": 245.63
+        },
+        {
+          "word": "cracks.",
+          "start": 245.63,
+          "end": 245.89
+        },
+        {
+          "word": "It",
+          "start": 246.61,
+          "end": 246.77
+        },
+        {
+          "word": "starts",
+          "start": 246.77,
+          "end": 247.01
+        },
+        {
+          "word": "with",
+          "start": 247.01,
+          "end": 247.21
+        },
+        {
+          "word": "a",
+          "start": 247.21,
+          "end": 247.31
+        },
+        {
+          "word": "formal",
+          "start": 247.31,
+          "end": 247.71
+        }
+      ]
+    },
+    {
+      "start": 247.71,
+      "end": 253.79,
+      "text": "request, then clearance generation for room inspection. Final billing is computed with",
+      "words": [
+        {
+          "word": "request,",
+          "start": 247.71,
+          "end": 248.21
+        },
+        {
+          "word": "then",
+          "start": 248.73,
+          "end": 248.97
+        },
+        {
+          "word": "clearance",
+          "start": 248.97,
+          "end": 249.47
+        },
+        {
+          "word": "generation",
+          "start": 249.47,
+          "end": 250.19
+        },
+        {
+          "word": "for",
+          "start": 250.19,
+          "end": 250.41
+        },
+        {
+          "word": "room",
+          "start": 250.41,
+          "end": 250.65
+        },
+        {
+          "word": "inspection.",
+          "start": 250.65,
+          "end": 251.15
+        },
+        {
+          "word": "Final",
+          "start": 251.71,
+          "end": 252.09
+        },
+        {
+          "word": "billing",
+          "start": 252.09,
+          "end": 252.45
+        },
+        {
+          "word": "is",
+          "start": 252.45,
+          "end": 252.83
+        },
+        {
+          "word": "computed",
+          "start": 252.83,
+          "end": 253.39
+        },
+        {
+          "word": "with",
+          "start": 253.39,
+          "end": 253.79
+        }
+      ]
+    },
+    {
+      "start": 253.79,
+      "end": 261.93,
+      "text": "charges. Any refund due is processed and tracked, and every step is logged in a complete audit trail",
+      "words": [
+        {
+          "word": "charges.",
+          "start": 253.79,
+          "end": 254.59
+        },
+        {
+          "word": "Any",
+          "start": 255.21,
+          "end": 255.49
+        },
+        {
+          "word": "refund",
+          "start": 255.49,
+          "end": 255.89
+        },
+        {
+          "word": "due",
+          "start": 255.89,
+          "end": 256.23
+        },
+        {
+          "word": "is",
+          "start": 256.23,
+          "end": 256.55
+        },
+        {
+          "word": "processed",
+          "start": 256.55,
+          "end": 257.07
+        },
+        {
+          "word": "and",
+          "start": 257.07,
+          "end": 257.43
+        },
+        {
+          "word": "tracked,",
+          "start": 257.43,
+          "end": 257.89
+        },
+        {
+          "word": "and",
+          "start": 258.31,
+          "end": 258.55
+        },
+        {
+          "word": "every",
+          "start": 258.55,
+          "end": 258.93
+        },
+        {
+          "word": "step",
+          "start": 258.93,
+          "end": 259.33
+        },
+        {
+          "word": "is",
+          "start": 259.33,
+          "end": 259.77
+        },
+        {
+          "word": "logged",
+          "start": 259.77,
+          "end": 260.17
+        },
+        {
+          "word": "in",
+          "start": 260.17,
+          "end": 260.61
+        },
+        {
+          "word": "a",
+          "start": 260.61,
+          "end": 260.67
+        },
+        {
+          "word": "complete",
+          "start": 260.67,
+          "end": 261.07
+        },
+        {
+          "word": "audit",
+          "start": 261.07,
+          "end": 261.49
+        },
+        {
+          "word": "trail",
+          "start": 261.49,
+          "end": 261.93
+        }
+      ]
+    },
+    {
+      "start": 261.93,
+      "end": 271.44,
+      "text": "for your records. Dormtel is ready to automate your dormitory. The platform currently manages 25 rooms,",
+      "words": [
+        {
+          "word": "for",
+          "start": 261.93,
+          "end": 262.33
+        },
+        {
+          "word": "your",
+          "start": 262.33,
+          "end": 262.45
+        },
+        {
+          "word": "records.",
+          "start": 262.45,
+          "end": 262.81
+        },
+        {
+          "word": "Dormtel",
+          "start": 265.14,
+          "end": 265.64
+        },
+        {
+          "word": "is",
+          "start": 265.64,
+          "end": 265.9
+        },
+        {
+          "word": "ready",
+          "start": 265.9,
+          "end": 266.14
+        },
+        {
+          "word": "to",
+          "start": 266.14,
+          "end": 266.38
+        },
+        {
+          "word": "automate",
+          "start": 266.38,
+          "end": 266.88
+        },
+        {
+          "word": "your",
+          "start": 266.88,
+          "end": 267.2
+        },
+        {
+          "word": "dormitory.",
+          "start": 267.2,
+          "end": 267.98
+        },
+        {
+          "word": "The",
+          "start": 268.44,
+          "end": 268.54
+        },
+        {
+          "word": "platform",
+          "start": 268.54,
+          "end": 268.94
+        },
+        {
+          "word": "currently",
+          "start": 268.94,
+          "end": 269.46
+        },
+        {
+          "word": "manages",
+          "start": 269.46,
+          "end": 270.02
+        },
+        {
+          "word": "25",
+          "start": 270.02,
+          "end": 270.86
+        },
+        {
+          "word": "rooms,",
+          "start": 270.86,
+          "end": 271.44
+        }
+      ]
+    },
+    {
+      "start": 271.94,
+      "end": 281.86,
+      "text": "18 active residents, 12 live inquiries across five fully integrated modules. Visit dormtel.curiosity.cloud",
+      "words": [
+        {
+          "word": "18",
+          "start": 271.94,
+          "end": 272.22
+        },
+        {
+          "word": "active",
+          "start": 272.22,
+          "end": 272.64
+        },
+        {
+          "word": "residents,",
+          "start": 272.64,
+          "end": 273.06
+        },
+        {
+          "word": "12",
+          "start": 273.68,
+          "end": 273.88
+        },
+        {
+          "word": "live",
+          "start": 273.88,
+          "end": 274.34
+        },
+        {
+          "word": "inquiries",
+          "start": 274.34,
+          "end": 275.1
+        },
+        {
+          "word": "across",
+          "start": 275.1,
+          "end": 275.88
+        },
+        {
+          "word": "five",
+          "start": 275.88,
+          "end": 276.6
+        },
+        {
+          "word": "fully",
+          "start": 276.6,
+          "end": 277.18
+        },
+        {
+          "word": "integrated",
+          "start": 277.18,
+          "end": 277.68
+        },
+        {
+          "word": "modules.",
+          "start": 277.68,
+          "end": 278.2
+        },
+        {
+          "word": "Visit",
+          "start": 278.94,
+          "end": 279.26
+        },
+        {
+          "word": "dormtel",
+          "start": 279.26,
+          "end": 280.14
+        },
+        {
+          "word": ".curiosity",
+          "start": 280.14,
+          "end": 281.12
+        },
+        {
+          "word": ".cloud",
+          "start": 281.12,
+          "end": 281.86
+        }
+      ]
+    },
+    {
+      "start": 281.86,
+      "end": 286.16,
+      "text": "to explore the live demo in your browser. Thank you for watching,",
+      "words": [
+        {
+          "word": "to",
+          "start": 281.86,
+          "end": 282.34
+        },
+        {
+          "word": "explore",
+          "start": 282.34,
+          "end": 282.86
+        },
+        {
+          "word": "the",
+          "start": 282.86,
+          "end": 283.04
+        },
+        {
+          "word": "live",
+          "start": 283.04,
+          "end": 283.42
+        },
+        {
+          "word": "demo",
+          "start": 283.42,
+          "end": 283.86
+        },
+        {
+          "word": "in",
+          "start": 283.86,
+          "end": 284.16
+        },
+        {
+          "word": "your",
+          "start": 284.16,
+          "end": 284.26
+        },
+        {
+          "word": "browser.",
+          "start": 284.26,
+          "end": 284.6
+        },
+        {
+          "word": "Thank",
+          "start": 285.08,
+          "end": 285.4
+        },
+        {
+          "word": "you",
+          "start": 285.4,
+          "end": 285.6
+        },
+        {
+          "word": "for",
+          "start": 285.6,
+          "end": 285.74
+        },
+        {
+          "word": "watching,",
+          "start": 285.74,
+          "end": 286.16
+        }
+      ]
+    },
+    {
+      "start": 286.54,
+      "end": 289.94,
+      "text": "and we look forward to helping you transform your dormitory operations.",
+      "words": [
+        {
+          "word": "and",
+          "start": 286.54,
+          "end": 286.78
+        },
+        {
+          "word": "we",
+          "start": 286.78,
+          "end": 286.92
+        },
+        {
+          "word": "look",
+          "start": 286.92,
+          "end": 287.06
+        },
+        {
+          "word": "forward",
+          "start": 287.06,
+          "end": 287.46
+        },
+        {
+          "word": "to",
+          "start": 287.46,
+          "end": 287.6
+        },
+        {
+          "word": "helping",
+          "start": 287.6,
+          "end": 287.82
+        },
+        {
+          "word": "you",
+          "start": 287.82,
+          "end": 288.0
+        },
+        {
+          "word": "transform",
+          "start": 288.0,
+          "end": 288.58
+        },
+        {
+          "word": "your",
+          "start": 288.58,
+          "end": 288.84
+        },
+        {
+          "word": "dormitory",
+          "start": 288.84,
+          "end": 289.38
+        },
+        {
+          "word": "operations.",
+          "start": 289.38,
+          "end": 289.94
+        }
+      ]
+    }
+  ]
+}

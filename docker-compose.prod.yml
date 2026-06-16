@@ -1,0 +1,58 @@
+services:
+  db:
+    image: postgres:15
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dormtel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${POSTGRES_DB:-dormtel}
+    volumes:
+      - postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dormtel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7
+    restart: always
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
+  api:
+    build: ./backend
+    restart: always
+    ports:
+      - "8090:8000"
+    environment:
+      DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dormtel}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dormtel}
+      REDIS_URL: redis://redis:6379/0
+      CORS_ORIGINS: ${CORS_ORIGINS:-https://dormtel.quriosity.cloud}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+
+  frontend:
+    build: ./frontend
+    restart: always
+    ports:
+      - "3090:3000"
+    depends_on:
+      - api
+
+  tenant-portal:
+    build: ./tenant-portal
+    restart: always
+    ports:
+      - "3190:3000"
+    depends_on:
+      - api
+
+volumes:
+  postgres_data:

@@ -1,0 +1,445 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>DormTel Tenant Portal - Product Demo</title>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Inter:wght@700&display=swap" rel="stylesheet">
+<style>
+:root {
+  --primary: #3b82f6;
+  --primary-light: #59a0ff;
+  --accent: #60a5fa;
+  --accent-soft: rgba(96, 165, 250, 0.15);
+  --dark: #0f172a;
+  --glass: rgba(255, 255, 255, 0.05);
+  --glass-border: rgba(255, 255, 255, 0.1);
+}
+
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: 'Inter', sans-serif; background: var(--dark); color: #fff; overflow: hidden; }
+
+/* Slide System */
+.slide {
+  display: none; width: 100vw; height: 100vh;
+  position: absolute; top: 0; left: 0;
+  flex-direction: column; align-items: center; justify-content: center;
+  opacity: 0; transition: opacity 0.6s ease;
+}
+.slide.active { display: flex; opacity: 1; }
+.slide.fade-out { opacity: 0; }
+
+/* Background Effects */
+.bg-gradient {
+  position: absolute; inset: 0;
+  background: radial-gradient(ellipse at 20% 50%, rgba(26,35,126,0.4) 0%, transparent 50%),
+              radial-gradient(ellipse at 80% 20%, rgba(57,73,171,0.3) 0%, transparent 40%),
+              radial-gradient(ellipse at 50% 80%, rgba(13,71,161,0.2) 0%, transparent 50%),
+              var(--dark);
+}
+.bg-pattern {
+  position: absolute; inset: 0; opacity: 0.03;
+  background-image: radial-gradient(circle at 1px 1px, white 1px, transparent 0);
+  background-size: 40px 40px;
+}
+
+/* Title Slide */
+.slide-title { padding: 60px; }
+.slide-title .brand { position: relative; z-index: 1; text-align: center; }
+.slide-title .logo-mark {
+  width: 80px; height: 80px; margin: 0 auto 24px;
+  background: linear-gradient(135deg, var(--accent), #ffab00);
+  border-radius: 20px; display: flex; align-items: center; justify-content: center;
+  font-size: 2rem; font-weight: 800; color: var(--primary);
+  box-shadow: 0 20px 60px rgba(255, 215, 0, 0.3);
+  animation: float 3s ease-in-out infinite;
+}
+@keyframes float { 0%,100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
+.slide-title h1 {
+  font-family: 'Playfair Display', serif;
+  font-size: 5rem; letter-spacing: -2px;
+  background: linear-gradient(135deg, #fff 0%, #e0e0e0 100%);
+  -webkit-background-clip: text; -webkit-text-fill-color: transparent;
+  margin-bottom: 8px;
+}
+.slide-title .subtitle {
+  font-size: 1.6rem; font-weight: 300; color: var(--accent);
+  letter-spacing: 4px; text-transform: uppercase; margin-bottom: 32px;
+}
+.slide-title .tagline {
+  font-size: 1.15rem; font-weight: 300; opacity: 0.7;
+  max-width: 600px; margin: 0 auto; line-height: 1.6;
+}
+.slide-title .badges {
+  display: flex; gap: 16px; justify-content: center; margin-top: 40px;
+}
+.slide-title .badge {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  padding: 10px 20px; border-radius: 100px; font-size: 0.85rem;
+  font-weight: 500; backdrop-filter: blur(10px);
+}
+
+/* Content Slides */
+.slide-content { padding: 40px 60px; gap: 20px; }
+.slide-content .top-bar {
+  width: 100%; display: flex; align-items: center; justify-content: space-between;
+  position: relative; z-index: 1;
+}
+.slide-content .act-badge {
+  background: var(--accent-soft, rgba(255,215,0,0.15)); border: 1px solid rgba(255,215,0,0.3);
+  color: var(--accent); padding: 6px 16px; border-radius: 100px;
+  font-size: 0.75rem; font-weight: 600; text-transform: uppercase; letter-spacing: 1.5px;
+}
+.slide-content .slide-number {
+  font-size: 0.8rem; opacity: 0.4; font-weight: 500;
+}
+.slide-content h2 {
+  font-size: 2.2rem; font-weight: 700; text-align: center;
+  position: relative; z-index: 1; margin-bottom: 4px;
+}
+.slide-content .screenshot-frame {
+  flex: 1; display: flex; align-items: center; justify-content: center;
+  width: 100%; max-height: 65vh; position: relative; z-index: 1;
+}
+.slide-content .screenshot-frame img {
+  max-width: 88%; max-height: 60vh; border-radius: 16px;
+  box-shadow: 0 25px 80px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.1);
+  transition: transform 0.3s ease;
+}
+.slide-content .caption {
+  position: relative; z-index: 1;
+  background: var(--glass); border: 1px solid var(--glass-border);
+  backdrop-filter: blur(10px);
+  padding: 16px 28px; border-radius: 12px;
+  font-size: 0.95rem; font-weight: 400; line-height: 1.6;
+  max-width: 85%; text-align: center; opacity: 0.9;
+}
+.slide-content .caption strong { color: var(--accent); font-weight: 600; }
+
+/* End Slide */
+.slide-end { padding: 60px; }
+.slide-end .content { position: relative; z-index: 1; text-align: center; max-width: 900px; }
+.slide-end h2 {
+  font-family: 'Playfair Display', serif;
+  font-size: 3rem; margin-bottom: 12px;
+}
+.slide-end .subtitle-end { color: var(--accent); font-size: 1.2rem; font-weight: 300; margin-bottom: 40px; }
+.slide-end .metrics {
+  display: grid; gap: 16px; margin-bottom: 40px;
+}
+.slide-end .metric {
+  background: var(--glass); border: 1px solid var(--glass-border);
+  padding: 24px 16px; border-radius: 16px; backdrop-filter: blur(10px);
+}
+.slide-end .metric .value { font-size: 2.8rem; font-weight: 800; color: var(--accent); }
+.slide-end .metric .label { font-size: 0.85rem; opacity: 0.7; margin-top: 4px; font-weight: 400; }
+.slide-end .cta {
+  background: linear-gradient(135deg, var(--accent), #ffab00);
+  color: var(--primary); padding: 14px 36px; border-radius: 100px;
+  font-size: 1rem; font-weight: 700; display: inline-block;
+  box-shadow: 0 10px 40px rgba(255,215,0,0.3);
+}
+.slide-end .url { margin-top: 16px; opacity: 0.5; font-size: 0.9rem; }
+
+/* Navigation */
+.controls {
+  position: fixed; bottom: 24px; left: 50%; transform: translateX(-50%);
+  display: flex; align-items: center; gap: 12px; z-index: 100;
+  background: rgba(0,0,0,0.6); backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border); border-radius: 100px; padding: 8px 16px;
+}
+.controls button {
+  background: none; border: none; color: #fff; cursor: pointer;
+  width: 36px; height: 36px; border-radius: 50%; display: flex;
+  align-items: center; justify-content: center; transition: all 0.2s;
+  font-size: 1.1rem;
+}
+.controls button:hover { background: rgba(255,255,255,0.1); }
+.controls .counter { font-size: 0.8rem; opacity: 0.6; min-width: 50px; text-align: center; }
+.progress {
+  position: fixed; top: 0; left: 0; height: 2px;
+  background: linear-gradient(90deg, var(--accent), #ffab00);
+  transition: width 0.4s ease; z-index: 100;
+}
+
+/* Autoplay indicator */
+.autoplay-badge {
+  position: fixed; top: 16px; right: 20px; z-index: 100;
+  background: rgba(0,0,0,0.5); backdrop-filter: blur(10px);
+  border: 1px solid var(--glass-border); border-radius: 100px;
+  padding: 6px 14px; font-size: 0.7rem; opacity: 0.6;
+  display: none;
+}
+.autoplay-badge.visible { display: block; }
+</style>
+</head>
+<body>
+
+<div class="progress" id="progress"></div>
+<div class="autoplay-badge" id="autoplayBadge">AUTOPLAY</div>
+
+
+<div class="slide slide-title active">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="brand">
+    <div class="logo-mark">DT</div>
+    <h1>DormTel Tenant Portal</h1>
+    <div class="subtitle">Self-Service Resident App</div>
+    <div class="tagline">Your dorm, in your hands.</div>
+    <div class="badges">
+      <span class="badge">Mobile-First</span>
+      <span class="badge">Real-Time Billing</span>
+      <span class="badge">Online Payments</span>
+      <span class="badge">Maintenance Requests</span>
+    </div>
+  </div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Context</span>
+    <span class="slide-number">01</span>
+  </div>
+  <h2>The Problem</h2>
+  <div class="screenshot-frame"><img src="screenshots/01-the-problem.png" alt="The Problem"></div>
+  <div class="caption">Residents lack visibility, payments are manual, and maintenance requests get lost.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Overview</span>
+    <span class="slide-number">02</span>
+  </div>
+  <h2>The Solution</h2>
+  <div class="screenshot-frame"><img src="screenshots/02-the-solution.png" alt="The Solution"></div>
+  <div class="caption">A mobile-first self-service portal that empowers every resident.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Authentication</span>
+    <span class="slide-number">03</span>
+  </div>
+  <h2>Easy Login</h2>
+  <div class="screenshot-frame"><img src="screenshots/03-easy-login.png" alt="Easy Login"></div>
+  <div class="caption"><strong>No password needed</strong> — just enter your registered email to access your portal instantly.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Home</span>
+    <span class="slide-number">04</span>
+  </div>
+  <h2>Dashboard</h2>
+  <div class="screenshot-frame"><img src="screenshots/04-dashboard.png" alt="Dashboard"></div>
+  <div class="caption"><strong>At a glance:</strong> outstanding balance, billing stats, service request status, and announcements.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Home</span>
+    <span class="slide-number">05</span>
+  </div>
+  <h2>Announcements Feed</h2>
+  <div class="screenshot-frame"><img src="screenshots/05-announcements-feed.png" alt="Announcements Feed"></div>
+  <div class="caption"><strong>Stay informed</strong> with real-time announcements from building management.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Billing</span>
+    <span class="slide-number">06</span>
+  </div>
+  <h2>Current Bill</h2>
+  <div class="screenshot-frame"><img src="screenshots/06-current-bill.png" alt="Current Bill"></div>
+  <div class="caption"><strong>Transparent billing</strong> — see every charge itemized: rent, electricity, water, and extras.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Billing</span>
+    <span class="slide-number">07</span>
+  </div>
+  <h2>Billing History</h2>
+  <div class="screenshot-frame"><img src="screenshots/07-billing-history.png" alt="Billing History"></div>
+  <div class="caption"><strong>Full billing history</strong> — browse and expand past billing periods.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Payments</span>
+    <span class="slide-number">08</span>
+  </div>
+  <h2>Online Payment</h2>
+  <div class="screenshot-frame"><img src="screenshots/08-online-payment.png" alt="Online Payment"></div>
+  <div class="caption"><strong>Pay your way</strong> — choose GCash, Maya, or bank transfer in seconds.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Payments</span>
+    <span class="slide-number">09</span>
+  </div>
+  <h2>Payment History</h2>
+  <div class="screenshot-frame"><img src="screenshots/09-payment-history.png" alt="Payment History"></div>
+  <div class="caption"><strong>Every payment logged</strong> — with timestamps, amounts, and reference numbers.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Maintenance</span>
+    <span class="slide-number">10</span>
+  </div>
+  <h2>Service Requests</h2>
+  <div class="screenshot-frame"><img src="screenshots/10-service-requests.png" alt="Service Requests"></div>
+  <div class="caption"><strong>Report issues by category</strong> — aircon, plumbing, electrical, WiFi, pest control, and more.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Maintenance</span>
+    <span class="slide-number">11</span>
+  </div>
+  <h2>Request Tracking</h2>
+  <div class="screenshot-frame"><img src="screenshots/11-request-tracking.png" alt="Request Tracking"></div>
+  <div class="caption"><strong>Track every request</strong> — from submitted, to in-progress, to resolved with notes.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Move-Out</span>
+    <span class="slide-number">12</span>
+  </div>
+  <h2>Move-Out Scheduling</h2>
+  <div class="screenshot-frame"><img src="screenshots/12-move-out-scheduling.png" alt="Move-Out Scheduling"></div>
+  <div class="caption"><strong>Plan your departure</strong> — schedule move-out date, provide reason and forwarding contact.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Profile</span>
+    <span class="slide-number">13</span>
+  </div>
+  <h2>My Profile</h2>
+  <div class="screenshot-frame"><img src="screenshots/13-my-profile.png" alt="My Profile"></div>
+  <div class="caption"><strong>All your details</strong> — room assignment, bed code, contract dates, and current balance.</div>
+</div>
+
+<div class="slide slide-content">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="top-bar">
+    <span class="act-badge">Technical</span>
+    <span class="slide-number">14</span>
+  </div>
+  <h2>Architecture</h2>
+  <div class="screenshot-frame"><img src="screenshots/14-architecture.png" alt="Architecture"></div>
+  <div class="caption">React 18 + FastAPI + PostgreSQL — containerized with Docker, deployed on VPS.</div>
+</div>
+
+<div class="slide slide-end">
+  <div class="bg-gradient"></div>
+  <div class="bg-pattern"></div>
+  <div class="content">
+    <h2>DormTel Tenant Portal</h2>
+    <div class="subtitle-end">Smarter Dormitory Management</div>
+    <div class="metrics" style="grid-template-columns: repeat(3, 1fr)">
+      <div class="metric"><div class="value">7</div><div class="label">Core Features</div></div>
+      <div class="metric"><div class="value">11</div><div class="label">API Endpoints</div></div>
+      <div class="metric"><div class="value">100%</div><div class="label">Mobile-First</div></div>
+    </div>
+    <div class="cta">Try it live</div>
+    <div class="url">dormtel.bayanaihan.net/tenant</div>
+  </div>
+</div>
+
+<!-- Controls -->
+<div class="controls">
+  <button onclick="prevSlide()" title="Previous">&#9664;</button>
+  <span class="counter" id="counter">1 / 16</span>
+  <button onclick="nextSlide()" title="Next">&#9654;</button>
+  <button onclick="toggleAutoplay()" id="playBtn" title="Autoplay">&#9654;&#9654;</button>
+</div>
+
+<script>
+let current = 0;
+let autoplayTimer = null;
+const slides = document.querySelectorAll('.slide');
+const total = slides.length;
+const durations = [15.9,16.8,15.1,11.8,13.2,12.8,15.6,11.5,13.3,13.8,15.8,13.5,13.5,13.9,19.7,19.5];
+
+function showSlide(n) {
+  slides[current].classList.add('fade-out');
+  setTimeout(() => {
+    slides[current].classList.remove('active', 'fade-out');
+    current = (n + total) % total;
+    slides[current].classList.add('active');
+    document.getElementById('counter').textContent = (current + 1) + ' / ' + total;
+    document.getElementById('progress').style.width = ((current + 1) / total * 100) + '%';
+  }, 300);
+}
+
+function nextSlide() { showSlide(current + 1); }
+function prevSlide() { showSlide(current - 1); }
+
+function toggleAutoplay() {
+  if (autoplayTimer) {
+    clearTimeout(autoplayTimer);
+    autoplayTimer = null;
+    document.getElementById('autoplayBadge').classList.remove('visible');
+    document.getElementById('playBtn').innerHTML = '&#9654;&#9654;';
+  } else {
+    document.getElementById('autoplayBadge').classList.add('visible');
+    document.getElementById('playBtn').innerHTML = '&#9724;&#9724;';
+    autoAdvance();
+  }
+}
+
+function autoAdvance() {
+  if (!autoplayTimer && current > 0) return;
+  const dur = (durations[current] || 15) * 1000;
+  autoplayTimer = setTimeout(() => {
+    if (current < total - 1) {
+      nextSlide();
+      setTimeout(autoAdvance, 400);
+    } else {
+      toggleAutoplay();
+    }
+  }, dur);
+}
+
+document.addEventListener('keydown', (e) => {
+  if (e.key === 'ArrowRight' || e.key === ' ') { e.preventDefault(); nextSlide(); }
+  if (e.key === 'ArrowLeft') { e.preventDefault(); prevSlide(); }
+  if (e.key === 'p' || e.key === 'P') toggleAutoplay();
+});
+</script>
+</body>
+</html>

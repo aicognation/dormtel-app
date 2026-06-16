@@ -1,25 +1,79 @@
 import React from 'react';
-import { BrowserRouter as Router, Routes, Route, Link } from 'react-router-dom';
-import Dashboard from './components/Dashboard';
+import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
+import { AuthProvider, useAuth } from './contexts/AuthContext';
+import AppShell from './components/layout/AppShell';
+import LoginPage from './pages/LoginPage';
+import Dashboard from './pages/Dashboard';
+import InquiriesPage from './pages/InquiriesPage';
+import QrInquiryPage from './pages/QrInquiryPage';
+import OnboardingPage from './pages/OnboardingPage';
+import BillingPage from './pages/BillingPage';
+import PaymentsPage from './pages/PaymentsPage';
+import MoveOutsPage from './pages/MoveOutsPage';
+import MonitoringPage from './pages/MonitoringPage';
+import FaqPage from './pages/FaqPage';
+import ResidentsPage from './pages/ResidentsPage';
+import MoveInsPage from './pages/MoveInsPage';
+import MiscellaneousPage from './pages/MiscellaneousPage';
+import ServiceRequestsAdminPage from './pages/ServiceRequestsAdminPage';
+
+function ProtectedRoute({ children }) {
+  const { isAuthenticated, loading } = useAuth();
+  if (loading) {
+    return (
+      <div className="min-h-screen flex items-center justify-center">
+        <div className="animate-spin rounded-full h-10 w-10 border-b-2 border-brand-navy" />
+      </div>
+    );
+  }
+  return isAuthenticated ? children : <Navigate to="/login" replace />;
+}
+
+function AppRoutes() {
+  return (
+    <Routes>
+      <Route path="/login" element={<LoginPage />} />
+      <Route
+        element={
+          <ProtectedRoute>
+            <AppShell />
+          </ProtectedRoute>
+        }
+      >
+        <Route path="/" element={<Dashboard />} />
+        <Route path="/inquiries" element={<InquiriesPage />} />
+        <Route path="/qr-inquiry" element={<QrInquiryPage />} />
+        <Route path="/onboarding" element={<OnboardingPage />} />
+        <Route path="/residents" element={<ResidentsPage />} />
+        <Route path="/moveins" element={<MoveInsPage />} />
+        <Route path="/billing" element={<BillingPage />} />
+        <Route path="/payments" element={<PaymentsPage />} />
+        <Route path="/moveouts" element={<MoveOutsPage />} />
+        <Route path="/miscellaneous" element={<MiscellaneousPage />} />
+        <Route path="/monitoring" element={<MonitoringPage />} />
+        <Route path="/faq" element={<FaqPage />} />
+        <Route path="/service-requests" element={<ServiceRequestsAdminPage />} />
+      </Route>
+    </Routes>
+  );
+}
 
 export default function App() {
   return (
     <Router>
-      <div className="min-h-screen bg-gray-50">
-        <nav className="bg-blue-700 text-white p-4">
-          <div className="max-w-6xl mx-auto flex items-center justify-between">
-            <h1 className="text-xl font-bold">Dormtel Automation</h1>
-            <div className="space-x-4">
-              <Link to="/" className="hover:underline">Dashboard</Link>
-            </div>
-          </div>
-        </nav>
-        <main className="max-w-6xl mx-auto p-4">
-          <Routes>
-            <Route path="/" element={<Dashboard />} />
-          </Routes>
-        </main>
-      </div>
+      <AuthProvider>
+        <Toaster
+          position="top-right"
+          toastOptions={{
+            duration: 4000,
+            style: { fontSize: '14px' },
+            success: { iconTheme: { primary: '#16a34a', secondary: '#fff' } },
+            error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
+          }}
+        />
+        <AppRoutes />
+      </AuthProvider>
     </Router>
   );
 }

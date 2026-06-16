@@ -1,0 +1,18 @@
+{
+  "inputVideo": "./v2/video-output/Dormtel Stakeholder Demo.mp4",
+  "outputVideo": "./v2/video-output/Dormtel Stakeholder Demo - captioned.mp4",
+  "workingDir": "./v2/caption-work",
+  "whisperModel": "base",
+  "language": "en",
+  "maxWordsPerLine": 7,
+  "style": {
+    "fontName": "Arial",
+    "fontSize": 48,
+    "primaryColor": "&H00FFFFFF",
+    "highlightColor": "&H0000D6FF",
+    "outlineColor": "&H00000000",
+    "backgroundColor": "&H80000000",
+    "alignment": 2,
+    "marginV": 50
+  }
+}

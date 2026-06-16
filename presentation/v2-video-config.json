@@ -1,0 +1,63 @@
+{
+  "outputDir": "./v2/video-output",
+  "voice": {
+    "name": "en-US-AndrewMultilingualNeural",
+    "rate": "-5%"
+  },
+  "slides": [
+    {
+      "voiceover": "Welcome to DormTel. My Dorm, My Home. This is our comprehensive stakeholder demo, showing the live production system managing real dormitory operations."
+    },
+    {
+      "voiceover": "Philippine dormitory operators face five critical challenges: scattered inquiries across social media, error-prone manual billing, payment reconciliation nightmares, zero real-time visibility, and paperwork-heavy move-out processes."
+    },
+    {
+      "voiceover": "DormTel automates the entire workflow with five integrated modules, from first inquiry through onboarding, billing, payments, and move-out settlement."
+    },
+    {
+      "voiceover": "Built specifically for Philippine dormitories, DormTel uses FastAPI, React, and PostgreSQL with direct GCash and Maya webhook integration. Everything runs on secure cloud infrastructure."
+    },
+    {
+      "voiceover": "Here's the live Operations Dashboard. At a glance: today's revenue of forty-one thousand fifteen pesos, six new inquiries awaiting response, fifteen total reservations, and quick action buttons for instant task navigation."
+    },
+    {
+      "voiceover": "The Smart Inquiry Hub captures leads from every channel: Facebook, Instagram, TikTok, walk-ins, and phone calls. Each inquiry gets AI sentiment scoring and lead priority to help staff focus on the hottest prospects."
+    },
+    {
+      "voiceover": "Creating a new inquiry takes seconds. Select the source channel, paste the message content, and submit. The system automatically scores sentiment and lead priority using AI."
+    },
+    {
+      "voiceover": "Digital Onboarding shows all twenty-five rooms across three buildings with live occupancy tracking. Each room displays its rate per bed, available capacity, and current status."
+    },
+    {
+      "voiceover": "The reservation form includes smart room search. Type any room number or building name and results filter instantly. ID verification, monthly rate, and auto payment link generation are all built in."
+    },
+    {
+      "voiceover": "The Auto-Billing Engine lists every billing record with period, rent, electric, water, and total amounts. Status badges show where each bill is in the approval workflow, from draft to distributed."
+    },
+    {
+      "voiceover": "Generating billing is automated. Select the building, enter meter readings, and the system splits utility costs proportionally across all residents. Manager approval is required before distribution."
+    },
+    {
+      "voiceover": "Payment Reconciliation starts with the Daily Sales Report. Today shows forty-one thousand fifteen pesos from five transactions. Below that, unmatched payments are flagged for quick manual review."
+    },
+    {
+      "voiceover": "Matching a payment is simple. Select the resident and billing record, and the system links them. This eliminates the spreadsheet reconciliation that used to take hours every day."
+    },
+    {
+      "voiceover": "Move-Out Settlement tracks every exit through a structured pipeline: from initial request through clearance inspection, final billing, and completion. Every step is logged for audit."
+    },
+    {
+      "voiceover": "Creating a move-out request captures the resident, scheduled date, reason for leaving, and forwards the case for room inspection and final billing calculation."
+    },
+    {
+      "voiceover": "This is live production data captured today. Twenty-five rooms managed, eighteen active residents, twelve inquiries in pipeline, forty-one thousand pesos in today's sales, all running on the DormTel platform right now."
+    },
+    {
+      "voiceover": "DormTel is ready to scale. The platform eliminates manual work, prevents billing errors, and gives owners complete visibility into their operations, from any device, anywhere."
+    },
+    {
+      "voiceover": "Explore the live demo at dormtel dot quriosity dot cloud. We welcome your questions and feedback. Thank you for your time."
+    }
+  ]
+}

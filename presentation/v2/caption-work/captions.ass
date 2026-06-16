@@ -1,0 +1,90 @@
+[Script Info]
+Title: Auto-generated karaoke captions
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Arial,48,&H00FFFFFF,&H0000D6FF,&H00000000,&H80000000,1,0,0,0,100,100,0,0,3,2,0,2,40,40,50,1
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:00.10,0:00:03.40,Default,,0,0,0,,{\kf41}Welcome{\kf0} {\kf41}to{\kf0} {\kf41}DormTel.{\kf0} {\kf41}My{\kf0} {\kf41}Dorm,{\kf0} {\kf41}My{\kf0} {\kf41}Home.
+Dialogue: 0,0:00:03.47,0:00:06.77,Default,,0,0,0,,{\kf41}This{\kf0} {\kf41}is{\kf0} {\kf41}our{\kf0} {\kf41}comprehensive{\kf0} {\kf41}stakeholder{\kf0} {\kf41}demo,{\kf0} {\kf41}showing
+Dialogue: 0,0:00:06.84,0:00:10.15,Default,,0,0,0,,{\kf41}the{\kf0} {\kf41}live{\kf0} {\kf41}production{\kf0} {\kf41}system{\kf0} {\kf41}managing{\kf0} {\kf41}real{\kf0} {\kf41}dormitory
+Dialogue: 0,0:00:10.22,0:00:10.63,Default,,0,0,0,,{\kf41}operations.
+Dialogue: 0,0:00:12.60,0:00:16.30,Default,,0,0,0,,{\kf54}Philippine{\kf0} {\kf54}dormitory{\kf0} {\kf54}operators{\kf0} {\kf54}face{\kf0} {\kf54}five{\kf0} {\kf54}critical
+Dialogue: 0,0:00:16.39,0:00:20.09,Default,,0,0,0,,{\kf54}challenges:{\kf0} {\kf54}scattered{\kf0} {\kf54}inquiries{\kf0} {\kf54}across{\kf0} {\kf54}social{\kf0} {\kf54}media,
+Dialogue: 0,0:00:20.18,0:00:23.25,Default,,0,0,0,,{\kf54}error-prone{\kf0} {\kf54}manual{\kf0} {\kf54}billing,{\kf0} {\kf54}payment{\kf0} {\kf54}reconciliation
+Dialogue: 0,0:00:23.34,0:00:27.04,Default,,0,0,0,,{\kf54}nightmares,{\kf0} {\kf54}zero{\kf0} {\kf54}real-time{\kf0} {\kf54}visibility,{\kf0} {\kf54}and{\kf0} {\kf54}paperwork-heavy
+Dialogue: 0,0:00:27.14,0:00:28.30,Default,,0,0,0,,{\kf54}move-out{\kf0} {\kf54}processes.
+Dialogue: 0,0:00:30.30,0:00:34.05,Default,,0,0,0,,{\kf46}DormTel{\kf0} {\kf47}automates{\kf0} {\kf46}the{\kf0} {\kf46}entire{\kf0} {\kf47}workflow{\kf0} {\kf47}with{\kf0} {\kf46}five
+Dialogue: 0,0:00:34.13,0:00:37.88,Default,,0,0,0,,{\kf47}integrated{\kf0} {\kf46}modules,{\kf0} {\kf47}from{\kf0} {\kf46}first{\kf0} {\kf47}inquiry{\kf0} {\kf47}through{\kf0} {\kf47}onboarding,
+Dialogue: 0,0:00:37.96,0:00:40.62,Default,,0,0,0,,{\kf46}billing,{\kf0} {\kf46}payments,{\kf0} {\kf47}and{\kf0} {\kf47}move-out{\kf0} {\kf47}settlement.
+Dialogue: 0,0:00:42.60,0:00:46.68,Default,,0,0,0,,{\kf51}Built{\kf0} {\kf51}specifically{\kf0} {\kf51}for{\kf0} {\kf51}Philippine{\kf0} {\kf51}dormitories,{\kf0} {\kf51}DormTel{\kf0} {\kf51}uses
+Dialogue: 0,0:00:46.77,0:00:50.85,Default,,0,0,0,,{\kf51}FastAPI,{\kf0} {\kf51}React,{\kf0} {\kf51}and{\kf0} {\kf51}PostgreSQL{\kf0} {\kf51}with{\kf0} {\kf51}direct{\kf0} {\kf51}GCash
+Dialogue: 0,0:00:50.94,0:00:55.02,Default,,0,0,0,,{\kf51}and{\kf0} {\kf51}Maya{\kf0} {\kf51}webhook{\kf0} {\kf51}integration.{\kf0} {\kf51}Everything{\kf0} {\kf51}runs{\kf0} {\kf51}on
+Dialogue: 0,0:00:55.11,0:00:56.81,Default,,0,0,0,,{\kf51}secure{\kf0} {\kf51}cloud{\kf0} {\kf51}infrastructure.
+Dialogue: 0,0:00:58.80,0:01:02.09,Default,,0,0,0,,{\kf41}Here's{\kf0} {\kf41}the{\kf0} {\kf41}live{\kf0} {\kf41}Operations{\kf0} {\kf41}Dashboard.{\kf0} {\kf41}At{\kf0} {\kf41}a
+Dialogue: 0,0:01:02.16,0:01:05.46,Default,,0,0,0,,{\kf41}glance:{\kf0} {\kf41}today's{\kf0} {\kf41}revenue{\kf0} {\kf41}of{\kf0} {\kf41}forty-one{\kf0} {\kf41}thousand{\kf0} {\kf41}fifteen
+Dialogue: 0,0:01:05.53,0:01:08.82,Default,,0,0,0,,{\kf41}pesos,{\kf0} {\kf41}six{\kf0} {\kf41}new{\kf0} {\kf41}inquiries{\kf0} {\kf41}awaiting{\kf0} {\kf41}response,{\kf0} {\kf41}fifteen
+Dialogue: 0,0:01:08.89,0:01:12.19,Default,,0,0,0,,{\kf41}total{\kf0} {\kf41}reservations,{\kf0} {\kf41}and{\kf0} {\kf41}quick{\kf0} {\kf41}action{\kf0} {\kf41}buttons{\kf0} {\kf41}for
+Dialogue: 0,0:01:12.26,0:01:13.63,Default,,0,0,0,,{\kf41}instant{\kf0} {\kf41}task{\kf0} {\kf41}navigation.
+Dialogue: 0,0:01:15.60,0:01:18.80,Default,,0,0,0,,{\kf40}The{\kf0} {\kf40}Smart{\kf0} {\kf40}Inquiry{\kf0} {\kf40}Hub{\kf0} {\kf40}captures{\kf0} {\kf40}leads{\kf0} {\kf40}from
+Dialogue: 0,0:01:18.87,0:01:22.06,Default,,0,0,0,,{\kf40}every{\kf0} {\kf40}channel:{\kf0} {\kf40}Facebook,{\kf0} {\kf40}Instagram,{\kf0} {\kf40}TikTok,{\kf0} {\kf40}walk-ins,{\kf0} {\kf40}and
+Dialogue: 0,0:01:22.13,0:01:25.33,Default,,0,0,0,,{\kf40}phone{\kf0} {\kf40}calls.{\kf0} {\kf40}Each{\kf0} {\kf40}inquiry{\kf0} {\kf40}gets{\kf0} {\kf40}AI{\kf0} {\kf40}sentiment
+Dialogue: 0,0:01:25.40,0:01:28.60,Default,,0,0,0,,{\kf40}scoring{\kf0} {\kf40}and{\kf0} {\kf40}lead{\kf0} {\kf40}priority{\kf0} {\kf40}to{\kf0} {\kf40}help{\kf0} {\kf40}staff
+Dialogue: 0,0:01:28.67,0:01:30.93,Default,,0,0,0,,{\kf40}focus{\kf0} {\kf40}on{\kf0} {\kf40}the{\kf0} {\kf40}hottest{\kf0} {\kf40}prospects.
+Dialogue: 0,0:01:32.90,0:01:36.22,Default,,0,0,0,,{\kf41}Creating{\kf0} {\kf41}a{\kf0} {\kf41}new{\kf0} {\kf41}inquiry{\kf0} {\kf41}takes{\kf0} {\kf41}seconds.{\kf0} {\kf41}Select
+Dialogue: 0,0:01:36.29,0:01:39.61,Default,,0,0,0,,{\kf41}the{\kf0} {\kf41}source{\kf0} {\kf41}channel,{\kf0} {\kf41}paste{\kf0} {\kf41}the{\kf0} {\kf41}message{\kf0} {\kf41}content,
+Dialogue: 0,0:01:39.69,0:01:43.00,Default,,0,0,0,,{\kf41}and{\kf0} {\kf41}submit.{\kf0} {\kf41}The{\kf0} {\kf41}system{\kf0} {\kf41}automatically{\kf0} {\kf41}scores{\kf0} {\kf41}sentiment
+Dialogue: 0,0:01:43.08,0:01:45.43,Default,,0,0,0,,{\kf41}and{\kf0} {\kf41}lead{\kf0} {\kf41}priority{\kf0} {\kf41}using{\kf0} {\kf41}AI.
+Dialogue: 0,0:01:47.40,0:01:50.96,Default,,0,0,0,,{\kf44}Digital{\kf0} {\kf44}Onboarding{\kf0} {\kf44}shows{\kf0} {\kf44}all{\kf0} {\kf44}twenty-five{\kf0} {\kf44}rooms{\kf0} {\kf44}across
+Dialogue: 0,0:01:51.04,0:01:54.60,Default,,0,0,0,,{\kf44}three{\kf0} {\kf44}buildings{\kf0} {\kf44}with{\kf0} {\kf44}live{\kf0} {\kf44}occupancy{\kf0} {\kf44}tracking.{\kf0} {\kf44}Each
+Dialogue: 0,0:01:54.68,0:01:58.24,Default,,0,0,0,,{\kf44}room{\kf0} {\kf44}displays{\kf0} {\kf44}its{\kf0} {\kf44}rate{\kf0} {\kf44}per{\kf0} {\kf44}bed,{\kf0} {\kf44}available
+Dialogue: 0,0:01:58.32,0:02:00.32,Default,,0,0,0,,{\kf44}capacity,{\kf0} {\kf44}and{\kf0} {\kf44}current{\kf0} {\kf44}status.
+Dialogue: 0,0:02:02.30,0:02:05.59,Default,,0,0,0,,{\kf41}The{\kf0} {\kf41}reservation{\kf0} {\kf41}form{\kf0} {\kf41}includes{\kf0} {\kf41}smart{\kf0} {\kf41}room{\kf0} {\kf41}search.
+Dialogue: 0,0:02:05.67,0:02:08.96,Default,,0,0,0,,{\kf41}Type{\kf0} {\kf41}any{\kf0} {\kf41}room{\kf0} {\kf41}number{\kf0} {\kf41}or{\kf0} {\kf41}building{\kf0} {\kf41}name
+Dialogue: 0,0:02:09.03,0:02:12.32,Default,,0,0,0,,{\kf41}and{\kf0} {\kf41}results{\kf0} {\kf41}filter{\kf0} {\kf41}instantly.{\kf0} {\kf41}ID{\kf0} {\kf41}verification,{\kf0} {\kf41}monthly
+Dialogue: 0,0:02:12.39,0:02:15.69,Default,,0,0,0,,{\kf41}rate,{\kf0} {\kf41}and{\kf0} {\kf41}auto{\kf0} {\kf41}payment{\kf0} {\kf41}link{\kf0} {\kf41}generation{\kf0} {\kf41}are
+Dialogue: 0,0:02:15.76,0:02:17.13,Default,,0,0,0,,{\kf41}all{\kf0} {\kf41}built{\kf0} {\kf41}in.
+Dialogue: 0,0:02:19.10,0:02:22.34,Default,,0,0,0,,{\kf40}The{\kf0} {\kf40}Auto-Billing{\kf0} {\kf40}Engine{\kf0} {\kf40}lists{\kf0} {\kf40}every{\kf0} {\kf40}billing{\kf0} {\kf40}record
+Dialogue: 0,0:02:22.41,0:02:25.66,Default,,0,0,0,,{\kf40}with{\kf0} {\kf40}period,{\kf0} {\kf40}rent,{\kf0} {\kf40}electric,{\kf0} {\kf40}water,{\kf0} {\kf40}and{\kf0} {\kf40}total
+Dialogue: 0,0:02:25.73,0:02:28.97,Default,,0,0,0,,{\kf40}amounts.{\kf0} {\kf40}Status{\kf0} {\kf40}badges{\kf0} {\kf40}show{\kf0} {\kf40}where{\kf0} {\kf40}each{\kf0} {\kf40}bill
+Dialogue: 0,0:02:29.04,0:02:32.28,Default,,0,0,0,,{\kf40}is{\kf0} {\kf40}in{\kf0} {\kf40}the{\kf0} {\kf40}approval{\kf0} {\kf40}workflow,{\kf0} {\kf40}from{\kf0} {\kf40}draft
+Dialogue: 0,0:02:32.35,0:02:33.23,Default,,0,0,0,,{\kf40}to{\kf0} {\kf40}distributed.
+Dialogue: 0,0:02:35.20,0:02:38.73,Default,,0,0,0,,{\kf44}Generating{\kf0} {\kf44}billing{\kf0} {\kf44}is{\kf0} {\kf44}automated.{\kf0} {\kf44}Select{\kf0} {\kf44}the{\kf0} {\kf44}building,
+Dialogue: 0,0:02:38.81,0:02:42.34,Default,,0,0,0,,{\kf44}enter{\kf0} {\kf44}meter{\kf0} {\kf44}readings,{\kf0} {\kf44}and{\kf0} {\kf44}the{\kf0} {\kf44}system{\kf0} {\kf44}splits
+Dialogue: 0,0:02:42.41,0:02:45.95,Default,,0,0,0,,{\kf44}utility{\kf0} {\kf44}costs{\kf0} {\kf44}proportionally{\kf0} {\kf44}across{\kf0} {\kf44}all{\kf0} {\kf44}residents.{\kf0} {\kf44}Manager
+Dialogue: 0,0:02:46.02,0:02:48.52,Default,,0,0,0,,{\kf44}approval{\kf0} {\kf44}is{\kf0} {\kf44}required{\kf0} {\kf44}before{\kf0} {\kf44}distribution.
+Dialogue: 0,0:02:50.50,0:02:53.87,Default,,0,0,0,,{\kf42}Payment{\kf0} {\kf42}Reconciliation{\kf0} {\kf42}starts{\kf0} {\kf42}with{\kf0} {\kf42}the{\kf0} {\kf42}Daily{\kf0} {\kf42}Sales
+Dialogue: 0,0:02:53.95,0:02:57.32,Default,,0,0,0,,{\kf42}Report.{\kf0} {\kf42}Today{\kf0} {\kf42}shows{\kf0} {\kf42}forty-one{\kf0} {\kf42}thousand{\kf0} {\kf42}fifteen{\kf0} {\kf42}pesos
+Dialogue: 0,0:02:57.40,0:03:00.77,Default,,0,0,0,,{\kf42}from{\kf0} {\kf42}five{\kf0} {\kf42}transactions.{\kf0} {\kf42}Below{\kf0} {\kf42}that,{\kf0} {\kf42}unmatched{\kf0} {\kf42}payments
+Dialogue: 0,0:03:00.84,0:03:03.73,Default,,0,0,0,,{\kf42}are{\kf0} {\kf42}flagged{\kf0} {\kf42}for{\kf0} {\kf42}quick{\kf0} {\kf42}manual{\kf0} {\kf42}review.
+Dialogue: 0,0:03:05.70,0:03:08.61,Default,,0,0,0,,{\kf36}Matching{\kf0} {\kf36}a{\kf0} {\kf36}payment{\kf0} {\kf36}is{\kf0} {\kf36}simple.{\kf0} {\kf36}Select{\kf0} {\kf36}the
+Dialogue: 0,0:03:08.68,0:03:11.59,Default,,0,0,0,,{\kf36}resident{\kf0} {\kf36}and{\kf0} {\kf36}billing{\kf0} {\kf36}record,{\kf0} {\kf36}and{\kf0} {\kf36}the{\kf0} {\kf36}system
+Dialogue: 0,0:03:11.65,0:03:14.56,Default,,0,0,0,,{\kf36}links{\kf0} {\kf36}them.{\kf0} {\kf36}This{\kf0} {\kf36}eliminates{\kf0} {\kf36}the{\kf0} {\kf36}spreadsheet{\kf0} {\kf36}reconciliation
+Dialogue: 0,0:03:14.62,0:03:17.54,Default,,0,0,0,,{\kf36}that{\kf0} {\kf36}used{\kf0} {\kf36}to{\kf0} {\kf36}take{\kf0} {\kf36}hours{\kf0} {\kf36}every{\kf0} {\kf36}day.
+Dialogue: 0,0:03:19.50,0:03:22.87,Default,,0,0,0,,{\kf42}Move-Out{\kf0} {\kf42}Settlement{\kf0} {\kf42}tracks{\kf0} {\kf42}every{\kf0} {\kf42}exit{\kf0} {\kf42}through{\kf0} {\kf42}a
+Dialogue: 0,0:03:22.94,0:03:26.31,Default,,0,0,0,,{\kf42}structured{\kf0} {\kf42}pipeline:{\kf0} {\kf42}from{\kf0} {\kf42}initial{\kf0} {\kf42}request{\kf0} {\kf42}through{\kf0} {\kf42}clearance
+Dialogue: 0,0:03:26.39,0:03:29.76,Default,,0,0,0,,{\kf42}inspection,{\kf0} {\kf42}final{\kf0} {\kf42}billing,{\kf0} {\kf42}and{\kf0} {\kf42}completion.{\kf0} {\kf42}Every{\kf0} {\kf42}step
+Dialogue: 0,0:03:29.83,0:03:31.73,Default,,0,0,0,,{\kf42}is{\kf0} {\kf42}logged{\kf0} {\kf42}for{\kf0} {\kf42}audit.
+Dialogue: 0,0:03:33.70,0:03:36.71,Default,,0,0,0,,{\kf37}Creating{\kf0} {\kf37}a{\kf0} {\kf37}move-out{\kf0} {\kf37}request{\kf0} {\kf37}captures{\kf0} {\kf37}the{\kf0} {\kf37}resident,
+Dialogue: 0,0:03:36.77,0:03:39.78,Default,,0,0,0,,{\kf37}scheduled{\kf0} {\kf37}date,{\kf0} {\kf37}reason{\kf0} {\kf37}for{\kf0} {\kf37}leaving,{\kf0} {\kf37}and{\kf0} {\kf37}forwards
+Dialogue: 0,0:03:39.85,0:03:42.86,Default,,0,0,0,,{\kf37}the{\kf0} {\kf37}case{\kf0} {\kf37}for{\kf0} {\kf37}room{\kf0} {\kf37}inspection{\kf0} {\kf37}and{\kf0} {\kf37}final
+Dialogue: 0,0:03:42.92,0:03:43.73,Default,,0,0,0,,{\kf37}billing{\kf0} {\kf37}calculation.
+Dialogue: 0,0:03:45.70,0:03:48.93,Default,,0,0,0,,{\kf40}This{\kf0} {\kf40}is{\kf0} {\kf40}live{\kf0} {\kf40}production{\kf0} {\kf40}data{\kf0} {\kf40}captured{\kf0} {\kf40}today.
+Dialogue: 0,0:03:49.00,0:03:52.22,Default,,0,0,0,,{\kf40}Twenty-five{\kf0} {\kf40}rooms{\kf0} {\kf40}managed,{\kf0} {\kf40}eighteen{\kf0} {\kf40}active{\kf0} {\kf40}residents,{\kf0} {\kf40}twelve
+Dialogue: 0,0:03:52.29,0:03:55.52,Default,,0,0,0,,{\kf40}inquiries{\kf0} {\kf40}in{\kf0} {\kf40}pipeline,{\kf0} {\kf40}forty-one{\kf0} {\kf40}thousand{\kf0} {\kf40}pesos{\kf0} {\kf40}in
+Dialogue: 0,0:03:55.59,0:03:58.82,Default,,0,0,0,,{\kf40}today's{\kf0} {\kf40}sales,{\kf0} {\kf40}all{\kf0} {\kf40}running{\kf0} {\kf40}on{\kf0} {\kf40}the{\kf0} {\kf40}DormTel
+Dialogue: 0,0:03:58.89,0:04:00.23,Default,,0,0,0,,{\kf40}platform{\kf0} {\kf40}right{\kf0} {\kf40}now.
+Dialogue: 0,0:04:02.20,0:04:05.60,Default,,0,0,0,,{\kf42}DormTel{\kf0} {\kf42}is{\kf0} {\kf42}ready{\kf0} {\kf42}to{\kf0} {\kf42}scale.{\kf0} {\kf42}The{\kf0} {\kf42}platform
+Dialogue: 0,0:04:05.67,0:04:09.07,Default,,0,0,0,,{\kf42}eliminates{\kf0} {\kf42}manual{\kf0} {\kf42}work,{\kf0} {\kf42}prevents{\kf0} {\kf42}billing{\kf0} {\kf42}errors,{\kf0} {\kf42}and
+Dialogue: 0,0:04:09.14,0:04:12.54,Default,,0,0,0,,{\kf42}gives{\kf0} {\kf42}owners{\kf0} {\kf42}complete{\kf0} {\kf42}visibility{\kf0} {\kf42}into{\kf0} {\kf42}their{\kf0} {\kf42}operations,
+Dialogue: 0,0:04:12.62,0:04:14.53,Default,,0,0,0,,{\kf42}from{\kf0} {\kf42}any{\kf0} {\kf42}device,{\kf0} {\kf42}anywhere.
+Dialogue: 0,0:04:16.50,0:04:19.14,Default,,0,0,0,,{\kf33}Explore{\kf0} {\kf33}the{\kf0} {\kf33}live{\kf0} {\kf33}demo{\kf0} {\kf33}at{\kf0} {\kf33}dormtel{\kf0} {\kf33}dot
+Dialogue: 0,0:04:19.20,0:04:21.84,Default,,0,0,0,,{\kf33}quriosity{\kf0} {\kf33}dot{\kf0} {\kf33}cloud.{\kf0} {\kf33}We{\kf0} {\kf33}welcome{\kf0} {\kf33}your{\kf0} {\kf33}questions
+Dialogue: 0,0:04:21.90,0:04:24.54,Default,,0,0,0,,{\kf33}and{\kf0} {\kf33}feedback.{\kf0} {\kf33}Thank{\kf0} {\kf33}you{\kf0} {\kf33}for{\kf0} {\kf33}your{\kf0} {\kf33}time.

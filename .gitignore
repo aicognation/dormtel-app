@@ -1,0 +1,49 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+dist/
+build/
+.eggs/
+*.egg
+.venv/
+venv/
+env/
+
+# Node
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Build output
+frontend/build/
+
+# Environment
+.env
+.env.local
+.env.production
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Docker
+postgres_data/
+
+# Coverage
+htmlcov/
+.coverage
+.pytest_cache/
+
+# Generated media
+presentation/video-output/
+presentation/v2/video-output/
+tenant-demo-output/video-segments/
+tenant-demo-output/demo.mp4
