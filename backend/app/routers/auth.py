@@ -14,8 +14,8 @@ router = APIRouter()
 @router.post("/login", response_model=schemas.StaffLoginResponse)
 async def login(payload: schemas.StaffLoginRequest, db: AsyncSession = Depends(get_db)):
     # Validate and apply selected schema for login
-    schema = payload.db_schema if payload.db_schema in ALLOWED_SCHEMAS else DEFAULT_SCHEMA
-    await db.execute(text(f"SET search_path TO {schema}, public"))
+    db_schema_name = payload.db_schema if payload.db_schema in ALLOWED_SCHEMAS else DEFAULT_SCHEMA
+    await db.execute(text(f"SET search_path TO {db_schema_name}, public"))
 
     result = await db.execute(select(models.Staff).where(models.Staff.email == payload.email))
     staff = result.scalar_one_or_none()
@@ -29,7 +29,7 @@ async def login(payload: schemas.StaffLoginRequest, db: AsyncSession = Depends(g
     staff.last_login_at = datetime.utcnow()
     await db.commit()
 
-    access_token = auth.create_access_token(data={"sub": str(staff.id), "role": staff.role, "schema": schema})
+    access_token = auth.create_access_token(data={"sub": str(staff.id), "role": staff.role, "schema": db_schema_name})
     return schemas.StaffLoginResponse(
         access_token=access_token,
         staff=schemas.StaffOut.model_validate(staff),
