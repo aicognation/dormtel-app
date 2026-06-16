@@ -273,8 +273,27 @@ class MoveOutOut(MoveOutBase):
     id: UUID
     resident_id: UUID
     resident_name: Optional[str] = None
+    resident_email: Optional[str] = None
+    resident_phone: Optional[str] = None
+    id_type: Optional[str] = None
+    id_number: Optional[str] = None
+    address: Optional[str] = None
+    school: Optional[str] = None
+    course: Optional[str] = None
+    review_center: Optional[str] = None
+    exam_date: Optional[date] = None
+    source: Optional[str] = None
+    location: Optional[str] = None
+    dormer_type: Optional[str] = None
+    board_exam_type: Optional[str] = None
+    lease_term_months: Optional[int] = None
+    monthly_rate: Optional[Decimal] = None
+    deposit_paid: Optional[Decimal] = None
     room_number: Optional[str] = None
     bed_code: Optional[str] = None
+    bed_type: Optional[str] = None
+    building: Optional[str] = None
+    room_type: Optional[str] = None
     status: str
     is_end_of_month_flag: Optional[bool] = False
     refund_amount: Optional[Decimal] = None

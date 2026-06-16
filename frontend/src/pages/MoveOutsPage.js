@@ -1,15 +1,86 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, FileCheck, Calculator, CheckCircle2, RefreshCw, Calendar, AlertTriangle, Clock } from 'lucide-react';
+import {
+  Plus, FileCheck, Calculator, CheckCircle2, RefreshCw, Calendar, AlertTriangle, Clock,
+  ChevronDown, ChevronUp, User, GraduationCap, Building2, FileText, Tag,
+} from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
-import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import FormField from '../components/ui/FormField';
 import StatusBadge from '../components/ui/StatusBadge';
-import { listMoveOuts, createMoveOut, generateClearance, finalizeMoveOut, completeMoveOut, extendMoveOut } from '../api/moveouts';
+import {
+  listMoveOuts, createMoveOut, generateClearance, finalizeMoveOut, completeMoveOut, extendMoveOut,
+} from '../api/moveouts';
 import { MOVEOUT_STATUSES } from '../utils/constants';
 import { formatDate, formatCurrency, shortUUID, truncate } from '../utils/formatters';
+
+function ResidentDetailCard({ r }) {
+  return (
+    <div className="bg-gray-50 border-t border-gray-200 p-4">
+      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 text-sm">
+        <div className="space-y-2">
+          <h4 className="font-semibold text-gray-700 flex items-center gap-1.5">
+            <FileText className="w-3.5 h-3.5" /> Identification
+          </h4>
+          <p className="text-gray-600"><span className="text-gray-400">Type:</span> {r.id_type || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Number:</span> {r.id_number || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Address:</span> {r.address || '—'}</p>
+        </div>
+        <div className="space-y-2">
+          <h4 className="font-semibold text-gray-700 flex items-center gap-1.5">
+            <GraduationCap className="w-3.5 h-3.5" /> Academic / Professional
+          </h4>
+          <p className="text-gray-600"><span className="text-gray-400">School:</span> {r.school || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Course:</span> {r.course || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Review Center:</span> {r.review_center || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Board Exam:</span> {r.board_exam_type || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Exam Date:</span> {r.exam_date || '—'}</p>
+        </div>
+        <div className="space-y-2">
+          <h4 className="font-semibold text-gray-700 flex items-center gap-1.5">
+            <Tag className="w-3.5 h-3.5" /> Profile
+          </h4>
+          <p className="text-gray-600"><span className="text-gray-400">Source:</span> {r.source || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Location:</span> {r.location || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Dormer Type:</span> {r.dormer_type ? r.dormer_type.replace('_', ' ') : '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Lease Term:</span> {r.lease_term_months ? `${r.lease_term_months} month(s)` : '—'}</p>
+        </div>
+        <div className="space-y-2">
+          <h4 className="font-semibold text-gray-700 flex items-center gap-1.5">
+            <Building2 className="w-3.5 h-3.5" /> Accommodation
+          </h4>
+          <p className="text-gray-600"><span className="text-gray-400">Room Type:</span> {r.room_type || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Bed Type:</span> {r.bed_type || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Monthly Rate:</span> {r.monthly_rate ? `₱${Number(r.monthly_rate).toLocaleString()}` : '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Deposit Paid:</span> {r.deposit_paid ? `₱${Number(r.deposit_paid).toLocaleString()}` : '—'}</p>
+        </div>
+        <div className="space-y-2 sm:col-span-2 lg:col-span-2">
+          <h4 className="font-semibold text-gray-700 flex items-center gap-1.5">
+            <Clock className="w-3.5 h-3.5" /> Dates
+          </h4>
+          <div className="flex flex-wrap gap-x-6 gap-y-1">
+            <p className="text-gray-600"><span className="text-gray-400">Move-in:</span> {r.move_in_date || '—'}</p>
+            <p className="text-gray-600"><span className="text-gray-400">Contract End:</span> {r.contract_end_date || '—'}</p>
+            <p className="text-gray-600"><span className="text-gray-400">Requested:</span> {r.requested_date || '—'}</p>
+            <p className="text-gray-600"><span className="text-gray-400">Actual:</span> {r.actual_date || '—'}</p>
+            <p className="text-gray-600"><span className="text-gray-400">Created:</span> {r.created_at ? new Date(r.created_at).toLocaleDateString('en-PH') : '—'}</p>
+          </div>
+        </div>
+      </div>
+      {r.reason && (
+        <div className="mt-3 pt-3 border-t border-gray-200">
+          <p className="text-sm text-gray-600"><span className="text-gray-400">Reason:</span> {r.reason}</p>
+        </div>
+      )}
+      {r.forwarding_contact && (
+        <div className="mt-2">
+          <p className="text-sm text-gray-600"><span className="text-gray-400">Forwarding Contact:</span> {r.forwarding_contact}</p>
+        </div>
+      )}
+    </div>
+  );
+}
 
 export default function MoveOutsPage() {
   const [data, setData] = useState([]);
@@ -21,6 +92,7 @@ export default function MoveOutsPage() {
   const [submitting, setSubmitting] = useState(false);
   const [form, setForm] = useState({ resident_id: '', requested_date: '', actual_date: '', reason: '', forwarding_contact: '' });
   const [extendForm, setExtendForm] = useState({ extended_date: '', extension_reason: '' });
+  const [expandedId, setExpandedId] = useState(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -102,82 +174,9 @@ export default function MoveOutsPage() {
     }
   };
 
-  const columns = [
-    {
-      key: 'resident_name',
-      label: 'Resident',
-      render: (r) => (
-        <div className="flex flex-col">
-          <span className="font-medium">{r.resident_name || shortUUID(r.resident_id)}</span>
-          {(r.room_number || r.bed_code) && (
-            <span className="text-xs text-gray-500">{r.room_number} {r.bed_code ? `(${r.bed_code})` : ''}</span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'requested_date',
-      label: 'Requested Date',
-      render: (r) => (
-        <div className="flex items-center gap-1">
-          <span>{formatDate(r.requested_date)}</span>
-          {r.is_end_of_month_flag && (
-            <span title="End-of-month move-out" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">
-              <AlertTriangle className="w-3 h-3 mr-0.5" /> EOM
-            </span>
-          )}
-        </div>
-      ),
-    },
-    {
-      key: 'actual_date',
-      label: 'Actual Date',
-      render: (r) => (
-        <span className={r.extended_date ? 'text-blue-600 font-medium' : ''}>
-          {formatDate(r.extended_date || r.actual_date || r.requested_date)}
-          {r.extended_date && (
-            <span className="text-xs text-gray-400 ml-1">(extended)</span>
-          )}
-        </span>
-      ),
-    },
-    { key: 'reason', label: 'Reason', render: (r) => truncate(r.reason, 30) },
-    {
-      key: 'refund_amount',
-      label: 'Refund',
-      render: (r) => r.refund_amount ? formatCurrency(r.refund_amount) : '—',
-    },
-    { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> },
-    { key: 'created_at', label: 'Created', render: (r) => formatDate(r.created_at) },
-    {
-      key: 'actions',
-      label: 'Actions',
-      render: (r) => (
-        <div className="flex gap-1 flex-wrap">
-          {(r.status === 'requested' || r.status === 'clearance') && (
-            <Button size="sm" variant="ghost" onClick={(e) => { e.stopPropagation(); openExtend(r); }}>
-              <Clock className="w-3 h-3 mr-1" /> Extend
-            </Button>
-          )}
-          {r.status === 'requested' && (
-            <Button size="sm" variant="secondary" onClick={(e) => { e.stopPropagation(); handleClearance(r.id); }}>
-              <FileCheck className="w-3 h-3 mr-1" /> Clearance
-            </Button>
-          )}
-          {r.status === 'clearance' && (
-            <Button size="sm" variant="primary" onClick={(e) => { e.stopPropagation(); handleFinalize(r.id); }}>
-              <Calculator className="w-3 h-3 mr-1" /> Finalize
-            </Button>
-          )}
-          {r.status === 'refund_pending' && (
-            <Button size="sm" variant="success" onClick={(e) => { e.stopPropagation(); handleComplete(r.id); }}>
-              <CheckCircle2 className="w-3 h-3 mr-1" /> Complete
-            </Button>
-          )}
-        </div>
-      ),
-    },
-  ];
+  const toggleExpand = (id) => {
+    setExpandedId((prev) => (prev === id ? null : id));
+  };
 
   return (
     <div>
@@ -244,7 +243,116 @@ export default function MoveOutsPage() {
         </div>
       )}
 
-      <DataTable columns={columns} data={data} loading={loading} emptyMessage="No move-out requests" />
+      {/* Data Table with expandable rows */}
+      <div className="bg-white rounded-xl shadow-sm border border-gray-200 overflow-hidden">
+        {loading ? (
+          <div className="p-8 text-center text-gray-500">Loading move-outs...</div>
+        ) : data.length === 0 ? (
+          <div className="p-8 text-center text-gray-500">No move-out requests</div>
+        ) : (
+          <div className="overflow-x-auto">
+            <table className="min-w-full text-sm">
+              <thead className="bg-gray-50 text-gray-600 font-medium">
+                <tr>
+                  <th className="px-4 py-3 text-left">Resident</th>
+                  <th className="px-4 py-3 text-left">Requested Date</th>
+                  <th className="px-4 py-3 text-left">Actual Date</th>
+                  <th className="px-4 py-3 text-left">Status</th>
+                  <th className="px-4 py-3 text-left">Refund</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
+                  <th className="px-4 py-3 text-left w-10"></th>
+                </tr>
+              </thead>
+              <tbody className="divide-y divide-gray-100">
+                {data.map((r) => (
+                  <React.Fragment key={r.id}>
+                    <tr
+                      className="hover:bg-gray-50 cursor-pointer transition-colors"
+                      onClick={() => toggleExpand(r.id)}
+                    >
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-2">
+                          <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center text-gray-600">
+                            <User className="w-4 h-4" />
+                          </div>
+                          <div>
+                            <p className="font-medium text-gray-900">{r.resident_name || shortUUID(r.resident_id)}</p>
+                            <p className="text-xs text-gray-500">
+                              {r.dormer_type ? r.dormer_type.replace('_', ' ') : ''}
+                              {r.dormer_type && r.school ? ' · ' : ''}
+                              {r.school || ''}
+                            </p>
+                          </div>
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex items-center gap-1">
+                          <span>{formatDate(r.requested_date)}</span>
+                          {r.is_end_of_month_flag && (
+                            <span title="End-of-month move-out" className="inline-flex items-center px-1.5 py-0.5 rounded text-[10px] font-bold bg-red-100 text-red-700">
+                              <AlertTriangle className="w-3 h-3 mr-0.5" /> EOM
+                            </span>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        <span className={r.extended_date ? 'text-blue-600 font-medium' : ''}>
+                          {formatDate(r.extended_date || r.actual_date || r.requested_date)}
+                          {r.extended_date && (
+                            <span className="text-xs text-gray-400 ml-1">(extended)</span>
+                          )}
+                        </span>
+                      </td>
+                      <td className="px-4 py-3"><StatusBadge status={r.status} /></td>
+                      <td className="px-4 py-3">
+                        {r.refund_amount ? formatCurrency(r.refund_amount) : '—'}
+                      </td>
+                      <td className="px-4 py-3">
+                        <div className="flex gap-1 flex-wrap" onClick={(e) => e.stopPropagation()}>
+                          {(r.status === 'requested' || r.status === 'clearance') && (
+                            <Button size="sm" variant="ghost" onClick={() => openExtend(r)}>
+                              <Clock className="w-3 h-3 mr-1" /> Extend
+                            </Button>
+                          )}
+                          {r.status === 'requested' && (
+                            <Button size="sm" variant="secondary" onClick={() => handleClearance(r.id)}>
+                              <FileCheck className="w-3 h-3 mr-1" /> Clearance
+                            </Button>
+                          )}
+                          {r.status === 'clearance' && (
+                            <Button size="sm" variant="primary" onClick={() => handleFinalize(r.id)}>
+                              <Calculator className="w-3 h-3 mr-1" /> Finalize
+                            </Button>
+                          )}
+                          {r.status === 'refund_pending' && (
+                            <Button size="sm" variant="success" onClick={() => handleComplete(r.id)}>
+                              <CheckCircle2 className="w-3 h-3 mr-1" /> Complete
+                            </Button>
+                          )}
+                        </div>
+                      </td>
+                      <td className="px-4 py-3">
+                        {expandedId === r.id ? (
+                          <ChevronUp className="w-4 h-4 text-gray-400" />
+                        ) : (
+                          <ChevronDown className="w-4 h-4 text-gray-400" />
+                        )}
+                      </td>
+                    </tr>
+                    {expandedId === r.id && (
+                      <tr>
+                        <td colSpan={7} className="p-0">
+                          <ResidentDetailCard r={r} />
+                        </td>
+                      </tr>
+                    )}
+                  </React.Fragment>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
+      </div>
 
       {/* Create Modal */}
       <Modal isOpen={showCreate} onClose={() => setShowCreate(false)} title="New Move-Out Request">
