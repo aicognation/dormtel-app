@@ -16,7 +16,7 @@ export default function InquiriesPage() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', source: '' });
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ source: 'facebook', prospect_name: '', content: '', external_id: '' });
+  const [form, setForm] = useState({ source: 'facebook', prospect_name: '', content: '', external_id: '', school: '', course: '', review_center: '' });
   const [submitting, setSubmitting] = useState(false);
   const [convertInquiry, setConvertInquiry] = useState(null);
   const [responseModal, setResponseModal] = useState(null);
@@ -44,7 +44,7 @@ export default function InquiriesPage() {
       await createInquiry(form);
       toast.success('Inquiry created successfully');
       setShowCreate(false);
-      setForm({ source: 'facebook', prospect_name: '', content: '', external_id: '' });
+      setForm({ source: 'facebook', prospect_name: '', content: '', external_id: '', school: '', course: '', review_center: '' });
       fetchData();
     } finally {
       setSubmitting(false);
@@ -96,6 +96,9 @@ export default function InquiriesPage() {
   const columns = [
     { key: 'source', label: 'Source', render: (row) => <span className="capitalize font-medium">{row.source}</span> },
     { key: 'prospect_name', label: 'Name', render: (row) => <span className="font-medium">{row.prospect_name || '—'}</span> },
+    { key: 'school', label: 'School / Company', render: (row) => <span className="text-gray-700">{row.school || '—'}</span> },
+    { key: 'course', label: 'Course', render: (row) => <span className="text-gray-700">{row.course || '—'}</span> },
+    { key: 'review_center', label: 'Review Center', render: (row) => <span className="text-gray-700">{row.review_center || '—'}</span> },
     { key: 'content', label: 'Content', render: (row) => (
       <span title={row.content} className="cursor-default">{truncate(row.content, 40)}</span>
     ) },
@@ -195,6 +198,21 @@ export default function InquiriesPage() {
             label="Name" name="prospect_name" type="text"
             value={form.prospect_name} onChange={(e) => setForm({ ...form, prospect_name: e.target.value })}
             placeholder="Prospect name"
+          />
+          <FormField
+            label="School / Company" name="school" type="text"
+            value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })}
+            placeholder="e.g. University of Santo Tomas, ABC Corp"
+          />
+          <FormField
+            label="Course" name="course" type="text"
+            value={form.course} onChange={(e) => setForm({ ...form, course: e.target.value })}
+            placeholder="e.g. Nursing, Civil Engineering"
+          />
+          <FormField
+            label="Review Center" name="review_center" type="text"
+            value={form.review_center} onChange={(e) => setForm({ ...form, review_center: e.target.value })}
+            placeholder="e.g. Review Masters, CBRC"
           />
           <FormField
             label="Content" name="content" type="textarea" required
