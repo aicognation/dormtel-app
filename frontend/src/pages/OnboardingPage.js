@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, RefreshCw, Eye, BedSingle, ArrowUpDown, Building2, DoorOpen, UserCircle, GraduationCap, Home } from 'lucide-react';
+import { Plus, RefreshCw, Eye, BedSingle, ArrowUpDown, Building2, DoorOpen, UserCircle, GraduationCap, Home, MapPin, Wallet } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
@@ -9,7 +9,7 @@ import FormField from '../components/ui/FormField';
 import StatusBadge from '../components/ui/StatusBadge';
 import { listRooms, createReservation } from '../api/onboarding';
 import { getConvertibleInquiries } from '../api/inquiries';
-import { ID_TYPES } from '../utils/constants';
+import { ID_TYPES, DORMER_TYPES, LOCATIONS, BOARD_EXAM_TYPES, LEASE_TERMS } from '../utils/constants';
 import { formatCurrency } from '../utils/formatters';
 import ViewTenantsModal from '../components/onboarding/ViewTenantsModal';
 
@@ -36,6 +36,10 @@ export default function OnboardingPage() {
     id_type: '', id_number: '', bed_id: '', move_in_date: '', move_out_date: '',
     school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
     address: '', deposit_paid: '',
+    source: '', location: '', dormer_type: '', board_exam_type: '', lease_term_months: '',
+    advance_deposit_amount: '', advance_deposit_pr: '',
+    security_deposit_amount: '', security_deposit_pr: '',
+    utility_deposit_amount: '', utility_deposit_pr: '',
   });
 
   const fetchRooms = useCallback(async () => {
@@ -133,6 +137,7 @@ export default function OnboardingPage() {
       setForm((prev) => ({
         ...prev, inquiry_id: '', full_name: '', email: '', phone: '',
         school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
+        source: '',
       }));
       return;
     }
@@ -149,6 +154,7 @@ export default function OnboardingPage() {
       review_center: inquiry.review_center || '',
       exam_date: inquiry.exam_date || '',
       is_first_time_dormer: inquiry.first_time_dormer ?? true,
+      source: inquiry.source || '',
     }));
   };
 
@@ -156,12 +162,24 @@ export default function OnboardingPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
+      const deposits = [];
+      if (form.advance_deposit_amount) {
+        deposits.push({ deposit_type: 'advance', amount: Number(form.advance_deposit_amount), receipt_number: form.advance_deposit_pr || undefined });
+      }
+      if (form.security_deposit_amount) {
+        deposits.push({ deposit_type: 'security', amount: Number(form.security_deposit_amount), receipt_number: form.security_deposit_pr || undefined });
+      }
+      if (form.utility_deposit_amount) {
+        deposits.push({ deposit_type: 'utility', amount: Number(form.utility_deposit_amount), receipt_number: form.utility_deposit_pr || undefined });
+      }
       const payload = {
         ...form,
         monthly_rate: Number(form.monthly_rate),
         bed_id: form.bed_id || undefined,
         deposit_paid: form.deposit_paid ? Number(form.deposit_paid) : 0,
         inquiry_id: form.inquiry_id || undefined,
+        lease_term_months: form.lease_term_months ? Number(form.lease_term_months) : undefined,
+        deposits: deposits.length > 0 ? deposits : undefined,
       };
       const result = await createReservation(payload);
       const bed = selectedRoom?.beds?.find((b) => b.id === form.bed_id);
@@ -174,6 +192,10 @@ export default function OnboardingPage() {
         id_type: '', id_number: '', bed_id: '', move_in_date: '', move_out_date: '',
         school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
         address: '', deposit_paid: '',
+        source: '', location: '', dormer_type: '', board_exam_type: '', lease_term_months: '',
+        advance_deposit_amount: '', advance_deposit_pr: '',
+        security_deposit_amount: '', security_deposit_pr: '',
+        utility_deposit_amount: '', utility_deposit_pr: '',
       });
       fetchRooms();
     } finally {
@@ -189,6 +211,10 @@ export default function OnboardingPage() {
       id_type: '', id_number: '', bed_id: firstAvailable?.id || '', move_in_date: '', move_out_date: '',
       school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
       address: '', deposit_paid: '',
+      source: '', location: '', dormer_type: '', board_exam_type: '', lease_term_months: '',
+      advance_deposit_amount: '', advance_deposit_pr: '',
+      security_deposit_amount: '', security_deposit_pr: '',
+      utility_deposit_amount: '', utility_deposit_pr: '',
     });
     if (firstAvailable?.rate_per_bed) {
       setForm((prev) => ({ ...prev, monthly_rate: firstAvailable.rate_per_bed }));
@@ -206,6 +232,10 @@ export default function OnboardingPage() {
       id_type: '', id_number: '', bed_id: '', move_in_date: '', move_out_date: '',
       school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
       address: '', deposit_paid: '',
+      source: '', location: '', dormer_type: '', board_exam_type: '', lease_term_months: '',
+      advance_deposit_amount: '', advance_deposit_pr: '',
+      security_deposit_amount: '', security_deposit_pr: '',
+      utility_deposit_amount: '', utility_deposit_pr: '',
     });
     fetchInquiries();
     setShowReserve(true);
@@ -507,6 +537,9 @@ export default function OnboardingPage() {
               onChange={(e) => setForm({ ...form, id_type: e.target.value })} options={ID_TYPES} />
             <FormField label="ID Number" name="id_number" value={form.id_number}
               onChange={(e) => setForm({ ...form, id_number: e.target.value })} />
+            <FormField label="Source" name="source" type="select" value={form.source}
+              onChange={(e) => setForm({ ...form, source: e.target.value })}
+              options={[{ value: '', label: 'Select source...' }, { value: 'facebook', label: 'Facebook' }, { value: 'instagram', label: 'Instagram' }, { value: 'tiktok', label: 'TikTok' }, { value: 'walkin', label: 'Walk-in' }, { value: 'phone', label: 'Phone' }, { value: 'referral', label: 'Referral' }, { value: 'website', label: 'Website' }]} />
 
             <div className="sm:col-span-2 border-t border-gray-200 pt-3 mt-1">
               <div className="flex items-center gap-2 mb-3">
@@ -527,6 +560,27 @@ export default function OnboardingPage() {
 
             <div className="sm:col-span-2 border-t border-gray-200 pt-3">
               <div className="flex items-center gap-2 mb-3">
+                <MapPin className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-semibold text-gray-700">Resident Profile</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="Location" name="location" type="select" value={form.location}
+                  onChange={(e) => setForm({ ...form, location: e.target.value })}
+                  options={[{ value: '', label: 'Select location...' }, ...LOCATIONS]} />
+                <FormField label="Type of Dormer" name="dormer_type" type="select" value={form.dormer_type}
+                  onChange={(e) => setForm({ ...form, dormer_type: e.target.value })}
+                  options={[{ value: '', label: 'Select type...' }, ...DORMER_TYPES]} />
+                <FormField label="Board Exam Type" name="board_exam_type" type="select" value={form.board_exam_type}
+                  onChange={(e) => setForm({ ...form, board_exam_type: e.target.value })}
+                  options={[{ value: '', label: 'Select exam...' }, ...BOARD_EXAM_TYPES]} />
+                <FormField label="Lease Term" name="lease_term_months" type="select" value={form.lease_term_months}
+                  onChange={(e) => setForm({ ...form, lease_term_months: e.target.value })}
+                  options={[{ value: '', label: 'Select term...' }, ...LEASE_TERMS]} />
+              </div>
+            </div>
+
+            <div className="sm:col-span-2 border-t border-gray-200 pt-3">
+              <div className="flex items-center gap-2 mb-3">
                 <Home className="w-4 h-4 text-gray-500" />
                 <span className="text-sm font-semibold text-gray-700">Address & Other Details</span>
               </div>
@@ -537,6 +591,27 @@ export default function OnboardingPage() {
                   value={String(form.is_first_time_dormer)}
                   onChange={(e) => setForm({ ...form, is_first_time_dormer: e.target.value === 'true' })}
                   options={[{ value: 'true', label: 'Yes' }, { value: 'false', label: 'No' }]} />
+              </div>
+            </div>
+
+            <div className="sm:col-span-2 border-t border-gray-200 pt-3">
+              <div className="flex items-center gap-2 mb-3">
+                <Wallet className="w-4 h-4 text-gray-500" />
+                <span className="text-sm font-semibold text-gray-700">Deposits & Payments</span>
+              </div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <FormField label="1 Month Advance (₱)" name="advance_deposit_amount" type="number" value={form.advance_deposit_amount}
+                  onChange={(e) => setForm({ ...form, advance_deposit_amount: e.target.value })} />
+                <FormField label="PR Number (Advance)" name="advance_deposit_pr" value={form.advance_deposit_pr}
+                  onChange={(e) => setForm({ ...form, advance_deposit_pr: e.target.value })} placeholder="e.g. PR-12345" />
+                <FormField label="Security Deposit (₱)" name="security_deposit_amount" type="number" value={form.security_deposit_amount}
+                  onChange={(e) => setForm({ ...form, security_deposit_amount: e.target.value })} />
+                <FormField label="PR Number (Security)" name="security_deposit_pr" value={form.security_deposit_pr}
+                  onChange={(e) => setForm({ ...form, security_deposit_pr: e.target.value })} placeholder="e.g. PR-12346" />
+                <FormField label="Utility Deposit (₱)" name="utility_deposit_amount" type="number" value={form.utility_deposit_amount}
+                  onChange={(e) => setForm({ ...form, utility_deposit_amount: e.target.value })} />
+                <FormField label="PR Number (Utility)" name="utility_deposit_pr" value={form.utility_deposit_pr}
+                  onChange={(e) => setForm({ ...form, utility_deposit_pr: e.target.value })} placeholder="e.g. PR-12347" />
               </div>
             </div>
 

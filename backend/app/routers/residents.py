@@ -68,6 +68,11 @@ async def list_residents(
             review_center=r.review_center,
             exam_date=r.exam_date,
             is_first_time_dormer=r.is_first_time_dormer,
+            source=r.source,
+            location=r.location,
+            dormer_type=r.dormer_type,
+            board_exam_type=r.board_exam_type,
+            lease_term_months=r.lease_term_months,
             move_in_date=r.move_in_date,
             move_out_date=r.move_out_date,
             contract_end_date=r.contract_end_date,
@@ -80,6 +85,7 @@ async def list_residents(
             bed_type=r.bed.bed_type if r.bed else None,
             room_number=r.bed.room.room_number if r.bed and r.bed.room else None,
             building=r.bed.room.building if r.bed and r.bed.room else None,
+            room_type=r.bed.room.room_type if r.bed and r.bed.room else None,
         ))
     return output
 
@@ -113,6 +119,11 @@ async def create_resident(
         review_center=payload.review_center,
         exam_date=payload.exam_date,
         is_first_time_dormer=payload.is_first_time_dormer,
+        source=payload.source,
+        location=payload.location,
+        dormer_type=payload.dormer_type,
+        board_exam_type=payload.board_exam_type,
+        lease_term_months=payload.lease_term_months,
         monthly_rate=payload.monthly_rate or 0,
         deposit_paid=0,
         created_by=current_staff.id,
@@ -156,6 +167,11 @@ async def get_resident(
         review_center=r.review_center,
         exam_date=r.exam_date,
         is_first_time_dormer=r.is_first_time_dormer,
+        source=r.source,
+        location=r.location,
+        dormer_type=r.dormer_type,
+        board_exam_type=r.board_exam_type,
+        lease_term_months=r.lease_term_months,
         move_in_date=r.move_in_date,
         move_out_date=r.move_out_date,
         contract_end_date=r.contract_end_date,
@@ -168,6 +184,7 @@ async def get_resident(
         bed_type=r.bed.bed_type if r.bed else None,
         room_number=r.bed.room.room_number if r.bed and r.bed.room else None,
         building=r.bed.room.building if r.bed and r.bed.room else None,
+        room_type=r.bed.room.room_type if r.bed and r.bed.room else None,
     )
 
 
@@ -209,6 +226,16 @@ async def update_resident(
         resident.exam_date = payload.exam_date
     if payload.is_first_time_dormer is not None:
         resident.is_first_time_dormer = payload.is_first_time_dormer
+    if payload.source is not None:
+        resident.source = payload.source
+    if payload.location is not None:
+        resident.location = payload.location
+    if payload.dormer_type is not None:
+        resident.dormer_type = payload.dormer_type
+    if payload.board_exam_type is not None:
+        resident.board_exam_type = payload.board_exam_type
+    if payload.lease_term_months is not None:
+        resident.lease_term_months = payload.lease_term_months
     if payload.notes is not None:
         resident.notes = payload.notes
     if payload.move_in_date is not None:

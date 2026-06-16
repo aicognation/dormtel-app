@@ -20,6 +20,12 @@ class ResidentCreate(ResidentBase):
     review_center: Optional[str] = None
     exam_date: Optional[date] = None
     is_first_time_dormer: Optional[bool] = True
+    source: Optional[str] = None
+    location: Optional[str] = None
+    dormer_type: Optional[str] = None
+    board_exam_type: Optional[str] = None
+    lease_term_months: Optional[int] = None
+    previous_stays: Optional[list] = None
 
 class ResidentOut(ResidentBase):
     id: UUID
@@ -33,6 +39,12 @@ class ResidentOut(ResidentBase):
     review_center: Optional[str] = None
     exam_date: Optional[date] = None
     is_first_time_dormer: Optional[bool] = True
+    source: Optional[str] = None
+    location: Optional[str] = None
+    dormer_type: Optional[str] = None
+    board_exam_type: Optional[str] = None
+    lease_term_months: Optional[int] = None
+    previous_stays: Optional[list] = None
     move_in_date: Optional[date] = None
     move_out_date: Optional[date] = None
     contract_end_date: Optional[date] = None
@@ -307,6 +319,7 @@ class RoomOut(BaseModel):
     display_room_number: Optional[str] = None
     property_code: str
     building: Optional[str] = None
+    room_type: Optional[str] = None
     capacity: int
     status: str
     class Config:
@@ -571,6 +584,8 @@ class ResidentListOut(ResidentOut):
     bed_type: Optional[str] = None
     room_number: Optional[str] = None
     building: Optional[str] = None
+    room_type: Optional[str] = None
+    deposits: Optional[list] = None
     class Config:
         from_attributes = True
 
@@ -588,11 +603,38 @@ class ResidentUpdate(BaseModel):
     review_center: Optional[str] = None
     exam_date: Optional[date] = None
     is_first_time_dormer: Optional[bool] = None
+    source: Optional[str] = None
+    location: Optional[str] = None
+    dormer_type: Optional[str] = None
+    board_exam_type: Optional[str] = None
+    lease_term_months: Optional[int] = None
     notes: Optional[str] = None
     move_in_date: Optional[date] = None
     move_out_date: Optional[date] = None
     contract_end_date: Optional[date] = None
     monthly_rate: Optional[Decimal] = None
+
+
+# --- Deposit Schemas ---
+
+class DepositBase(BaseModel):
+    deposit_type: str
+    amount: Decimal = Field(..., ge=0)
+    receipt_number: Optional[str] = None
+    payment_date: Optional[date] = None
+    status: Optional[str] = "paid"
+    notes: Optional[str] = None
+
+class DepositCreate(DepositBase):
+    resident_id: UUID
+
+class DepositOut(DepositBase):
+    id: UUID
+    resident_id: UUID
+    refunded_amount: Optional[Decimal] = None
+    created_at: datetime
+    class Config:
+        from_attributes = True
 
 
 # --- Miscellaneous Transaction Schemas ---
