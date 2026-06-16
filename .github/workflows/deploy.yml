@@ -13,18 +13,24 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v4
 
-      - name: Transfer code to ECS
+      - name: Create deployment archive
+        run: |
+          tar czf /tmp/dormtel-deploy.tar.gz \
+            --exclude='node_modules' --exclude='build' --exclude='dist' \
+            --exclude='__pycache__' --exclude='*.pyc' --exclude='.git' \
+            --exclude='.env' --exclude='postgres_data' \
+            backend frontend tenant-portal docker-compose.prod.yml
+
+      - name: Transfer archive to ECS
         uses: appleboy/scp-action@v0.1.7
         with:
           host: ${{ secrets.ECS_HOST }}
           username: ${{ secrets.ECS_USER }}
           key: ${{ secrets.ECS_SSH_KEY }}
-          source: "backend,frontend,tenant-portal,docker-compose.prod.yml,.env"
+          source: "/tmp/dormtel-deploy.tar.gz"
           target: "/opt/dormtel/"
-          strip_components: 0
-          rm: true
 
-      - name: Build and deploy on ECS
+      - name: Extract and deploy on ECS
         uses: appleboy/ssh-action@v1.0.3
         with:
           host: ${{ secrets.ECS_HOST }}
@@ -33,6 +39,9 @@ jobs:
           script: |
             set -e
             cd /opt/dormtel
+            echo "=== Extracting deployment archive ==="
+            tar xzf dormtel-deploy.tar.gz
+            rm -f dormtel-deploy.tar.gz
             echo "=== Building and starting services ==="
             docker compose -f docker-compose.prod.yml up -d --build api frontend tenant-portal
             echo "=== Waiting for services to start ==="
