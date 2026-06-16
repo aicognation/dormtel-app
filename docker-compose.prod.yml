@@ -1,6 +1,7 @@
 services:
   db:
     image: postgres:15
+    container_name: dormtel-db
     restart: always
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-dormtel}
@@ -16,6 +17,7 @@ services:
 
   redis:
     image: redis:7
+    container_name: dormtel-redis
     restart: always
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
@@ -25,6 +27,7 @@ services:
 
   api:
     build: ./backend
+    container_name: dormtel-api
     restart: always
     ports:
       - "8090:8000"
@@ -40,6 +43,7 @@ services:
 
   frontend:
     build: ./frontend
+    container_name: dormtel-frontend
     restart: always
     ports:
       - "3090:3000"
@@ -48,6 +52,7 @@ services:
 
   tenant-portal:
     build: ./tenant-portal
+    container_name: dormtel-tenant-portal
     restart: always
     ports:
       - "3190:3000"
