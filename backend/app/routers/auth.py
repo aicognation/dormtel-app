@@ -14,7 +14,7 @@ router = APIRouter()
 @router.post("/login", response_model=schemas.StaffLoginResponse)
 async def login(payload: schemas.StaffLoginRequest, db: AsyncSession = Depends(get_db)):
     # Validate and apply selected schema for login
-    schema = payload.schema if payload.schema in ALLOWED_SCHEMAS else DEFAULT_SCHEMA
+    schema = payload.db_schema if payload.db_schema in ALLOWED_SCHEMAS else DEFAULT_SCHEMA
     await db.execute(text(f"SET search_path TO {schema}, public"))
 
     result = await db.execute(select(models.Staff).where(models.Staff.email == payload.email))
