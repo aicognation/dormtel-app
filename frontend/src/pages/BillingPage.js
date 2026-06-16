@@ -10,7 +10,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import {
   listBillings, submitMeterReading, generateBilling, approveBilling, distributeBilling,
   downloadMeterReadingTemplate, uploadMeterReadings, uploadDailyMeterSheet, listMeterReadings, previewBilling,
-  getDailyMeterGrid, bulkUpsertMeterReadings,
+  getDailyMeterGrid, bulkUpsertMeterReadings, getBillingImportStatus,
 } from '../api/billing';
 import { listRooms } from '../api/onboarding';
 import { BILLING_STATUSES } from '../utils/constants';
@@ -42,6 +42,8 @@ export default function BillingPage() {
   const [genForm, setGenForm] = useState({ billing_period: '', building: '', other_charges: '', total_water_bill: '' });
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [importStatus, setImportStatus] = useState(null);
+  const [importStatusLoading, setImportStatusLoading] = useState(false);
 
   // Rooms for meter reading modal
   const [rooms, setRooms] = useState([]);
@@ -117,6 +119,37 @@ export default function BillingPage() {
   useEffect(() => {
     fetchRooms();
   }, [fetchRooms]);
+
+  // Query import status when billing period changes
+  useEffect(() => {
+    if (!genForm.billing_period || genForm.billing_period.length < 7) {
+      setImportStatus(null);
+      return;
+    }
+    const fetchImportStatus = async () => {
+      setImportStatusLoading(true);
+      try {
+        const result = await getBillingImportStatus({
+          billing_period: genForm.billing_period,
+          building: genForm.building || undefined,
+        });
+        setImportStatus(result.data);
+        // Auto-fill totals from imports
+        if (result.data.has_imports) {
+          setGenForm((f) => ({
+            ...f,
+            total_water_bill: result.data.total_imported_water || f.total_water_bill,
+            other_charges: result.data.total_imported_misc || f.other_charges,
+          }));
+        }
+      } catch {
+        setImportStatus(null);
+      } finally {
+        setImportStatusLoading(false);
+      }
+    };
+    fetchImportStatus();
+  }, [genForm.billing_period, genForm.building]);
 
   const handleMeterSubmit = async (e) => {
     e.preventDefault();
@@ -238,6 +271,14 @@ export default function BillingPage() {
       toast.success(res.data.message || `Uploaded daily sheet for ${res.data.building}`);
       e.target.value = '';
       if (tab === 'meter-readings') fetchDailyGrid();
+      // Refresh import status if we're on preview tab
+      if (genForm.billing_period) {
+        const statusRes = await getBillingImportStatus({
+          billing_period: genForm.billing_period,
+          building: genForm.building || undefined,
+        });
+        setImportStatus(statusRes.data);
+      }
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to upload daily meter sheet';
       toast.error(msg);
@@ -619,16 +660,36 @@ export default function BillingPage() {
               <p className="text-sm text-gray-500 mb-4">
                 Enter the billing period. Electric is computed from per-resident daily meter readings. Water is computed from days stayed × rate derived from the total SOGO water bill.
               </p>
+              {importStatusLoading && (
+                <div className="text-sm text-gray-500 mb-4">Checking for imported daily sheet data...</div>
+              )}
+              {importStatus?.has_imports && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-3 mb-4 text-sm">
+                  <p className="text-green-800 font-medium">
+                    Using imported values from daily sheet
+                    {importStatus.source_filename ? ` (${importStatus.source_filename})` : ''}
+                  </p>
+                  <p className="text-green-700 mt-1">
+                    Imported water: {formatCurrency(importStatus.total_imported_water)} |
+                    Imported misc: {formatCurrency(importStatus.total_imported_misc)} |
+                    Imported electric: {formatCurrency(importStatus.total_imported_electric)}
+                  </p>
+                </div>
+              )}
               <form onSubmit={handlePreview} className="space-y-4">
                 <FormField label="Billing Period" name="billing_period" required value={genForm.billing_period}
                   onChange={(e) => setGenForm({ ...genForm, billing_period: e.target.value })} placeholder="e.g. 2026-05" />
                 <FormField label="Building (optional)" name="building" value={genForm.building}
                   onChange={(e) => setGenForm({ ...genForm, building: e.target.value })} />
-                <FormField label="Total SOGO Water Bill (₱)" name="total_water_bill" type="number" value={genForm.total_water_bill}
-                  onChange={(e) => setGenForm({ ...genForm, total_water_bill: e.target.value })}
-                  placeholder="Total water consumption billed by SOGO" />
-                <FormField label="Other Charges (₱)" name="other_charges" type="number" value={genForm.other_charges}
-                  onChange={(e) => setGenForm({ ...genForm, other_charges: e.target.value })} />
+                {!importStatus?.has_imports && (
+                  <>
+                    <FormField label="Total SOGO Water Bill (₱)" name="total_water_bill" type="number" value={genForm.total_water_bill}
+                      onChange={(e) => setGenForm({ ...genForm, total_water_bill: e.target.value })}
+                      placeholder="Total water consumption billed by SOGO" />
+                    <FormField label="Other Charges (₱)" name="other_charges" type="number" value={genForm.other_charges}
+                      onChange={(e) => setGenForm({ ...genForm, other_charges: e.target.value })} />
+                  </>
+                )}
                 <div className="flex gap-2 pt-2">
                   <Button variant="secondary" type="button" onClick={() => setTab('billings')}>Cancel</Button>
                   <Button type="submit" loading={previewLoading}>
