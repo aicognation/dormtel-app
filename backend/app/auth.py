@@ -32,10 +32,14 @@ def get_password_hash(password: str) -> str:
 
 
 def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -> str:
+    print(f"DEBUG create_access_token: data = {data}")
     to_encode = data.copy()
     expire = datetime.utcnow() + (expires_delta or timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES))
     to_encode.update({"exp": expire})
-    return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    print(f"DEBUG create_access_token: to_encode = {to_encode}")
+    token = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+    print(f"DEBUG create_access_token: token = {token[:50]}...")
+    return token
 
 
 def generate_verification_code() -> str:
