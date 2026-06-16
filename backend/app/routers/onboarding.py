@@ -16,6 +16,14 @@ from app import models, schemas
 router = APIRouter()
 
 
+class DepositInput(BaseModel):
+    deposit_type: str
+    amount: Decimal
+    receipt_number: Optional[str] = None
+    payment_date: Optional[date] = None
+    notes: Optional[str] = None
+
+
 class ReservationCreateRequest(BaseModel):
     full_name: str
     email: EmailStr
@@ -34,6 +42,12 @@ class ReservationCreateRequest(BaseModel):
     is_first_time_dormer: Optional[bool] = True
     address: Optional[str] = None
     deposit_paid: Optional[Decimal] = Decimal("0")
+    source: Optional[str] = None
+    location: Optional[str] = None
+    dormer_type: Optional[str] = None
+    board_exam_type: Optional[str] = None
+    lease_term_months: Optional[int] = None
+    deposits: Optional[list] = None
 
 
 @router.post("/reservations", response_model=schemas.ResidentOut, status_code=status.HTTP_201_CREATED)
@@ -102,6 +116,11 @@ async def create_reservation(payload: ReservationCreateRequest, db: AsyncSession
     exam_date = payload.exam_date
     is_first_time_dormer = payload.is_first_time_dormer
     address = payload.address
+    source = payload.source
+    location = payload.location
+    dormer_type = payload.dormer_type
+    board_exam_type = payload.board_exam_type
+    lease_term_months = payload.lease_term_months
 
     if inquiry:
         full_name = full_name or inquiry.prospect_name or ""
@@ -111,6 +130,7 @@ async def create_reservation(payload: ReservationCreateRequest, db: AsyncSession
         course = course or inquiry.course
         review_center = review_center or inquiry.review_center
         exam_date = exam_date or inquiry.exam_date
+        source = source or inquiry.source
         if inquiry.first_time_dormer is not None:
             is_first_time_dormer = inquiry.first_time_dormer
 
@@ -134,12 +154,33 @@ async def create_reservation(payload: ReservationCreateRequest, db: AsyncSession
         exam_date=exam_date,
         is_first_time_dormer=is_first_time_dormer,
         address=address,
+        source=source,
+        location=location,
+        dormer_type=dormer_type,
+        board_exam_type=board_exam_type,
+        lease_term_months=lease_term_months,
         created_at=datetime.utcnow(),
         updated_at=datetime.utcnow(),
     )
     db.add(resident)
     await db.commit()
     await db.refresh(resident)
+
+    # Create deposit records if provided
+    if payload.deposits:
+        for dep in payload.deposits:
+            deposit = models.Deposit(
+                id=uuid.uuid4(),
+                resident_id=resident.id,
+                deposit_type=dep.get("deposit_type"),
+                amount=Decimal(str(dep.get("amount", 0))),
+                receipt_number=dep.get("receipt_number"),
+                payment_date=dep.get("payment_date") or date.today(),
+                notes=dep.get("notes"),
+                created_at=datetime.utcnow(),
+            )
+            db.add(deposit)
+        await db.commit()
 
     # Link inquiry to resident and mark as converted
     if inquiry:
@@ -251,6 +292,7 @@ async def list_rooms_with_beds(db: AsyncSession = Depends(get_db)):
             display_room_number=room.display_room_number,
             property_code=room.property_code,
             building=room.building,
+            room_type=room.room_type,
             capacity=room.capacity,
             status=room.status,
             beds=[

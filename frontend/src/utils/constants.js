@@ -129,3 +129,43 @@ export const ID_TYPES = [
   { value: 'sss', label: 'SSS ID' },
   { value: 'philhealth', label: 'PhilHealth ID' },
 ];
+
+export const DORMER_TYPES = [
+  { value: 'student', label: 'Student' },
+  { value: 'reviewee', label: 'Reviewee' },
+  { value: 'working_professional', label: 'Working Professional' },
+  { value: 'other', label: 'Other' },
+];
+
+export const LOCATIONS = [
+  { value: 'luzon', label: 'Luzon' },
+  { value: 'visayas', label: 'Visayas' },
+  { value: 'mindanao', label: 'Mindanao' },
+];
+
+export const ROOM_TYPES = [
+  { value: 'standard', label: 'Standard' },
+  { value: 'deluxe', label: 'Deluxe' },
+  { value: 'suite', label: 'Suite' },
+  { value: 'shared', label: 'Shared' },
+];
+
+export const BOARD_EXAM_TYPES = [
+  { value: 'nursing', label: 'Nursing Licensure Exam' },
+  { value: 'civil_engineering', label: 'Civil Engineering' },
+  { value: 'electrical_engineering', label: 'Electrical Engineering' },
+  { value: 'mechanical_engineering', label: 'Mechanical Engineering' },
+  { value: 'accountancy', label: 'Accountancy (CPA)' },
+  { value: 'law', label: 'Bar Exam (Law)' },
+  { value: 'medicine', label: 'Physician Licensure Exam' },
+  { value: 'pharmacy', label: 'Pharmacy' },
+  { value: 'architecture', label: 'Architecture' },
+  { value: 'other', label: 'Other' },
+];
+
+export const LEASE_TERMS = [
+  { value: '1', label: '1 Month' },
+  { value: '3', label: '3 Months' },
+  { value: '6', label: '6 Months' },
+  { value: '12', label: '12 Months' },
+];

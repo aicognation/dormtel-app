@@ -26,6 +26,12 @@ class Resident(Base):
     review_center = Column(String(255))
     exam_date = Column(Date)
     is_first_time_dormer = Column(Boolean, default=True)
+    source = Column(String(50))
+    location = Column(String(50))
+    dormer_type = Column(Enum("student", "reviewee", "working_professional", "other", name="dormer_type"))
+    board_exam_type = Column(String(100))
+    lease_term_months = Column(Integer)
+    previous_stays = Column(JSON)
     notes = Column(Text, nullable=True)
     created_by = Column(UUID(as_uuid=True), ForeignKey("staff.id"), nullable=True)
     updated_by = Column(UUID(as_uuid=True), ForeignKey("staff.id"), nullable=True)
@@ -38,6 +44,7 @@ class Resident(Base):
     inquiries = relationship("Inquiry", back_populates="resident")
     service_requests = relationship("ServiceRequest", back_populates="resident", cascade="all, delete-orphan")
     miscellaneous_transactions = relationship("MiscellaneousTransaction", back_populates="resident")
+    deposits = relationship("Deposit", back_populates="resident", cascade="all, delete-orphan")
 
 class Room(Base):
     __tablename__ = "rooms"
@@ -46,9 +53,25 @@ class Room(Base):
     display_room_number = Column(String(20))
     property_code = Column(String(10), nullable=False, default="DT01")
     building = Column(String(50))
+    room_type = Column(String(50))
     capacity = Column(Integer, nullable=False)
     status = Column(Enum("available", "full", "maintenance", name="room_status"), nullable=False, default="available")
     beds = relationship("Bed", back_populates="room", cascade="all, delete-orphan")
+
+class Deposit(Base):
+    __tablename__ = "deposits"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    resident_id = Column(UUID(as_uuid=True), ForeignKey("residents.id", ondelete="CASCADE"), nullable=False)
+    deposit_type = Column(Enum("advance", "security", "utility", name="deposit_type"), nullable=False)
+    amount = Column(Numeric(10, 2), nullable=False)
+    receipt_number = Column(String(100))
+    payment_date = Column(Date, default=datetime.utcnow)
+    status = Column(Enum("paid", "refunded", "forfeited", "pending", name="deposit_status"), nullable=False, default="paid")
+    refunded_amount = Column(Numeric(10, 2))
+    notes = Column(Text)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    resident = relationship("Resident", back_populates="deposits")
+
 
 class Bed(Base):
     __tablename__ = "beds"
