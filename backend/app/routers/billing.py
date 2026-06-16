@@ -143,7 +143,7 @@ async def _compute_resident_electric(
             resident_electric[rid] = imp.total_electric_usage
             imported_residents.add(rid)
 
-    # For residents without an import, fall back to summing meter readings
+    # For residents without an import, fall back to computing usage from cumulative readings
     query = select(MeterReading).where(
         MeterReading.reading_date >= start_date,
         MeterReading.reading_date < end_date,
@@ -155,11 +155,20 @@ async def _compute_resident_electric(
     result = await db.execute(query)
     readings = result.scalars().all()
 
+    resident_readings = {}
     for reading in readings:
         rid = str(reading.resident_id)
         if rid in imported_residents:
             continue
-        resident_electric[rid] = resident_electric.get(rid, Decimal("0")) + (reading.electric_reading or Decimal("0"))
+        if rid not in resident_readings:
+            resident_readings[rid] = []
+        resident_readings[rid].append(reading.electric_reading or Decimal("0"))
+
+    for rid, values in resident_readings.items():
+        if len(values) >= 2:
+            resident_electric[rid] = max(values) - min(values)
+        elif len(values) == 1:
+            resident_electric[rid] = values[0]
 
     return resident_electric
 
