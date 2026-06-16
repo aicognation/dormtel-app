@@ -13,11 +13,12 @@ from datetime import datetime, date
 from pydantic import BaseModel, Field
 
 from app.database import get_db
-from app.models import MeterReading, Billing, Resident, Room, Bed
+from app.models import MeterReading, MeterReadingImport, Billing, Resident, Room, Bed
 from app.schemas import (
     MeterReadingCreate, MeterReadingOut, MeterReadingDailyGridOut,
     MeterReadingDailyRow, MeterReadingDailyCell,
     BillingOut, BillingWithResidentOut,
+    MeterReadingUploadResult, MeterReadingDailySheetResult,
 )
 
 
@@ -113,7 +114,8 @@ async def _compute_resident_electric(
     billing_period: str,
     building: Optional[str] = None,
 ):
-    """Sum per-resident electric meter readings for the billing period."""
+    """Sum per-resident electric meter readings for the billing period.
+    If a daily-sheet import exists for the resident, use the pre-computed total."""
     year, month = map(int, billing_period.split("-"))
     start_date = date(year, month, 1)
     if month == 12:
@@ -121,6 +123,26 @@ async def _compute_resident_electric(
     else:
         end_date = date(year, month + 1, 1)
 
+    # Check for imported daily-sheet totals first
+    import_query = select(MeterReadingImport)
+    if building:
+        import_query = import_query.where(MeterReadingImport.building == building)
+    import_query = import_query.where(
+        MeterReadingImport.year == year,
+        MeterReadingImport.month == month,
+    )
+    import_result = await db.execute(import_query)
+    imports = import_result.scalars().all()
+
+    resident_electric = {}
+    imported_residents = set()
+    for imp in imports:
+        rid = str(imp.resident_id)
+        if imp.total_electric_usage is not None:
+            resident_electric[rid] = imp.total_electric_usage
+            imported_residents.add(rid)
+
+    # For residents without an import, fall back to summing meter readings
     query = select(MeterReading).where(
         MeterReading.reading_date >= start_date,
         MeterReading.reading_date < end_date,
@@ -132,9 +154,10 @@ async def _compute_resident_electric(
     result = await db.execute(query)
     readings = result.scalars().all()
 
-    resident_electric = {}
     for reading in readings:
         rid = str(reading.resident_id)
+        if rid in imported_residents:
+            continue
         resident_electric[rid] = resident_electric.get(rid, Decimal("0")) + (reading.electric_reading or Decimal("0"))
 
     return resident_electric
@@ -168,7 +191,8 @@ async def _compute_water_by_days(
     total_water_bill: Decimal,
     building: Optional[str] = None,
 ):
-    """Compute water charge per resident based on days stayed."""
+    """Compute water charge per resident based on days stayed.
+    If a daily-sheet import exists with a water_bill, use it directly."""
     year, month = map(int, billing_period.split("-"))
     start_date = date(year, month, 1)
     if month == 12:
@@ -188,6 +212,19 @@ async def _compute_water_by_days(
     result = await db.execute(query)
     rows = result.all()
 
+    # Check for imported water bills
+    import_query = select(MeterReadingImport)
+    if building:
+        import_query = import_query.where(MeterReadingImport.building == building)
+    import_query = import_query.where(
+        MeterReadingImport.year == year,
+        MeterReadingImport.month == month,
+    )
+    import_result = await db.execute(import_query)
+    imports = import_result.scalars().all()
+
+    imported_water = {str(imp.resident_id): imp.water_bill for imp in imports if imp.water_bill is not None}
+
     total_days = 0
     resident_days = {}
     for resident, bed, room in rows:
@@ -199,7 +236,10 @@ async def _compute_water_by_days(
 
     resident_water = {}
     for rid, days in resident_days.items():
-        resident_water[rid] = Decimal(str(days)) * rate_per_day
+        if rid in imported_water:
+            resident_water[rid] = imported_water[rid]
+        else:
+            resident_water[rid] = Decimal(str(days)) * rate_per_day
 
     return resident_water, total_days, rate_per_day
 
@@ -389,7 +429,7 @@ async def download_meter_reading_template():
     )
 
 
-@router.post("/meter-readings/upload")
+@router.post("/meter-readings/upload", response_model=MeterReadingUploadResult)
 async def upload_meter_readings(
     file: UploadFile = File(...),
     db: AsyncSession = Depends(get_db),
@@ -398,15 +438,20 @@ async def upload_meter_readings(
         raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are allowed")
 
     try:
-        import pandas as pd
+        from openpyxl import load_workbook
         contents = await file.read()
-        df = pd.read_excel(io.BytesIO(contents), sheet_name="Meter Readings")
+        wb = load_workbook(io.BytesIO(contents), data_only=True)
+        ws = wb["Meter Readings"]
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {str(e)}")
 
+    # Read headers from first row
+    headers = [cell.value for cell in ws[1]]
+    header_map = {h: i for i, h in enumerate(headers) if h}
+
     required_cols = {"Branch Code", "Building", "Room Number", "Bed", "Resident Name",
                      "Reading Date (YYYY-MM-DD)", "Electric Reading (kWh)", "Water Reading (m³)"}
-    missing = required_cols - set(df.columns)
+    missing = required_cols - set(header_map.keys())
     if missing:
         raise HTTPException(status_code=400, detail=f"Missing required columns: {', '.join(missing)}")
 
@@ -432,16 +477,16 @@ async def upload_meter_readings(
     skipped = 0
     errors = []
 
-    for idx, row in df.iterrows():
-        if idx == 0 and str(row.get("Branch Code", "")).lower() in ("branch code", ""):
+    for row in ws.iter_rows(min_row=2, values_only=True):
+        if not row or row[0] is None:
             continue
 
-        building = str(row.get("Building", "")).strip() if pd.notna(row.get("Building")) else None
-        room_number = str(row.get("Room Number", "")).strip() if pd.notna(row.get("Room Number")) else None
-        resident_name = str(row.get("Resident Name", "")).strip() if pd.notna(row.get("Resident Name")) else None
-        reading_date = _parse_date(row.get("Reading Date (YYYY-MM-DD)"))
-        electric = _parse_decimal(row.get("Electric Reading (kWh)"))
-        water = _parse_decimal(row.get("Water Reading (m³)"))
+        building = str(row[header_map.get("Building")]).strip() if header_map.get("Building") is not None and row[header_map.get("Building")] is not None else None
+        room_number = str(row[header_map.get("Room Number")]).strip() if header_map.get("Room Number") is not None and row[header_map.get("Room Number")] is not None else None
+        resident_name = str(row[header_map.get("Resident Name")]).strip() if header_map.get("Resident Name") is not None and row[header_map.get("Resident Name")] is not None else None
+        reading_date = _parse_date(row[header_map.get("Reading Date (YYYY-MM-DD)")])
+        electric = _parse_decimal(row[header_map.get("Electric Reading (kWh)")])
+        water = _parse_decimal(row[header_map.get("Water Reading (m³)")])
 
         if not building or not reading_date:
             skipped += 1
@@ -456,7 +501,7 @@ async def upload_meter_readings(
             if room:
                 room_id = room.id
             else:
-                errors.append(f"Row {idx + 1}: Room '{room_number}' not found")
+                errors.append(f"Room '{room_number}' not found")
 
         resident_id = None
         if resident_name:
@@ -504,12 +549,262 @@ async def upload_meter_readings(
         imported += 1
 
     await db.commit()
-    return {
-        "imported": imported,
-        "skipped": skipped,
-        "errors": errors,
-        "message": f"Imported {imported} meter readings. Skipped {skipped} rows."
-    }
+    return MeterReadingUploadResult(
+        imported=imported,
+        skipped=skipped,
+        errors=errors,
+        message=f"Imported {imported} meter readings. Skipped {skipped} rows."
+    )
+
+
+@router.post("/meter-readings/upload-daily-sheet", response_model=MeterReadingDailySheetResult)
+async def upload_daily_meter_sheet(
+    file: UploadFile = File(...),
+    db: AsyncSession = Depends(get_db),
+):
+    """Upload a daily meter reading Excel per dormer (e.g. '05_DORMERS ELEC & WATER - MAY 2026').
+
+    The workbook is expected to have one sheet per building (e.g. DT01, DT02).
+    Row 2 contains headers; daily date columns are detected automatically.
+    Row 1 may contain a month/year title that we also parse as a fallback.
+    """
+    if not file.filename.endswith((".xlsx", ".xls")):
+        raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are allowed")
+
+    try:
+        from openpyxl import load_workbook
+        contents = await file.read()
+        wb = load_workbook(io.BytesIO(contents), data_only=True)
+    except Exception as e:
+        raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {str(e)}")
+
+    # Pre-load rooms and residents for matching
+    rooms_result = await db.execute(select(Room))
+    rooms = rooms_result.scalars().all()
+    room_by_number = {r.room_number.strip().upper(): r for r in rooms}
+
+    residents_result = await db.execute(
+        select(Resident, Bed)
+        .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+        .where(Resident.status == "active")
+    )
+    residents_rows = residents_result.all()
+    resident_lookup = {}
+    for resident, bed in residents_rows:
+        key = (resident.full_name or "").strip().upper()
+        resident_lookup[key] = resident
+        if bed and bed.bed_code:
+            resident_lookup[bed.bed_code.upper()] = resident
+
+    total_residents_imported = 0
+    total_daily_readings = 0
+    all_errors = []
+
+    for sheet_name in wb.sheetnames:
+        ws = wb[sheet_name]
+        building = sheet_name.strip()
+        if not building:
+            continue
+
+        # Auto-detect header row by finding the row with the most datetime values
+        header_row_idx = None
+        header_row = None
+        max_dates = 0
+        for r_idx in range(1, min(6, ws.max_row + 1)):
+            row_vals = list(ws.iter_rows(min_row=r_idx, max_row=r_idx, values_only=True))[0]
+            date_count = sum(1 for v in row_vals if isinstance(v, datetime))
+            if date_count > max_dates:
+                max_dates = date_count
+                header_row_idx = r_idx
+                header_row = row_vals
+
+        if not header_row:
+            all_errors.append(f"Sheet '{sheet_name}': Could not detect header row with date columns.")
+            continue
+
+        date_cols = []  # list of (col_index, date_value)
+        col_total_usage = None
+        col_water_days = None
+        col_water_bill = None
+        col_misc = {}
+
+        for idx, val in enumerate(header_row):
+            if val is None:
+                continue
+            if isinstance(val, datetime):
+                date_cols.append((idx, val))
+            elif isinstance(val, str):
+                vup = val.upper().strip()
+                if vup == "TOTAL USAGE":
+                    col_total_usage = idx
+                elif "# OF DAYS" in vup and "WATER" in vup:
+                    col_water_days = idx
+                elif vup == "WATER BILL":
+                    col_water_bill = idx
+                elif vup in {"LAUNDRY", "DRINKING WATER", "ICE CREAM", "HONESTY STORE", "COFFEE", "LOST KEYCARD", "REF RENTAL"}:
+                    col_misc[vup] = idx
+
+        if not date_cols:
+            all_errors.append(f"Sheet '{sheet_name}': No date columns found in header row.")
+            continue
+
+        # Filter out stray date columns from misc sections (large gap from contiguous block)
+        filtered_date_cols = []
+        for idx, d in date_cols:
+            if not filtered_date_cols:
+                filtered_date_cols.append((idx, d))
+            else:
+                gap = abs((d - filtered_date_cols[-1][1]).days)
+                if gap <= 60:
+                    filtered_date_cols.append((idx, d))
+                else:
+                    break
+        date_cols = filtered_date_cols
+
+        # Determine year/month from the most common month among date columns
+        from collections import Counter
+        month_counts = Counter([d.month for _, d in date_cols])
+        year = date_cols[0][1].year
+        month = month_counts.most_common(1)[0][0]
+
+        sheet_residents = 0
+        sheet_readings = 0
+
+        for row in ws.iter_rows(min_row=header_row_idx + 1, values_only=True):
+            if not row or row[0] is None:
+                continue
+
+            room_number = str(row[0]).strip() if row[0] is not None else None
+            bed_letter = str(row[1]).strip() if row[1] is not None else None
+            resident_name = str(row[2]).strip() if row[2] is not None else None
+            rate = _parse_decimal(row[3]) if len(row) > 3 else None
+            move_in = _parse_date(row[4]) if len(row) > 4 else None
+            move_out = _parse_date(row[5]) if len(row) > 5 else None
+
+            if not resident_name:
+                continue
+
+            # Match resident
+            resident = resident_lookup.get(resident_name.upper())
+            if not resident and bed_letter and room_number:
+                bed_code = f"{room_number}{bed_letter}".upper()
+                resident = resident_lookup.get(bed_code)
+
+            if not resident:
+                all_errors.append(f"Sheet '{sheet_name}': Resident '{resident_name}' not found (room {room_number}, bed {bed_letter}).")
+                continue
+
+            # Extract pre-computed totals
+            total_usage = _parse_decimal(row[col_total_usage]) if col_total_usage is not None and len(row) > col_total_usage else None
+            water_days = None
+            if col_water_days is not None and len(row) > col_water_days:
+                try:
+                    water_days = int(row[col_water_days])
+                except (ValueError, TypeError):
+                    water_days = None
+            water_bill = _parse_decimal(row[col_water_bill]) if col_water_bill is not None and len(row) > col_water_bill else None
+
+            misc_charges = {}
+            for misc_name, col_idx in col_misc.items():
+                if len(row) > col_idx and row[col_idx] is not None:
+                    try:
+                        val = Decimal(str(row[col_idx]))
+                        if val > 0:
+                            misc_charges[misc_name.lower().replace(" ", "_")] = str(val)
+                    except Exception:
+                        pass
+
+            # Upsert summary import record
+            existing_import_query = select(MeterReadingImport).where(
+                MeterReadingImport.resident_id == resident.id,
+                MeterReadingImport.year == year,
+                MeterReadingImport.month == month,
+            )
+            existing_import_result = await db.execute(existing_import_query)
+            existing_import = existing_import_result.scalar_one_or_none()
+
+            if existing_import:
+                existing_import.building = building
+                existing_import.total_electric_usage = total_usage
+                existing_import.water_bill = water_bill
+                existing_import.water_days = water_days
+                existing_import.water_rate = _parse_decimal(row[header_map.get("RATE")]) if "RATE" in header_map and len(row) > header_map["RATE"] else None
+                existing_import.misc_charges = misc_charges if misc_charges else None
+                existing_import.source_filename = file.filename
+            else:
+                imp = MeterReadingImport(
+                    resident_id=resident.id,
+                    building=building,
+                    year=year,
+                    month=month,
+                    total_electric_usage=total_usage,
+                    water_bill=water_bill,
+                    water_days=water_days,
+                    water_rate=_parse_decimal(row[header_map.get("RATE")]) if "RATE" in header_map and len(row) > header_map["RATE"] else None,
+                    misc_charges=misc_charges if misc_charges else None,
+                    source_filename=file.filename,
+                )
+                db.add(imp)
+
+            sheet_residents += 1
+
+            # Import daily readings into meter_readings (store cumulative values for reference)
+            room_id = None
+            if room_number:
+                room = room_by_number.get(room_number.upper())
+                if room:
+                    room_id = room.id
+
+            for col_idx, col_date in date_cols:
+                if col_idx >= len(row):
+                    continue
+                val = row[col_idx]
+                if val is None:
+                    continue
+                try:
+                    reading_val = Decimal(str(val))
+                except Exception:
+                    continue
+
+                # Upsert meter reading for this date
+                existing_reading_query = select(MeterReading).where(
+                    MeterReading.resident_id == resident.id,
+                    MeterReading.reading_date == col_date.date() if isinstance(col_date, datetime) else col_date,
+                )
+                existing_reading_result = await db.execute(existing_reading_query)
+                existing_reading = existing_reading_result.scalar_one_or_none()
+
+                if existing_reading:
+                    existing_reading.electric_reading = reading_val
+                    existing_reading.building = building
+                    existing_reading.room_id = room_id
+                else:
+                    reading = MeterReading(
+                        building=building,
+                        room_id=room_id,
+                        resident_id=resident.id,
+                        reading_date=col_date.date() if isinstance(col_date, datetime) else col_date,
+                        electric_reading=reading_val,
+                        water_reading=None,
+                        status="estimated",
+                        variance_pct=Decimal("0"),
+                    )
+                    db.add(reading)
+                sheet_readings += 1
+
+        total_residents_imported += sheet_residents
+        total_daily_readings += sheet_readings
+
+    await db.commit()
+    return MeterReadingDailySheetResult(
+        building=", ".join(wb.sheetnames),
+        year=year,
+        month=month,
+        residents_imported=total_residents_imported,
+        daily_readings_imported=total_daily_readings,
+        errors=all_errors,
+        message=f"Imported {total_residents_imported} residents with {total_daily_readings} daily readings across {len(wb.sheetnames)} sheet(s)."
+    )
 
 
 @router.get("/meter-readings", response_model=List[MeterReadingOut])

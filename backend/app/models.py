@@ -131,6 +131,22 @@ class MeterReading(Base):
     room = relationship("Room")
     resident = relationship("Resident")
 
+class MeterReadingImport(Base):
+    __tablename__ = "meter_reading_imports"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    resident_id = Column(UUID(as_uuid=True), ForeignKey("residents.id"), nullable=False)
+    building = Column(String(50), nullable=False)
+    year = Column(Integer, nullable=False)
+    month = Column(Integer, nullable=False)
+    total_electric_usage = Column(Numeric(10, 2))
+    water_bill = Column(Numeric(10, 2))
+    water_days = Column(Integer)
+    water_rate = Column(Numeric(10, 2))
+    misc_charges = Column(JSON)
+    source_filename = Column(String(255))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    resident = relationship("Resident")
+
 class Billing(Base):
     __tablename__ = "billings"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

@@ -41,6 +41,14 @@ export function uploadMeterReadings(file) {
   });
 }
 
+export function uploadDailyMeterSheet(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return axios.post(`${API_BASE}/api/v1/billings/meter-readings/upload-daily-sheet`, formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
 export function listMeterReadings(params = {}) {
   return client.get('/billings/meter-readings', { params });
 }

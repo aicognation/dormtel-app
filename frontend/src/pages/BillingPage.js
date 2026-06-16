@@ -9,7 +9,7 @@ import FormField from '../components/ui/FormField';
 import StatusBadge from '../components/ui/StatusBadge';
 import {
   listBillings, submitMeterReading, generateBilling, approveBilling, distributeBilling,
-  downloadMeterReadingTemplate, uploadMeterReadings, listMeterReadings, previewBilling,
+  downloadMeterReadingTemplate, uploadMeterReadings, uploadDailyMeterSheet, listMeterReadings, previewBilling,
   getDailyMeterGrid, bulkUpsertMeterReadings,
 } from '../api/billing';
 import { listRooms } from '../api/onboarding';
@@ -51,6 +51,7 @@ export default function BillingPage() {
   const [submitting, setSubmitting] = useState(false);
   const [meterForm, setMeterForm] = useState({ building: '', room_id: '', resident_id: '', reading_date: '', electric_reading: '', water_reading: '' });
   const fileInputRef = useRef(null);
+  const dailySheetInputRef = useRef(null);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -229,6 +230,20 @@ export default function BillingPage() {
     }
   };
 
+  const handleDailySheetUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try {
+      const res = await uploadDailyMeterSheet(file);
+      toast.success(res.data.message || `Uploaded daily sheet for ${res.data.building}`);
+      e.target.value = '';
+      if (tab === 'meter-readings') fetchDailyGrid();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to upload daily meter sheet';
+      toast.error(msg);
+    }
+  };
+
   const handleCellChange = (residentId, dateKey, value) => {
     setEditedCells((prev) => ({
       ...prev,
@@ -344,7 +359,7 @@ export default function BillingPage() {
         title="Auto-Billing Engine"
         subtitle="Meter readings, billing generation, and distribution"
         actions={
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button variant="ghost" onClick={handleDownloadTemplate}>
               <Download className="w-4 h-4 mr-1" /> Template
             </Button>
@@ -357,6 +372,16 @@ export default function BillingPage() {
               accept=".xlsx,.xls"
               className="hidden"
               onChange={handleFileUpload}
+            />
+            <Button variant="secondary" onClick={() => dailySheetInputRef.current?.click()}>
+              <Upload className="w-4 h-4 mr-1" /> Daily Sheet
+            </Button>
+            <input
+              ref={dailySheetInputRef}
+              type="file"
+              accept=".xlsx,.xls"
+              className="hidden"
+              onChange={handleDailySheetUpload}
             />
             <Button variant="secondary" onClick={() => setShowMeter(true)}>
               <Zap className="w-4 h-4 mr-1" /> Meter Reading

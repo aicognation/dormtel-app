@@ -261,6 +261,21 @@ class MeterReadingDailyGridOut(BaseModel):
     residents: list[MeterReadingDailyRow]
     water_config: dict
 
+class MeterReadingUploadResult(BaseModel):
+    imported: int
+    skipped: int
+    errors: list[str]
+    message: str
+
+class MeterReadingDailySheetResult(BaseModel):
+    building: str
+    year: int
+    month: int
+    residents_imported: int
+    daily_readings_imported: int
+    errors: list[str]
+    message: str
+
 class CheckpointOut(BaseModel):
     id: UUID
     checkpoint_id: str
