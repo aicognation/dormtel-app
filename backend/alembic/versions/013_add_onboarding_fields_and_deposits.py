@@ -8,7 +8,7 @@ from typing import Sequence, Union
 
 from alembic import op
 import sqlalchemy as sa
-from sqlalchemy.dialects.postgresql import UUID, JSON
+from sqlalchemy.dialects.postgresql import UUID, JSON, ENUM
 
 revision: str = "013"
 down_revision: Union[str, None] = "012"
@@ -40,7 +40,7 @@ def upgrade() -> None:
     op.add_column("residents", sa.Column("location", sa.String(50), nullable=True))
     op.add_column(
         "residents",
-        sa.Column("dormer_type", sa.Enum("student", "reviewee", "working_professional", "other", name="dormer_type"), nullable=True),
+        sa.Column("dormer_type", ENUM("student", "reviewee", "working_professional", "other", name="dormer_type", create_type=False), nullable=True),
     )
     op.add_column("residents", sa.Column("board_exam_type", sa.String(100), nullable=True))
     op.add_column("residents", sa.Column("lease_term_months", sa.Integer, nullable=True))
@@ -51,11 +51,11 @@ def upgrade() -> None:
         "deposits",
         sa.Column("id", UUID(as_uuid=True), primary_key=True, server_default=sa.text("gen_random_uuid()")),
         sa.Column("resident_id", UUID(as_uuid=True), sa.ForeignKey("residents.id", ondelete="CASCADE"), nullable=False),
-        sa.Column("deposit_type", sa.Enum("advance", "security", "utility", name="deposit_type"), nullable=False),
+        sa.Column("deposit_type", ENUM("advance", "security", "utility", name="deposit_type", create_type=False), nullable=False),
         sa.Column("amount", sa.Numeric(10, 2), nullable=False),
         sa.Column("receipt_number", sa.String(100), nullable=True),
         sa.Column("payment_date", sa.Date, nullable=True),
-        sa.Column("status", sa.Enum("paid", "refunded", "forfeited", "pending", name="deposit_status"), nullable=False, server_default="paid"),
+        sa.Column("status", ENUM("paid", "refunded", "forfeited", "pending", name="deposit_status", create_type=False), nullable=False, server_default="paid"),
         sa.Column("refunded_amount", sa.Numeric(10, 2), nullable=True),
         sa.Column("notes", sa.Text, nullable=True),
         sa.Column("created_at", sa.DateTime, nullable=False, server_default=sa.text("NOW()")),
