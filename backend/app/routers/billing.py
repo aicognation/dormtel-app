@@ -629,6 +629,18 @@ async def upload_meter_readings(
     )
 
 
+def _parse_header_date(val: str):
+    """Try to parse a string as a date using common formats."""
+    from datetime import datetime
+    formats = ["%m/%d/%Y", "%m-%d-%Y", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
+    for fmt in formats:
+        try:
+            return datetime.strptime(val.strip(), fmt)
+        except ValueError:
+            continue
+    return None
+
+
 @router.post("/meter-readings/upload-daily-sheet", response_model=MeterReadingDailySheetResult)
 async def upload_daily_meter_sheet(
     file: UploadFile = File(...),
@@ -707,16 +719,20 @@ async def upload_daily_meter_sheet(
             if isinstance(val, datetime):
                 date_cols.append((idx, val))
             elif isinstance(val, str):
-                vup = val.upper().strip()
-                header_map[vup] = idx
-                if vup == "TOTAL USAGE":
-                    col_total_usage = idx
-                elif "# OF DAYS" in vup and "WATER" in vup:
-                    col_water_days = idx
-                elif vup == "WATER BILL":
-                    col_water_bill = idx
-                elif vup in {"LAUNDRY", "DRINKING WATER", "ICE CREAM", "HONESTY STORE", "COFFEE", "LOST KEYCARD", "REF RENTAL"}:
-                    col_misc[vup] = idx
+                parsed_date = _parse_header_date(val)
+                if parsed_date:
+                    date_cols.append((idx, parsed_date))
+                else:
+                    vup = val.upper().strip()
+                    header_map[vup] = idx
+                    if vup == "TOTAL USAGE":
+                        col_total_usage = idx
+                    elif "# OF DAYS" in vup and "WATER" in vup:
+                        col_water_days = idx
+                    elif vup == "WATER BILL":
+                        col_water_bill = idx
+                    elif vup in {"LAUNDRY", "DRINKING WATER", "ICE CREAM", "HONESTY STORE", "COFFEE", "LOST KEYCARD", "REF RENTAL"}:
+                        col_misc[vup] = idx
 
         if not date_cols:
             all_errors.append(f"Sheet '{sheet_name}': No date columns found in header row.")
