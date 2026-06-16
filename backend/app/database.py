@@ -34,12 +34,10 @@ def _extract_schema_from_request(request: Request = None) -> str:
 
 async def get_db(request: Request = None):
     schema = _extract_schema_from_request(request)
-    print(f"DEBUG get_db: request={request is not None}, schema={schema}")
     async with AsyncSessionLocal() as session:
         try:
             if schema in ALLOWED_SCHEMAS:
                 await session.execute(text(f"SET search_path TO {schema}, public"))
-                print(f"DEBUG get_db: SET search_path TO {schema}, public")
             yield session
         finally:
             await session.close()
