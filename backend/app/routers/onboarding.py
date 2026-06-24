@@ -86,6 +86,7 @@ async def create_reservation(
         result = await db.execute(
             select(models.Bed)
             .where(models.Bed.status == "available")
+            .options(selectinload(models.Bed.room))
             .order_by(models.Bed.bed_code)
         )
         bed = result.scalars().first()
