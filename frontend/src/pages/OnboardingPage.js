@@ -188,6 +188,9 @@ export default function OnboardingPage() {
       const bed = selectedRoom?.beds?.find((b) => b.id === form.bed_id);
       const roomInfo = selectedRoom ? ` — Room ${selectedRoom.room_number}${bed ? `, ${bed.bed_code}` : ''}` : '';
       toast.success(`Reservation created for ${result?.full_name || form.full_name}${roomInfo}`);
+      if (result?.warnings?.length) {
+        result.warnings.forEach((w) => toast(w, { icon: '⚠️', duration: 6000 }));
+      }
       setShowReserve(false);
       setSelectedRoom(null);
       setForm({
@@ -202,8 +205,8 @@ export default function OnboardingPage() {
       });
       fetchRooms();
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Failed to create reservation';
-      toast.error(msg);
+      // Interceptor already shows error toast; log for debugging
+      console.error('Create reservation error:', err.message);
     } finally {
       setSubmitting(false);
     }

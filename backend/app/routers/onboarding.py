@@ -7,6 +7,7 @@ from decimal import Decimal
 from uuid import UUID
 from typing import Optional
 import uuid
+import logging
 
 from pydantic import BaseModel, EmailStr
 
@@ -14,6 +15,7 @@ from app.database import get_db
 from app import models, schemas, auth
 
 router = APIRouter()
+logger = logging.getLogger(__name__)
 
 
 class DepositInput(BaseModel):
@@ -110,14 +112,29 @@ async def create_reservation(
     if payload.move_out_date <= payload.move_in_date:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Move-out date must be after move-in date")
 
-    # Check for duplicate email or phone
-    existing = await db.execute(
+    # Check for duplicate email or phone — warn but allow
+    warnings = []
+    existing_result = await db.execute(
         select(models.Resident).where(
             (models.Resident.email == payload.email) | (models.Resident.phone == payload.phone)
         )
     )
-    if existing.scalar_one_or_none():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email or phone already exists")
+    existing_residents = existing_result.scalars().all()
+    if existing_residents:
+        dup_emails = [r for r in existing_residents if r.email == payload.email]
+        dup_phones = [r for r in existing_residents if r.phone == payload.phone]
+        if dup_emails:
+            names = ", ".join(r.full_name for r in dup_emails[:3])
+            warnings.append(f"Email already used by: {names}")
+        if dup_phones:
+            names = ", ".join(r.full_name for r in dup_phones[:3])
+            warnings.append(f"Phone already used by: {names}")
+        logger.warning(
+            "[AUDIT] Reservation created with duplicate contact info — "
+            "email=%s phone=%s full_name=%s duplicates=%s",
+            payload.email, payload.phone, payload.full_name,
+            [{"id": str(r.id), "name": r.full_name, "status": r.status} for r in existing_residents],
+        )
 
     # Pre-fill from inquiry if available
     full_name = payload.full_name
@@ -201,7 +218,11 @@ async def create_reservation(
         inquiry.status = "converted"
         await db.commit()
 
-    return resident
+    # Build response with optional duplicate warnings
+    response_data = schemas.ResidentOut.model_validate(resident).model_dump()
+    if warnings:
+        response_data["warnings"] = warnings
+    return response_data
 
 
 @router.post("/reservations/{resident_id}/payment-link", response_model=schemas.BillingOut)

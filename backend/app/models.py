@@ -9,8 +9,8 @@ class Resident(Base):
     __tablename__ = "residents"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
     full_name = Column(String(255), nullable=False)
-    email = Column(String(255), unique=True, nullable=False)
-    phone = Column(String(20), unique=True, nullable=False)
+    email = Column(String(255), nullable=False)
+    phone = Column(String(20), nullable=False)
     id_type = Column(String(50))
     id_number = Column(String(100))
     status = Column(Enum("prospect", "reserved", "active", "inactive", "moved_out", name="resident_status"), nullable=False, default="prospect")
