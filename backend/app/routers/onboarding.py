@@ -52,7 +52,7 @@ class ReservationCreateRequest(BaseModel):
     deposits: Optional[list] = None
 
 
-@router.post("/reservations", response_model=schemas.ResidentOut, status_code=status.HTTP_201_CREATED)
+@router.post("/reservations", response_model=schemas.ReservationResponse, status_code=status.HTTP_201_CREATED)
 async def create_reservation(
     payload: ReservationCreateRequest,
     current_staff: models.Staff = Depends(auth.require_staff),
@@ -219,10 +219,9 @@ async def create_reservation(
         await db.commit()
 
     # Build response with optional duplicate warnings
-    response_data = schemas.ResidentOut.model_validate(resident).model_dump()
     if warnings:
-        response_data["warnings"] = warnings
-    return response_data
+        return {**{c.name: getattr(resident, c.name) for c in resident.__table__.columns}, "warnings": warnings}
+    return resident
 
 
 @router.post("/reservations/{resident_id}/payment-link", response_model=schemas.BillingOut)

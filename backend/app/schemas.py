@@ -55,9 +55,13 @@ class ResidentOut(ResidentBase):
     contract_end_date: Optional[date] = None
     deposit_paid: Optional[Decimal] = None
     created_at: datetime
-    warnings: Optional[List[str]] = None
     class Config:
         from_attributes = True
+
+class ReservationResponse(ResidentOut):
+    warnings: Optional[List[str]] = None
+    class Config(ResidentOut.Config):
+        extra = "allow"
 
 class ResidentMiniOut(BaseModel):
     id: UUID
