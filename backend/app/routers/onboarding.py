@@ -88,7 +88,7 @@ async def create_reservation(
             .where(models.Bed.status == "available")
             .order_by(models.Bed.bed_code)
         )
-        bed = result.scalar_one_or_none()
+        bed = result.scalars().first()
         if not bed:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No available beds")
 
