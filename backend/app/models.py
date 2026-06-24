@@ -45,6 +45,7 @@ class Resident(Base):
     service_requests = relationship("ServiceRequest", back_populates="resident", cascade="all, delete-orphan")
     miscellaneous_transactions = relationship("MiscellaneousTransaction", back_populates="resident")
     deposits = relationship("Deposit", back_populates="resident", cascade="all, delete-orphan")
+    billing_statements = relationship("BillingStatement", back_populates="resident", cascade="all, delete-orphan")
 
 class Room(Base):
     __tablename__ = "rooms"
@@ -334,6 +335,25 @@ class Notification(Base):
     is_read = Column(Boolean, default=False)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     staff = relationship("Staff", back_populates="notifications")
+
+
+class BillingStatement(Base):
+    __tablename__ = "billing_statements"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    resident_id = Column(UUID(as_uuid=True), ForeignKey("residents.id", ondelete="CASCADE"), nullable=False)
+    billing_period = Column(String(20), nullable=False)
+    scope_type = Column(String(20), nullable=False, default="resident")  # resident, room, floor, property
+    scope_target = Column(String(100), nullable=True)
+    file_path = Column(String(500), nullable=False)
+    file_name = Column(String(255), nullable=False)
+    file_size = Column(Integer)
+    metadata_json = Column(JSON)
+    status = Column(String(20), nullable=False, default="generated")  # generated, sent, failed
+    sent_at = Column(DateTime)
+    sent_to = Column(String(255))
+    email_status = Column(String(50))
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    resident = relationship("Resident", back_populates="billing_statements")
 
 
 class MiscellaneousTransaction(Base):

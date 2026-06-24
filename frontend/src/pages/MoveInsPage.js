@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import client from '../api/client';
-import { Home, Calendar, Search, User, ChevronDown, ChevronUp, GraduationCap, Building2, FileText, Tag, Clock } from 'lucide-react';
+import toast from 'react-hot-toast';
+import { activateMoveIn } from '../api/onboarding';
+import { Home, Calendar, Search, User, ChevronDown, ChevronUp, GraduationCap, Building2, FileText, Tag, Clock, CheckCircle } from 'lucide-react';
 
 function ResidentDetailCard({ r }) {
   return (
@@ -118,6 +120,17 @@ export default function MoveInsPage() {
     setExpandedId((prev) => (prev === id ? null : id));
   };
 
+  const handleActivate = async (residentId) => {
+    try {
+      await activateMoveIn(residentId);
+      toast.success('Move-in activated');
+      fetchMoveIns();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to activate move-in';
+      toast.error(msg);
+    }
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3">
@@ -171,6 +184,7 @@ export default function MoveInsPage() {
                   <th className="px-4 py-3 text-left">Bed / Room</th>
                   <th className="px-4 py-3 text-left">Move-in Date</th>
                   <th className="px-4 py-3 text-left">Contract End</th>
+                  <th className="px-4 py-3 text-left">Actions</th>
                   <th className="px-4 py-3 text-left w-10"></th>
                 </tr>
               </thead>
@@ -215,6 +229,19 @@ export default function MoveInsPage() {
                         {r.contract_end_date || '-'}
                       </td>
                       <td className="px-4 py-3">
+                        {r.status === 'reserved' && (
+                          <button
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              handleActivate(r.id);
+                            }}
+                            className="inline-flex items-center gap-1 px-2.5 py-1.5 rounded-md bg-green-600 text-white text-xs font-medium hover:bg-green-700"
+                          >
+                            <CheckCircle className="w-3.5 h-3.5" /> Activate
+                          </button>
+                        )}
+                      </td>
+                      <td className="px-4 py-3">
                         {expandedId === r.id ? (
                           <ChevronUp className="w-4 h-4 text-gray-400" />
                         ) : (
@@ -224,7 +251,7 @@ export default function MoveInsPage() {
                     </tr>
                     {expandedId === r.id && (
                       <tr>
-                        <td colSpan={7} className="p-0">
+                        <td colSpan={8} className="p-0">
                           <ResidentDetailCard r={r} />
                         </td>
                       </tr>

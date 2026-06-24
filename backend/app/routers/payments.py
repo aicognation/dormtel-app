@@ -9,6 +9,7 @@ import re
 from typing import Optional, List
 
 from app.database import get_db
+from app import models, auth
 from app.models import Payment, Resident, LedgerEntry, Billing, Bed, Room
 from app.schemas import (
     PaymentOut, DormerLedgerOut, DormerLedgerSummaryOut,
@@ -120,7 +121,11 @@ async def payment_webhook(payload: WebhookPayload, db: AsyncSession = Depends(ge
 
 
 @router.post("/reconcile")
-async def manual_reconcile(body: ReconcileRequest, db: AsyncSession = Depends(get_db)):
+async def manual_reconcile(
+    body: ReconcileRequest,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     if body.payment_ids:
         result = await db.execute(select(Payment).where(Payment.id.in_(body.payment_ids)))
         payments = result.scalars().all()
@@ -158,7 +163,10 @@ async def manual_reconcile(body: ReconcileRequest, db: AsyncSession = Depends(ge
 
 
 @router.get("/unmatched", response_model=List[PaymentOut])
-async def list_unmatched(db: AsyncSession = Depends(get_db)):
+async def list_unmatched(
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     result = await db.execute(select(Payment).where(Payment.status == "unreconciled"))
     payments = result.scalars().all()
     return payments
@@ -170,6 +178,7 @@ async def list_payments(
     status: Optional[str] = Query(None),
     limit: int = Query(500, ge=1, le=2000),
     db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
 ):
     query = select(Payment).order_by(Payment.created_at.desc())
     if resident_id:
@@ -182,7 +191,12 @@ async def list_payments(
 
 
 @router.post("/{id}/match", response_model=PaymentOut)
-async def match_payment(id: UUID, body: MatchRequest, db: AsyncSession = Depends(get_db)):
+async def match_payment(
+    id: UUID,
+    body: MatchRequest,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     result = await db.execute(select(Payment).where(Payment.id == id))
     payment = result.scalar_one_or_none()
     if not payment:
@@ -217,7 +231,10 @@ async def match_payment(id: UUID, body: MatchRequest, db: AsyncSession = Depends
 
 
 @router.get("/dsr", response_model=DSRReport)
-async def daily_sales_report(db: AsyncSession = Depends(get_db)):
+async def daily_sales_report(
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     today = date.today()
     start = datetime.combine(today, time.min)
     end = datetime.combine(today, time.max)
@@ -238,7 +255,11 @@ async def daily_sales_report(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/ledger/{resident_id}", response_model=DormerLedgerOut)
-async def get_dormer_ledger(resident_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_dormer_ledger(
+    resident_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     # Fetch resident with bed/room
     result = await db.execute(
         select(Resident, Bed, Room)
@@ -351,6 +372,7 @@ async def list_all_ledgers(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
 ):
     # Fetch all active residents with bed/room
     query = (

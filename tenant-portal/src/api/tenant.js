@@ -1,6 +1,7 @@
 import client from './client';
 
-export const tenantLogin = (email, phone, bedCode) => client.post('/login', { email, phone, bed_code: bedCode });
+export const tenantLogin = (email, phone, bedCode, dbSchema = 'demo') =>
+  client.post('/login', { email, phone, bed_code: bedCode, db_schema: dbSchema });
 
 export const getDashboard = (id) => client.get(`/dashboard/${id}`);
 

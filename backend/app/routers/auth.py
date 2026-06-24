@@ -152,7 +152,7 @@ async def verification_code_verify(payload: schemas.VerificationCodeVerify, db: 
 
 @router.get("/staff", response_model=list[schemas.StaffOut])
 async def list_staff(
-    current_staff: models.Staff = Depends(auth.require_manager),
+    current_staff: models.Staff = Depends(auth.require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(select(models.Staff).order_by(models.Staff.created_at.desc()))

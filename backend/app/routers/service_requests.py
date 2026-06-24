@@ -7,9 +7,10 @@ from pydantic import BaseModel
 from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app import models, auth
 from app.database import get_db
 from app.models import ServiceRequest, Resident
-from app.schemas import ServiceRequestOut, ServiceRequestWithResidentOut
+from app.schemas import ServiceRequestOut, ServiceRequestWithResidentOut, ServiceRequestAdminCreate
 
 router = APIRouter()
 
@@ -32,6 +33,7 @@ async def list_service_requests(
     category: Optional[str] = Query(None),
     priority: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
 ):
     stmt = (
         select(ServiceRequest, Resident.full_name.label("resident_name"))
@@ -59,8 +61,43 @@ async def list_service_requests(
     return out
 
 
+@router.post("/", response_model=ServiceRequestWithResidentOut, status_code=201)
+async def create_service_request(
+    payload: ServiceRequestAdminCreate,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
+    resident_result = await db.execute(select(Resident).where(Resident.id == payload.resident_id))
+    resident = resident_result.scalar_one_or_none()
+    if not resident:
+        raise HTTPException(status_code=404, detail="Resident not found")
+
+    sr = ServiceRequest(
+        id=uuid.uuid4(),
+        resident_id=payload.resident_id,
+        category=payload.category,
+        subject=payload.subject,
+        description=payload.description,
+        location=payload.location,
+        priority=payload.priority,
+        status="submitted",
+        submitted_at=datetime.utcnow(),
+        created_at=datetime.utcnow(),
+    )
+    db.add(sr)
+    await db.commit()
+    await db.refresh(sr)
+
+    base = ServiceRequestWithResidentOut.model_validate(sr)
+    return base.model_copy(update={"resident_name": resident.full_name})
+
+
 @router.get("/{sr_id}", response_model=ServiceRequestWithResidentOut)
-async def get_service_request(sr_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_service_request(
+    sr_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     stmt = (
         select(ServiceRequest, Resident.full_name.label("resident_name"))
         .join(Resident, ServiceRequest.resident_id == Resident.id, isouter=True)
@@ -80,6 +117,7 @@ async def update_service_request_status(
     sr_id: uuid.UUID,
     payload: StatusUpdatePayload,
     db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
 ):
     if payload.status not in VALID_STATUSES:
         raise HTTPException(
@@ -109,6 +147,7 @@ async def assign_service_request(
     sr_id: uuid.UUID,
     payload: AssignPayload,
     db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
 ):
     stmt = select(ServiceRequest).where(ServiceRequest.id == sr_id)
     result = await db.execute(stmt)

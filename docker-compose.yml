@@ -35,6 +35,10 @@ services:
       DATABASE_URL: postgresql+asyncpg://postgres:postgres@db:5432/dormtel
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: http://localhost:3000,http://localhost:3100
+      STATEMENTS_DIR: /app/statements
+    volumes:
+      - ./backend/app:/app/app
+      - statements_data:/app/statements
     depends_on:
       db:
         condition: service_healthy
@@ -59,3 +63,4 @@ services:
 
 volumes:
   postgres_data:
+  statements_data:

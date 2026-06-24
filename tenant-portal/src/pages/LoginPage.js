@@ -11,6 +11,7 @@ export default function LoginPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [bedCode, setBedCode] = useState('');
+  const [dbSchema, setDbSchema] = useState('pilot');
   const [loading, setLoading] = useState(false);
   const { login } = useTenant();
   const navigate = useNavigate();
@@ -24,7 +25,8 @@ export default function LoginPage() {
       const { data } = await tenantLogin(
         mode === 'email' ? value : null,
         mode === 'phone' ? value : null,
-        mode === 'room' ? value : null
+        mode === 'room' ? value : null,
+        dbSchema
       );
       login(data);
       toast.success(`Welcome, ${data.full_name}!`);
@@ -129,6 +131,17 @@ export default function LoginPage() {
                 </div>
               </div>
             )}
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Property</label>
+              <select
+                value={dbSchema}
+                onChange={(e) => setDbSchema(e.target.value)}
+                className="w-full px-4 py-3 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy focus:border-transparent"
+              >
+                <option value="pilot">Pilot Property</option>
+                <option value="demo">Demo Property</option>
+              </select>
+            </div>
             <Button type="submit" disabled={loading} className="w-full">
               {loading ? 'Signing in...' : 'Sign In'}
             </Button>
@@ -136,7 +149,7 @@ export default function LoginPage() {
 
           <div className="mt-4 p-3 bg-brand-gold/10 rounded-xl border border-brand-gold/30">
             <p className="text-xs text-gray-600">
-              <span className="font-semibold">Demo:</span> juan.delacruz@email.com or Room: 101A
+              <span className="font-semibold">Demo:</span> juan.delacruz@email.com or Room: A101A (select Demo Property)
             </p>
           </div>
         </div>

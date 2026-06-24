@@ -84,6 +84,7 @@ export default function MoveOutPage() {
   });
 
   useEffect(() => {
+    if (!tenant?.id) return;
     Promise.all([
       getMoveOut(tenant.id).then(({ data }) => setMoveout(data)).catch(() => {}),
       getProfile(tenant.id).then(({ data }) => {
@@ -114,7 +115,7 @@ export default function MoveOutPage() {
         }
       }).catch(() => {}),
     ]).finally(() => setLoading(false));
-  }, [tenant.id]);
+  }, [tenant?.id]);
 
   const handleClearanceChange = (field, value) => {
     setClearanceForm((prev) => {
@@ -151,6 +152,7 @@ export default function MoveOutPage() {
       toast.error('Please select a move-out date');
       return;
     }
+    if (!tenant?.id) return;
     setSubmitting(true);
     try {
       const { data } = await createMoveOut(tenant.id, {

@@ -29,15 +29,15 @@ export default function ProfilePage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!tenant?.id) return;
     getProfile(tenant.id)
       .then(({ data }) => setProfile(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [tenant.id]);
+  }, [tenant?.id]);
 
   const handleLogout = () => {
     logout();
-    navigate('/tenant/login');
   };
 
   if (loading) return <LoadingSpinner />;

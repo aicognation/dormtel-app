@@ -3,6 +3,7 @@ import { useAuth } from '../contexts/AuthContext';
 import client from '../api/client';
 import { Search, Users, Filter, Pencil, Trash2, Eye, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
+import { listRooms } from '../api/onboarding';
 
 export default function ResidentsPage() {
   const { isAdmin } = useAuth();
@@ -12,20 +13,22 @@ export default function ResidentsPage() {
   const [statusFilter, setStatusFilter] = useState('all');
   const [modalOpen, setModalOpen] = useState(false);
   const [editing, setEditing] = useState(null);
+  const [rooms, setRooms] = useState([]);
   const [form, setForm] = useState({
     full_name: '', email: '', phone: '', status: 'active', notes: '',
     id_type: '', id_number: '', address: '', school: '', course: '',
     review_center: '', monthly_rate: '', move_in_date: '', move_out_date: '',
-    contract_end_date: '',
+    contract_end_date: '', bed_id: '',
   });
 
   const fetchResidents = async () => {
     setLoading(true);
     try {
       const data = await client.get('/residents');
-      setResidents(data);
+      setResidents(Array.isArray(data) ? data : []);
     } catch {
-      // handled by interceptor
+      toast.error('Failed to load residents');
+      setResidents([]);
     } finally {
       setLoading(false);
     }
@@ -33,6 +36,18 @@ export default function ResidentsPage() {
 
   useEffect(() => {
     fetchResidents();
+  }, []);
+
+  useEffect(() => {
+    const fetchRooms = async () => {
+      try {
+        const result = await listRooms();
+        setRooms(Array.isArray(result) ? result : []);
+      } catch {
+        // silently fail; bed selection is optional
+      }
+    };
+    fetchRooms();
   }, []);
 
   const filtered = residents.filter((r) => {
@@ -56,7 +71,7 @@ export default function ResidentsPage() {
       full_name: '', email: '', phone: '', status: 'active', notes: '',
       id_type: '', id_number: '', address: '', school: '', course: '',
       review_center: '', monthly_rate: '', move_in_date: '', move_out_date: '',
-      contract_end_date: '',
+      contract_end_date: '', bed_id: '',
     });
     setModalOpen(true);
   };
@@ -79,6 +94,7 @@ export default function ResidentsPage() {
       move_in_date: r.move_in_date || '',
       move_out_date: r.move_out_date || '',
       contract_end_date: r.contract_end_date || '',
+      bed_id: r.bed_id || '',
     });
     setModalOpen(true);
   };
@@ -89,6 +105,7 @@ export default function ResidentsPage() {
       const payload = {
         ...form,
         monthly_rate: form.monthly_rate ? Number(form.monthly_rate) : 0,
+        bed_id: form.bed_id || undefined,
       };
       if (editing) {
         await client.patch(`/residents/${editing.id}`, payload);
@@ -99,8 +116,9 @@ export default function ResidentsPage() {
       }
       setModalOpen(false);
       fetchResidents();
-    } catch {
-      // handled by interceptor
+    } catch (err) {
+      const msg = err.response?.data?.detail || `Failed to ${editing ? 'update' : 'create'} resident`;
+      toast.error(msg);
     }
   };
 
@@ -452,6 +470,25 @@ export default function ResidentsPage() {
                     <option value="active">Active</option>
                     <option value="inactive">Inactive</option>
                     <option value="moved_out">Moved Out</option>
+                  </select>
+                </div>
+                <div className="sm:col-span-2">
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Bed / Room</label>
+                  <select
+                    value={form.bed_id}
+                    onChange={(e) => setForm({ ...form, bed_id: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                  >
+                    <option value="">No bed assigned</option>
+                    {rooms.map((room) => (
+                      <optgroup key={room.id} label={`${room.room_number}${room.building ? ` (${room.building})` : ''}`}>
+                        {(room.beds || []).map((bed) => (
+                          <option key={bed.id} value={bed.id}>
+                            {bed.bed_code} — {bed.bed_type?.replace(/_/g, ' ') || 'bed'} — {bed.status}
+                          </option>
+                        ))}
+                      </optgroup>
+                    ))}
                   </select>
                 </div>
                 <div>

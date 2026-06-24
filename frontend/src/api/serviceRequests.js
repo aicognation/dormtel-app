@@ -11,3 +11,7 @@ export function updateServiceRequestStatus(id, data) {
 export function assignServiceRequest(id, data) {
   return client.post(`/service-requests/${id}/assign`, data);
 }
+
+export function createServiceRequest(data) {
+  return client.post('/service-requests', data);
+}

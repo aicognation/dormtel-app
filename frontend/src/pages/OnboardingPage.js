@@ -46,7 +46,10 @@ export default function OnboardingPage() {
     setLoading(true);
     try {
       const result = await listRooms();
-      setRooms(result);
+      setRooms(Array.isArray(result) ? result : []);
+    } catch {
+      toast.error('Failed to load rooms');
+      setRooms([]);
     } finally {
       setLoading(false);
     }
@@ -184,7 +187,7 @@ export default function OnboardingPage() {
       const result = await createReservation(payload);
       const bed = selectedRoom?.beds?.find((b) => b.id === form.bed_id);
       const roomInfo = selectedRoom ? ` — Room ${selectedRoom.room_number}${bed ? `, ${bed.bed_code}` : ''}` : '';
-      toast.success(`Reservation created for ${result.full_name}${roomInfo}`);
+      toast.success(`Reservation created for ${result?.full_name || form.full_name}${roomInfo}`);
       setShowReserve(false);
       setSelectedRoom(null);
       setForm({
@@ -198,6 +201,9 @@ export default function OnboardingPage() {
         utility_deposit_amount: '', utility_deposit_pr: '',
       });
       fetchRooms();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to create reservation';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

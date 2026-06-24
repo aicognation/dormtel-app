@@ -7,4 +7,19 @@ const client = axios.create({
   headers: { 'Content-Type': 'application/json' },
 });
 
+client.interceptors.request.use((config) => {
+  const saved = localStorage.getItem('dormtel_tenant');
+  if (saved) {
+    try {
+      const tenant = JSON.parse(saved);
+      if (tenant.db_schema) {
+        config.headers['X-Tenant-Schema'] = tenant.db_schema;
+      }
+    } catch {
+      // ignore parse errors
+    }
+  }
+  return config;
+});
+
 export default client;

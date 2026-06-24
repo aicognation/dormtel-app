@@ -29,6 +29,7 @@ export default function PaymentPage() {
   const fileInputRef = useRef(null);
 
   const loadData = useCallback(async () => {
+    if (!tenant?.id) return;
     try {
       const [payRes, billRes] = await Promise.all([
         getPayments(tenant.id),
@@ -45,7 +46,7 @@ export default function PaymentPage() {
     } catch {} finally {
       setLoading(false);
     }
-  }, [tenant.id]);
+  }, [tenant?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -60,6 +61,7 @@ export default function PaymentPage() {
       toast.error('Please upload proof of transfer');
       return;
     }
+    if (!tenant?.id) return;
     setPaying(true);
     try {
       const { data } = await makePayment(tenant.id, {

@@ -23,7 +23,11 @@ def _is_end_of_month(d) -> bool:
 
 
 @router.post("/", response_model=schemas.MoveOutOut)
-async def create_moveout(payload: schemas.MoveOutCreate, db: AsyncSession = Depends(get_db)):
+async def create_moveout(
+    payload: schemas.MoveOutCreate,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     result = await db.execute(select(models.Resident).where(models.Resident.id == payload.resident_id))
     resident = result.scalar_one_or_none()
     if not resident:
@@ -46,7 +50,7 @@ async def create_moveout(payload: schemas.MoveOutCreate, db: AsyncSession = Depe
         min_term_date = resident.move_in_date + timedelta(days=180)
         if payload.requested_date < min_term_date:
             checkpoint = models.Checkpoint(
-                checkpoint_id="CP-11",
+                checkpoint_id=f"CP-11-{str(moveout.id)[:8]}",
                 stage="move_out_review",
                 status="pending",
                 sla_deadline=datetime.utcnow() + timedelta(hours=48),
@@ -64,7 +68,11 @@ async def create_moveout(payload: schemas.MoveOutCreate, db: AsyncSession = Depe
 
 
 @router.post("/{moveout_id}/clearance", response_model=schemas.MoveOutOut)
-async def complete_clearance(moveout_id: UUID, db: AsyncSession = Depends(get_db)):
+async def complete_clearance(
+    moveout_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     result = await db.execute(select(models.MoveOut).where(models.MoveOut.id == moveout_id))
     moveout = result.scalar_one_or_none()
     if not moveout:
@@ -106,7 +114,11 @@ async def complete_clearance(moveout_id: UUID, db: AsyncSession = Depends(get_db
 
 
 @router.post("/{moveout_id}/finalize", response_model=schemas.MoveOutOut)
-async def finalize_moveout(moveout_id: UUID, db: AsyncSession = Depends(get_db)):
+async def finalize_moveout(
+    moveout_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     result = await db.execute(select(models.MoveOut).where(models.MoveOut.id == moveout_id))
     moveout = result.scalar_one_or_none()
     if not moveout:
@@ -136,6 +148,7 @@ async def finalize_moveout(moveout_id: UUID, db: AsyncSession = Depends(get_db))
             select(models.LedgerEntry)
             .where(models.LedgerEntry.resident_id == resident.id)
             .order_by(models.LedgerEntry.created_at.desc())
+            .limit(1)
         )
         last_entry = result.scalar_one_or_none()
         current_balance = last_entry.running_balance if last_entry else Decimal("0")
@@ -161,7 +174,11 @@ async def finalize_moveout(moveout_id: UUID, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/{moveout_id}/complete", response_model=schemas.MoveOutOut)
-async def complete_moveout(moveout_id: UUID, db: AsyncSession = Depends(get_db)):
+async def complete_moveout(
+    moveout_id: UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     result = await db.execute(select(models.MoveOut).where(models.MoveOut.id == moveout_id))
     moveout = result.scalar_one_or_none()
     if not moveout:
@@ -178,7 +195,11 @@ async def complete_moveout(moveout_id: UUID, db: AsyncSession = Depends(get_db))
 
     # Free the bed and update room status
     if resident.bed_id:
-        bed_result = await db.execute(select(models.Bed).where(models.Bed.id == resident.bed_id))
+        bed_result = await db.execute(
+            select(models.Bed)
+            .where(models.Bed.id == resident.bed_id)
+            .options(selectinload(models.Bed.room))
+        )
         bed = bed_result.scalar_one_or_none()
         if bed:
             bed.status = "available"
@@ -224,6 +245,7 @@ async def list_moveouts(
     year: int = Query(None),
     month: int = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
 ):
     query = (
         select(models.MoveOut, models.Resident, models.Bed, models.Room)

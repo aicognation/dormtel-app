@@ -8,6 +8,7 @@ from sqlalchemy import select, and_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app import models, auth
 from app.models import Inquiry, Checkpoint
 from app.schemas import InquiryCreate, InquiryOut, InquiryAdminResponse
 
@@ -77,6 +78,11 @@ async def create_inquiry(payload: InquiryCreate, db: AsyncSession = Depends(get_
     )
     db.add(inquiry)
     await db.commit()
+    # DEBUG: log search_path before refresh
+    from sqlalchemy import text
+    result = await db.execute(text("SHOW search_path"))
+    search_path = result.scalar()
+    print(f"[DEBUG Inquiry] search_path before refresh: {search_path}")
     await db.refresh(inquiry)
     return inquiry
 
@@ -86,6 +92,7 @@ async def list_inquiries(
     status: Optional[str] = Query(None),
     source: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
 ):
     stmt = select(Inquiry)
     filters = []
@@ -101,7 +108,10 @@ async def list_inquiries(
 
 
 @router.get("/tenant", response_model=List[InquiryOut])
-async def list_tenant_inquiries(db: AsyncSession = Depends(get_db)):
+async def list_tenant_inquiries(
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     stmt = (
         select(Inquiry)
         .where(Inquiry.resident_id.is_not(None))
@@ -112,7 +122,10 @@ async def list_tenant_inquiries(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/convertible", response_model=List[InquiryOut])
-async def list_convertible_inquiries(db: AsyncSession = Depends(get_db)):
+async def list_convertible_inquiries(
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     stmt = (
         select(Inquiry)
         .where(Inquiry.status.in_(["new", "responded", "escalated"]))
@@ -123,7 +136,11 @@ async def list_convertible_inquiries(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/{inquiry_id}", response_model=InquiryOut)
-async def get_inquiry(inquiry_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def get_inquiry(
+    inquiry_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     stmt = select(Inquiry).where(Inquiry.id == inquiry_id)
     result = await db.execute(stmt)
     inquiry = result.scalar_one_or_none()
@@ -133,7 +150,11 @@ async def get_inquiry(inquiry_id: uuid.UUID, db: AsyncSession = Depends(get_db))
 
 
 @router.post("/{inquiry_id}/respond", response_model=dict)
-async def respond_to_inquiry(inquiry_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def respond_to_inquiry(
+    inquiry_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     stmt = select(Inquiry).where(Inquiry.id == inquiry_id)
     result = await db.execute(stmt)
     inquiry = result.scalar_one_or_none()
@@ -161,6 +182,7 @@ async def respond_to_inquiry_manual(
     inquiry_id: uuid.UUID,
     payload: InquiryAdminResponse,
     db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
 ):
     stmt = select(Inquiry).where(Inquiry.id == inquiry_id)
     result = await db.execute(stmt)
@@ -176,7 +198,11 @@ async def respond_to_inquiry_manual(
 
 
 @router.post("/{inquiry_id}/escalate", response_model=dict)
-async def escalate_inquiry(inquiry_id: uuid.UUID, db: AsyncSession = Depends(get_db)):
+async def escalate_inquiry(
+    inquiry_id: uuid.UUID,
+    db: AsyncSession = Depends(get_db),
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     stmt = select(Inquiry).where(Inquiry.id == inquiry_id)
     result = await db.execute(stmt)
     inquiry = result.scalar_one_or_none()

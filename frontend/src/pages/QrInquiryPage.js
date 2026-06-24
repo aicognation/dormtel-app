@@ -84,6 +84,8 @@ export default function QrInquiryPage() {
     try {
       const payload = {
         ...form,
+        exam_date: form.exam_date || null,
+        desired_move_in_date: form.desired_move_in_date || null,
         content: form.content || `Inquiry from ${form.prospect_name} via ${form.source}`,
         inquiry_form_data: {
           status_detail: form.status_detail,
@@ -94,8 +96,9 @@ export default function QrInquiryPage() {
       await createInquiry(payload);
       toast.success('Inquiry submitted successfully');
       setForm({ ...INITIAL_FORM });
-    } catch {
-      toast.error('Failed to submit inquiry');
+    } catch (err) {
+      // Interceptor already shows toast; just log for debugging
+      console.error('QR Inquiry submit error:', err.message);
     } finally {
       setSubmitting(false);
     }

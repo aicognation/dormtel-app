@@ -101,8 +101,14 @@ async def create_resident(
             or_(models.Resident.email == payload.email, models.Resident.phone == payload.phone)
         )
     )
-    if existing.scalar_one_or_none():
+    if existing.first():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email or phone already exists")
+
+    if payload.bed_id:
+        bed_result = await db.execute(select(models.Bed).where(models.Bed.id == payload.bed_id))
+        bed = bed_result.scalar_one_or_none()
+        if not bed:
+            raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Bed not found")
 
     resident = models.Resident(
         id=uuid.uuid4(),
@@ -125,6 +131,10 @@ async def create_resident(
         board_exam_type=payload.board_exam_type,
         lease_term_months=payload.lease_term_months,
         monthly_rate=payload.monthly_rate or 0,
+        move_in_date=payload.move_in_date,
+        move_out_date=payload.move_out_date,
+        contract_end_date=payload.contract_end_date,
+        notes=payload.notes,
         deposit_paid=0,
         created_by=current_staff.id,
         created_at=datetime.utcnow(),

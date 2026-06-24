@@ -35,6 +35,9 @@ services:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dormtel}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dormtel}
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: ${CORS_ORIGINS:-https://dormtel.quriosity.cloud}
+      STATEMENTS_DIR: /app/statements
+    volumes:
+      - statements_data:/app/statements
     depends_on:
       db:
         condition: service_healthy
@@ -61,3 +64,4 @@ services:
 
 volumes:
   postgres_data:
+  statements_data:

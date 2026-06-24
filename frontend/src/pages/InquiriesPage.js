@@ -29,7 +29,10 @@ export default function InquiriesPage() {
       if (filters.status) params.status = filters.status;
       if (filters.source) params.source = filters.source;
       const result = await listInquiries(params);
-      setData(result);
+      setData(Array.isArray(result) ? result : []);
+    } catch (err) {
+      toast.error('Failed to load inquiries');
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -45,7 +48,10 @@ export default function InquiriesPage() {
       toast.success('Inquiry created successfully');
       setShowCreate(false);
       setForm({ source: 'facebook', prospect_name: '', content: '', external_id: '', school: '', course: '', review_center: '' });
-      fetchData();
+      await fetchData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to create inquiry';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -54,17 +60,23 @@ export default function InquiriesPage() {
   const handleRespond = async (id) => {
     try {
       const result = await respondToInquiry(id);
-      toast.success(`Auto-response sent: "${truncate(result.auto_response, 60)}"`);
-      fetchData();
-    } catch { /* error handled by interceptor */ }
+      toast.success(`Auto-response sent: "${truncate(result?.auto_response, 60)}"`);
+      await fetchData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to send auto-response';
+      toast.error(msg);
+    }
   };
 
   const handleEscalate = async (id) => {
     try {
       await escalateInquiry(id);
       toast.success('Inquiry escalated');
-      fetchData();
-    } catch { /* error handled by interceptor */ }
+      await fetchData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to escalate inquiry';
+      toast.error(msg);
+    }
   };
 
   const handleConvertClick = (inquiry) => {
@@ -85,9 +97,10 @@ export default function InquiriesPage() {
       toast.success('Response sent to tenant');
       setResponseModal(null);
       setResponseText('');
-      fetchData();
-    } catch {
-      /* error handled by interceptor */
+      await fetchData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to send response';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

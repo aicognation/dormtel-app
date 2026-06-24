@@ -100,22 +100,21 @@ export const SERVICE_REQUEST_STATUSES = [
 
 export const SERVICE_REQUEST_CATEGORIES = [
   { value: '', label: 'All Categories' },
-  { value: 'maintenance', label: 'Maintenance' },
-  { value: 'repair', label: 'Repair' },
-  { value: 'cleaning', label: 'Cleaning' },
   { value: 'plumbing', label: 'Plumbing' },
   { value: 'electrical', label: 'Electrical' },
-  { value: 'hvac', label: 'HVAC' },
-  { value: 'furniture', label: 'Furniture' },
+  { value: 'aircon', label: 'Aircon' },
   { value: 'pest_control', label: 'Pest Control' },
-  { value: 'security', label: 'Security' },
-  { value: 'noise_complaint', label: 'Noise Complaint' },
+  { value: 'wifi', label: 'WiFi' },
+  { value: 'water_supply', label: 'Water Supply' },
+  { value: 'lock_key', label: 'Lock / Key' },
+  { value: 'cleaning', label: 'Cleaning' },
+  { value: 'appliance', label: 'Appliance' },
   { value: 'other', label: 'Other' },
 ];
 
 export const SERVICE_REQUEST_PRIORITIES = [
   { value: '', label: 'All Priorities' },
-  { value: 'critical', label: 'Critical' },
+  { value: 'urgent', label: 'Urgent' },
   { value: 'high', label: 'High' },
   { value: 'medium', label: 'Medium' },
   { value: 'low', label: 'Low' },

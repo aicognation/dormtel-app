@@ -12,6 +12,8 @@ import {
   downloadMeterReadingTemplate, uploadMeterReadings, uploadDailyMeterSheet, listMeterReadings, previewBilling,
   getDailyMeterGrid, bulkUpsertMeterReadings,
 } from '../api/billing';
+import { generateStatements, listStatements, downloadStatement, sendStatementEmail } from '../api/statements';
+import { listResidents } from '../api/residents';
 import { listRooms } from '../api/onboarding';
 import { BILLING_STATUSES } from '../utils/constants';
 import { formatCurrency, formatDate, shortUUID } from '../utils/formatters';
@@ -43,6 +45,24 @@ export default function BillingPage() {
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
 
+  // Statements tab state
+  const [statements, setStatements] = useState([]);
+  const [statementsLoading, setStatementsLoading] = useState(false);
+  const [showStatementModal, setShowStatementModal] = useState(false);
+  const [statementForm, setStatementForm] = useState({
+    billing_period: '',
+    scope_type: 'resident',
+    scope_target: '',
+    total_water_bill: '',
+    other_charges: '',
+    regenerate: false,
+    auto_send_email: false,
+    email_subject: '',
+    email_body: '',
+  });
+  const [residents, setResidents] = useState([]);
+  const [statementGenerating, setStatementGenerating] = useState(false);
+
   // Rooms for meter reading modal
   const [rooms, setRooms] = useState([]);
 
@@ -60,7 +80,10 @@ export default function BillingPage() {
       if (filters.status) params.status = filters.status;
       if (filters.resident_id) params.resident_id = filters.resident_id;
       const result = await listBillings(params);
-      setData(result);
+      setData(Array.isArray(result) ? result : []);
+    } catch (err) {
+      toast.error('Failed to load billings');
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -118,6 +141,35 @@ export default function BillingPage() {
     fetchRooms();
   }, [fetchRooms]);
 
+  const fetchStatements = useCallback(async () => {
+    setStatementsLoading(true);
+    try {
+      const result = await listStatements({ limit: 100 });
+      setStatements(Array.isArray(result) ? result : []);
+    } catch {
+      toast.error('Failed to load statements');
+      setStatements([]);
+    } finally {
+      setStatementsLoading(false);
+    }
+  }, []);
+
+  const fetchResidents = useCallback(async () => {
+    try {
+      const result = await listResidents({ status: 'active' });
+      setResidents(Array.isArray(result) ? result : []);
+    } catch {
+      // silently fail
+    }
+  }, []);
+
+  useEffect(() => {
+    if (tab === 'statements') {
+      fetchStatements();
+      if (residents.length === 0) fetchResidents();
+    }
+  }, [tab, fetchStatements, fetchResidents, residents.length]);
+
   const handleMeterSubmit = async (e) => {
     e.preventDefault();
     setSubmitting(true);
@@ -130,9 +182,12 @@ export default function BillingPage() {
         water_reading: meterForm.water_reading ? Number(meterForm.water_reading) : null,
       };
       const result = await submitMeterReading(payload);
-      toast.success(`Meter reading submitted (variance: ${result.variance_pct ?? 'N/A'}%)`);
+      toast.success(`Meter reading submitted (variance: ${result?.variance_pct ?? 'N/A'}%)`);
       setShowMeter(false);
       setMeterForm({ building: '', room_id: '', resident_id: '', reading_date: '', electric_reading: '', water_reading: '' });
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to submit meter reading';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -179,6 +234,80 @@ export default function BillingPage() {
       toast.error(msg);
     } finally {
       setSubmitting(false);
+    }
+  };
+
+  const handleGenerateStatements = async (e) => {
+    e.preventDefault();
+    if (!statementForm.billing_period) {
+      toast.error('Billing period is required');
+      return;
+    }
+    setStatementGenerating(true);
+    try {
+      const payload = {
+        billing_period: statementForm.billing_period,
+        scope_type: statementForm.scope_type,
+        scope_target: statementForm.scope_target || undefined,
+        total_water_bill: Number(statementForm.total_water_bill || 0),
+        other_charges: Number(statementForm.other_charges || 0),
+        regenerate: statementForm.regenerate,
+        auto_send_email: statementForm.auto_send_email,
+        email_subject: statementForm.email_subject || undefined,
+        email_body: statementForm.email_body || undefined,
+      };
+      const result = await generateStatements(payload);
+      toast.success(`Generated ${result.generated} statement(s)${result.skipped ? `, skipped ${result.skipped}` : ''}`);
+      setShowStatementModal(false);
+      setStatementForm({
+        billing_period: '',
+        scope_type: 'resident',
+        scope_target: '',
+        total_water_bill: '',
+        other_charges: '',
+        regenerate: false,
+        auto_send_email: false,
+        email_subject: '',
+        email_body: '',
+      });
+      fetchStatements();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to generate statements';
+      toast.error(msg);
+    } finally {
+      setStatementGenerating(false);
+    }
+  };
+
+  const handleDownloadStatement = async (statement) => {
+    try {
+      const res = await downloadStatement(statement.statement_id);
+      const blob = new Blob([res], { type: 'application/pdf' });
+      const url = window.URL.createObjectURL(blob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = statement.file_name;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      window.URL.revokeObjectURL(url);
+    } catch {
+      toast.error('Failed to download statement');
+    }
+  };
+
+  const handleSendStatementEmail = async (statement) => {
+    try {
+      const result = await sendStatementEmail(statement.statement_id, {});
+      if (result.status?.startsWith('sent_')) {
+        toast.success('Statement email sent');
+      } else {
+        toast.error(`Email status: ${result.status}`);
+      }
+      fetchStatements();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to send statement email';
+      toast.error(msg);
     }
   };
 
@@ -386,8 +515,11 @@ export default function BillingPage() {
             <Button variant="secondary" onClick={() => setShowMeter(true)}>
               <Zap className="w-4 h-4 mr-1" /> Meter Reading
             </Button>
-            <Button onClick={() => { setTab('preview-billing'); setPreviewData(null); }}>
-              <Plus className="w-4 h-4 mr-1" /> Generate Billing
+            <Button variant="secondary" onClick={() => { setTab('preview-billing'); setPreviewData(null); }}>
+              <Plus className="w-4 h-4 mr-1" /> Preview Billing
+            </Button>
+            <Button onClick={() => { setTab('statements'); setShowStatementModal(true); }}>
+              <Plus className="w-4 h-4 mr-1" /> Generate Statements
             </Button>
           </div>
         }
@@ -399,6 +531,7 @@ export default function BillingPage() {
           { key: 'billings', label: 'Billings' },
           { key: 'meter-readings', label: 'Meter Readings' },
           { key: 'preview-billing', label: 'Preview Billing' },
+          { key: 'statements', label: 'Statements' },
         ].map((t) => (
           <button
             key={t.key}
@@ -474,8 +607,9 @@ export default function BillingPage() {
                 className="rounded-md border border-gray-300 px-3 py-2 text-sm"
               >
                 <option value="">All</option>
-                <option value="DT01">DT01</option>
-                <option value="DT02">DT02</option>
+                {Array.from(new Set((rooms || []).map((r) => r.building).filter(Boolean))).sort().map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
               </select>
             </div>
             <Button variant="secondary" onClick={fetchDailyGrid}>
@@ -622,8 +756,19 @@ export default function BillingPage() {
               <form onSubmit={handlePreview} className="space-y-4">
                 <FormField label="Billing Period" name="billing_period" required value={genForm.billing_period}
                   onChange={(e) => setGenForm({ ...genForm, billing_period: e.target.value })} placeholder="e.g. 2026-05" />
-                <FormField label="Building (optional)" name="building" value={genForm.building}
-                  onChange={(e) => setGenForm({ ...genForm, building: e.target.value })} />
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Building (optional)</label>
+                  <select
+                    value={genForm.building}
+                    onChange={(e) => setGenForm({ ...genForm, building: e.target.value })}
+                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+                  >
+                    <option value="">All buildings</option>
+                    {Array.from(new Set((rooms || []).map((r) => r.building).filter(Boolean))).sort().map((b) => (
+                      <option key={b} value={b}>{b}</option>
+                    ))}
+                  </select>
+                </div>
                 <FormField label="Total SOGO Water Bill (₱)" name="total_water_bill" type="number" value={genForm.total_water_bill}
                   onChange={(e) => setGenForm({ ...genForm, total_water_bill: e.target.value })}
                   placeholder="Total water consumption billed by SOGO" />
@@ -694,6 +839,204 @@ export default function BillingPage() {
           )}
         </div>
       )}
+
+      {/* Statements Tab */}
+      {tab === 'statements' && (
+        <div className="space-y-4">
+          <div className="flex justify-between items-center">
+            <div>
+              <h3 className="text-lg font-semibold">Billing Statements</h3>
+              <p className="text-sm text-gray-500">Generated PDF statements with resident, room, floor, or property scope.</p>
+            </div>
+            <Button onClick={() => setShowStatementModal(true)}>
+              <Plus className="w-4 h-4 mr-1" /> Generate Statements
+            </Button>
+          </div>
+          <DataTable
+            columns={[
+              { key: 'billing_period', label: 'Period', render: (r) => <span className="font-medium">{r.billing_period}</span> },
+              {
+                key: 'resident_name',
+                label: 'Resident',
+                render: (r) => (
+                  <div className="flex flex-col">
+                    <span className="font-medium">{r.resident_name}</span>
+                    <span className="text-xs text-gray-500">{r.scope_type}{r.scope_target ? `: ${r.scope_target}` : ''}</span>
+                  </div>
+                ),
+              },
+              { key: 'total_amount', label: 'Total', render: (r) => formatCurrency(r.total_amount) },
+              { key: 'status', label: 'Status', render: (r) => <StatusBadge status={r.status} /> },
+              { key: 'email_status', label: 'Email', render: (r) => r.email_status || '—' },
+              { key: 'created_at', label: 'Generated', render: (r) => formatDateTime(r.created_at) },
+              {
+                key: 'actions',
+                label: 'Actions',
+                render: (r) => (
+                  <div className="flex gap-1">
+                    <Button size="sm" variant="secondary" onClick={() => handleDownloadStatement(r)}>
+                      <Download className="w-3 h-3 mr-1" /> Download
+                    </Button>
+                    <Button size="sm" variant="ghost" onClick={() => handleSendStatementEmail(r)}>
+                      <Send className="w-3 h-3 mr-1" /> Send
+                    </Button>
+                  </div>
+                ),
+              },
+            ]}
+            data={statements}
+            loading={statementsLoading}
+            emptyMessage="No statements generated yet"
+          />
+        </div>
+      )}
+
+      {/* Statement Generate Modal */}
+      <Modal isOpen={showStatementModal} onClose={() => setShowStatementModal(false)} title="Generate Billing Statements">
+        <form onSubmit={handleGenerateStatements} className="space-y-4">
+          <FormField
+            label="Billing Period"
+            name="billing_period"
+            required
+            value={statementForm.billing_period}
+            onChange={(e) => setStatementForm({ ...statementForm, billing_period: e.target.value })}
+            placeholder="e.g. 2026-06"
+          />
+          <div>
+            <label className="block text-sm font-medium text-gray-700 mb-1">Scope</label>
+            <select
+              value={statementForm.scope_type}
+              onChange={(e) => setStatementForm({ ...statementForm, scope_type: e.target.value, scope_target: '' })}
+              className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+            >
+              <option value="resident">Resident</option>
+              <option value="room">Room</option>
+              <option value="floor">Floor</option>
+              <option value="property">Property / Building</option>
+            </select>
+          </div>
+          {statementForm.scope_type === 'resident' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Resident</label>
+              <select
+                required
+                value={statementForm.scope_target}
+                onChange={(e) => setStatementForm({ ...statementForm, scope_target: e.target.value })}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">Select resident...</option>
+                {residents.map((r) => (
+                  <option key={r.id} value={r.id}>
+                    {r.full_name} {r.room_number ? `(${r.room_number}${r.bed_code ? ` / ${r.bed_code}` : ''})` : ''}
+                  </option>
+                ))}
+              </select>
+            </div>
+          )}
+          {statementForm.scope_type === 'room' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Room</label>
+              <select
+                required
+                value={statementForm.scope_target}
+                onChange={(e) => setStatementForm({ ...statementForm, scope_target: e.target.value })}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">Select room...</option>
+                {rooms.map((r) => (
+                  <option key={r.id} value={r.id}>{r.room_number} ({r.building})</option>
+                ))}
+              </select>
+            </div>
+          )}
+          {statementForm.scope_type === 'floor' && (
+            <FormField
+              label="Floor Prefix"
+              name="floor_prefix"
+              required
+              value={statementForm.scope_target}
+              onChange={(e) => setStatementForm({ ...statementForm, scope_target: e.target.value })}
+              placeholder="e.g. A1 for rooms A101-A109"
+            />
+          )}
+          {statementForm.scope_type === 'property' && (
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Property / Building</label>
+              <select
+                value={statementForm.scope_target}
+                onChange={(e) => setStatementForm({ ...statementForm, scope_target: e.target.value })}
+                className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
+              >
+                <option value="">All properties</option>
+                {Array.from(new Set((rooms || []).map((r) => r.building).filter(Boolean))).sort().map((b) => (
+                  <option key={b} value={b}>{b}</option>
+                ))}
+                {Array.from(new Set((rooms || []).map((r) => r.property_code).filter(Boolean))).sort().map((p) => (
+                  <option key={p} value={p}>{p}</option>
+                ))}
+              </select>
+            </div>
+          )}
+          <FormField
+            label="Total SOGO Water Bill (₱)"
+            name="total_water_bill"
+            type="number"
+            value={statementForm.total_water_bill}
+            onChange={(e) => setStatementForm({ ...statementForm, total_water_bill: e.target.value })}
+            placeholder="Total water bill to split by days stayed"
+          />
+          <FormField
+            label="Other Charges (₱)"
+            name="other_charges"
+            type="number"
+            value={statementForm.other_charges}
+            onChange={(e) => setStatementForm({ ...statementForm, other_charges: e.target.value })}
+          />
+          <div className="flex items-center gap-2">
+            <input
+              id="regenerate"
+              type="checkbox"
+              checked={statementForm.regenerate}
+              onChange={(e) => setStatementForm({ ...statementForm, regenerate: e.target.checked })}
+              className="rounded border-gray-300"
+            />
+            <label htmlFor="regenerate" className="text-sm text-gray-700">Regenerate if statement already exists</label>
+          </div>
+          <div className="flex items-center gap-2">
+            <input
+              id="auto_send_email"
+              type="checkbox"
+              checked={statementForm.auto_send_email}
+              onChange={(e) => setStatementForm({ ...statementForm, auto_send_email: e.target.checked })}
+              className="rounded border-gray-300"
+            />
+            <label htmlFor="auto_send_email" className="text-sm text-gray-700">Auto-send statements via email</label>
+          </div>
+          {statementForm.auto_send_email && (
+            <>
+              <FormField
+                label="Email Subject (optional)"
+                name="email_subject"
+                value={statementForm.email_subject}
+                onChange={(e) => setStatementForm({ ...statementForm, email_subject: e.target.value })}
+                placeholder="Default: DormTel Statement of Account"
+              />
+              <FormField
+                label="Email Body (optional)"
+                name="email_body"
+                type="textarea"
+                value={statementForm.email_body}
+                onChange={(e) => setStatementForm({ ...statementForm, email_body: e.target.value })}
+                placeholder="Default message will be used if blank"
+              />
+            </>
+          )}
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setShowStatementModal(false)}>Cancel</Button>
+            <Button type="submit" loading={statementGenerating}>Generate Statements</Button>
+          </div>
+        </form>
+      </Modal>
 
       {/* Meter Reading Modal */}
       <Modal isOpen={showMeter} onClose={() => setShowMeter(false)} title="Submit Meter Reading">

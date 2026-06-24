@@ -3,6 +3,7 @@ import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-d
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import AppShell from './components/layout/AppShell';
+import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage from './pages/LoginPage';
 import Dashboard from './pages/Dashboard';
 import InquiriesPage from './pages/InquiriesPage';
@@ -37,7 +38,9 @@ function AppRoutes() {
       <Route
         element={
           <ProtectedRoute>
-            <AppShell />
+            <ErrorBoundary>
+              <AppShell />
+            </ErrorBoundary>
           </ProtectedRoute>
         }
       >

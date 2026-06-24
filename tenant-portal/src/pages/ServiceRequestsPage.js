@@ -37,12 +37,13 @@ export default function ServiceRequestsPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = useCallback(() => {
+    if (!tenant?.id) return;
     setLoading(true);
     getServiceRequests(tenant.id)
       .then(({ data }) => setRequests(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [tenant.id]);
+  }, [tenant?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -51,6 +52,7 @@ export default function ServiceRequestsPage() {
       toast.error('Select a category and enter a subject');
       return;
     }
+    if (!tenant?.id) return;
     setSubmitting(true);
     try {
       await createServiceRequest(tenant.id, form);

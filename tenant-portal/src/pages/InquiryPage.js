@@ -30,12 +30,13 @@ export default function InquiryPage() {
   const [submitting, setSubmitting] = useState(false);
 
   const loadData = useCallback(() => {
+    if (!tenant?.id) return;
     setLoading(true);
     getInquiries(tenant.id)
       .then(({ data }) => setInquiries(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [tenant.id]);
+  }, [tenant?.id]);
 
   useEffect(() => { loadData(); }, [loadData]);
 
@@ -44,6 +45,7 @@ export default function InquiryPage() {
       toast.error('Select a type and enter your message');
       return;
     }
+    if (!tenant?.id) return;
     setSubmitting(true);
     try {
       await createInquiry(tenant.id, { content: content.trim(), inquiry_type: inquiryType });

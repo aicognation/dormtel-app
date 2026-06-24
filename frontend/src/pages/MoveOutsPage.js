@@ -103,7 +103,10 @@ export default function MoveOutsPage() {
       if (filters.year) params.year = Number(filters.year);
       if (filters.month) params.month = Number(filters.month);
       const result = await listMoveOuts(params);
-      setData(result);
+      setData(Array.isArray(result) ? result : []);
+    } catch {
+      toast.error('Failed to load move-outs');
+      setData([]);
     } finally {
       setLoading(false);
     }
@@ -120,6 +123,9 @@ export default function MoveOutsPage() {
       setShowCreate(false);
       setForm({ resident_id: '', requested_date: '', actual_date: '', reason: '', forwarding_contact: '' });
       fetchData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to create move-out request';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -130,7 +136,10 @@ export default function MoveOutsPage() {
       await generateClearance(id);
       toast.success('Clearance generated with final billing');
       fetchData();
-    } catch { /* interceptor */ }
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to generate clearance';
+      toast.error(msg);
+    }
   };
 
   const handleFinalize = async (id) => {
@@ -138,7 +147,10 @@ export default function MoveOutsPage() {
       await finalizeMoveOut(id);
       toast.success('Move-out finalized, submitted to accounting');
       fetchData();
-    } catch { /* interceptor */ }
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to finalize move-out';
+      toast.error(msg);
+    }
   };
 
   const handleComplete = async (id) => {
@@ -146,7 +158,10 @@ export default function MoveOutsPage() {
       await completeMoveOut(id);
       toast.success('Move-out completed');
       fetchData();
-    } catch { /* interceptor */ }
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to complete move-out';
+      toast.error(msg);
+    }
   };
 
   const openExtend = (row) => {

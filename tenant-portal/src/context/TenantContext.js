@@ -17,7 +17,10 @@ export function TenantProvider({ children }) {
   }, [tenant]);
 
   const login = (tenantData) => setTenant(tenantData);
-  const logout = () => setTenant(null);
+  const logout = () => {
+    localStorage.removeItem('dormtel_tenant');
+    window.location.href = '/tenant/login';
+  };
 
   return (
     <TenantContext.Provider value={{ tenant, login, logout }}>

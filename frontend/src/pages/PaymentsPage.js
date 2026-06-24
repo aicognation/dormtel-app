@@ -67,7 +67,12 @@ export default function PaymentsPage() {
     try {
       const [dsrResult, unmatchedResult] = await Promise.allSettled([getDSR(), getUnmatched()]);
       if (dsrResult.status === 'fulfilled') setDsr(dsrResult.value);
-      if (unmatchedResult.status === 'fulfilled') setUnmatched(unmatchedResult.value);
+      if (unmatchedResult.status === 'fulfilled') {
+        setUnmatched(Array.isArray(unmatchedResult.value) ? unmatchedResult.value : []);
+      }
+    } catch {
+      toast.error('Failed to load reconciliation data');
+      setUnmatched([]);
     } finally {
       setRecLoading(false);
     }
@@ -80,9 +85,10 @@ export default function PaymentsPage() {
       if (ledgerSearch) params.search = ledgerSearch;
       if (ledgerStatus) params.status = ledgerStatus;
       const result = await getAllLedgers(params);
-      setLedgers(result);
+      setLedgers(Array.isArray(result) ? result : []);
     } catch {
       toast.error('Failed to load ledgers');
+      setLedgers([]);
     } finally {
       setLedgersLoading(false);
     }
@@ -100,8 +106,11 @@ export default function PaymentsPage() {
     setSubmitting(true);
     try {
       const result = await reconcilePayments();
-      toast.success(`Reconciled ${result.reconciled_count} payment(s)`);
+      toast.success(`Reconciled ${result?.reconciled_count ?? 0} payment(s)`);
       fetchRecData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to reconcile payments';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }
@@ -117,6 +126,9 @@ export default function PaymentsPage() {
       setMatchTarget(null);
       setMatchForm({ resident_id: '', billing_id: '' });
       fetchRecData();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to match payment';
+      toast.error(msg);
     } finally {
       setSubmitting(false);
     }

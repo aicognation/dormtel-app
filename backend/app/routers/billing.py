@@ -13,6 +13,7 @@ from datetime import datetime, date
 from pydantic import BaseModel, Field
 
 from app.database import get_db
+from app import models, auth
 from app.models import MeterReading, MeterReadingImport, Billing, Resident, Room, Bed
 from app.schemas import (
     MeterReadingCreate, MeterReadingOut, MeterReadingDailyGridOut,
@@ -73,8 +74,8 @@ router = APIRouter()
 class BillingGenerateRequest(BaseModel):
     billing_period: str
     building: Optional[str] = None
-    other_charges: Decimal = Field(default=Decimal("0"), ge=0)
-    total_water_bill: Decimal = Field(default=Decimal("0"), ge=0)
+    other_charges: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
+    total_water_bill: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
 
 
 async def _get_active_residents_with_rooms(
@@ -142,11 +143,29 @@ async def _compute_resident_electric(
             resident_electric[rid] = imp.total_electric_usage
             imported_residents.add(rid)
 
+    # Build active resident -> room map so room-level readings can be split
+    resident_room_query = (
+        select(Resident, Bed, Room)
+        .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+        .join(Room, Bed.room_id == Room.id, isouter=True)
+        .where(Resident.status == "active")
+    )
+    if building:
+        resident_room_query = resident_room_query.where(Room.building == building)
+    resident_room_result = await db.execute(resident_room_query)
+    room_to_residents = {}
+    resident_to_room = {}
+    for resident, bed, room in resident_room_result.all():
+        rid = str(resident.id)
+        if room:
+            room_id = str(room.id)
+            resident_to_room[rid] = room_id
+            room_to_residents.setdefault(room_id, []).append(rid)
+
     # For residents without an import, fall back to summing meter readings
     query = select(MeterReading).where(
         MeterReading.reading_date >= start_date,
         MeterReading.reading_date < end_date,
-        MeterReading.resident_id.isnot(None),
     )
     if building:
         query = query.where(MeterReading.building == building)
@@ -155,10 +174,21 @@ async def _compute_resident_electric(
     readings = result.scalars().all()
 
     for reading in readings:
-        rid = str(reading.resident_id)
-        if rid in imported_residents:
-            continue
-        resident_electric[rid] = resident_electric.get(rid, Decimal("0")) + (reading.electric_reading or Decimal("0"))
+        elec = reading.electric_reading or Decimal("0")
+        if reading.resident_id:
+            rid = str(reading.resident_id)
+            if rid in imported_residents:
+                continue
+            resident_electric[rid] = resident_electric.get(rid, Decimal("0")) + elec
+        elif reading.room_id:
+            room_id = str(reading.room_id)
+            rids = room_to_residents.get(room_id, [])
+            if rids:
+                split = elec / len(rids)
+                for rid in rids:
+                    if rid in imported_residents:
+                        continue
+                    resident_electric[rid] = resident_electric.get(rid, Decimal("0")) + split
 
     return resident_electric
 
@@ -188,7 +218,7 @@ def _count_days_stayed(move_in_date, move_out_date, period_start, period_end):
 async def _compute_water_by_days(
     db: AsyncSession,
     billing_period: str,
-    total_water_bill: Decimal,
+    total_water_bill: Optional[Decimal] = None,
     building: Optional[str] = None,
 ):
     """Compute water charge per resident based on days stayed.
@@ -232,7 +262,8 @@ async def _compute_water_by_days(
         total_days += days
         resident_days[str(resident.id)] = days
 
-    rate_per_day = total_water_bill / total_days if total_days > 0 else Decimal("0")
+    effective_total_water = total_water_bill if total_water_bill is not None else Decimal("0")
+    rate_per_day = effective_total_water / total_days if total_days > 0 else Decimal("0")
 
     resident_water = {}
     for rid, days in resident_days.items():
@@ -244,8 +275,72 @@ async def _compute_water_by_days(
     return resident_water, total_days, rate_per_day
 
 
+async def _compute_other_charges(
+    db: AsyncSession,
+    billing_period: str,
+    other_charges_input: Optional[Decimal] = None,
+    building: Optional[str] = None,
+):
+    """Compute other charges per resident.
+    If daily-sheet imports have misc_charges, use those per resident.
+    Otherwise divide the input other_charges equally."""
+    year, month = map(int, billing_period.split("-"))
+
+    query = (
+        select(Resident, Bed, Room)
+        .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+        .join(Room, Bed.room_id == Room.id, isouter=True)
+        .where(Resident.status == "active")
+    )
+    if building:
+        query = query.where(Room.building == building)
+
+    result = await db.execute(query)
+    rows = result.all()
+
+    # Check for imported misc charges
+    import_query = select(MeterReadingImport)
+    if building:
+        import_query = import_query.where(MeterReadingImport.building == building)
+    import_query = import_query.where(
+        MeterReadingImport.year == year,
+        MeterReadingImport.month == month,
+    )
+    import_result = await db.execute(import_query)
+    imports = import_result.scalars().all()
+
+    imported_misc = {}
+    for imp in imports:
+        if imp.misc_charges:
+            total_misc = Decimal("0")
+            for key, val in imp.misc_charges.items():
+                try:
+                    total_misc += Decimal(str(val))
+                except Exception:
+                    pass
+            if total_misc > 0:
+                imported_misc[str(imp.resident_id)] = total_misc
+
+    total_residents = len(rows)
+    fallback_per_head = (other_charges_input or Decimal("0")) / total_residents if total_residents > 0 else Decimal("0")
+
+    resident_other = {}
+    for resident, bed, room in rows:
+        rid = str(resident.id)
+        if rid in imported_misc:
+            resident_other[rid] = imported_misc[rid]
+        else:
+            resident_other[rid] = fallback_per_head
+
+    return resident_other, total_residents, fallback_per_head
+
+
 @router.post("/meter-readings", response_model=MeterReadingOut)
-async def submit_meter_reading(data: MeterReadingCreate, db: AsyncSession = Depends(get_db)):
+async def submit_meter_reading(
+    data: MeterReadingCreate,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     # Validate room if provided
     room = None
     if data.room_id:
@@ -327,18 +422,35 @@ async def submit_meter_reading(data: MeterReadingCreate, db: AsyncSession = Depe
 
 
 @router.post("/generate", response_model=List[BillingOut])
-async def generate_billings(data: BillingGenerateRequest, db: AsyncSession = Depends(get_db)):
+async def generate_billings(
+    data: BillingGenerateRequest,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     residents_by_room, no_room, all_rows = await _get_active_residents_with_rooms(db, data.building)
     if not all_rows:
-        raise HTTPException(status_code=400, detail="No active residents found")
+        detail = f"No active residents found" + (f" for building '{data.building}'" if data.building else "")
+        raise HTTPException(status_code=400, detail=detail)
+
+    # Idempotency: do not duplicate billings for the same period
+    resident_ids = [str(resident.id) for resident, bed, room in all_rows]
+    existing_result = await db.execute(
+        select(Billing).where(
+            Billing.billing_period == data.billing_period,
+            Billing.resident_id.in_(resident_ids),
+        )
+    )
+    existing = existing_result.scalars().all()
+    if existing:
+        return existing
 
     resident_electric = await _compute_resident_electric(db, data.billing_period, data.building)
     resident_water, total_days, rate_per_day = await _compute_water_by_days(
         db, data.billing_period, data.total_water_bill, data.building
     )
-
-    total_residents = len(all_rows)
-    other_per_head = data.other_charges / total_residents if total_residents > 0 else Decimal("0")
+    resident_other, total_residents, fallback_per_head = await _compute_other_charges(
+        db, data.billing_period, data.other_charges, data.building
+    )
 
     billings = []
 
@@ -350,14 +462,15 @@ async def generate_billings(data: BillingGenerateRequest, db: AsyncSession = Dep
             rid = str(resident.id)
             elec = resident_electric.get(rid, Decimal("0"))
             wat = resident_water.get(rid, Decimal("0"))
-            total = resident.monthly_rate + elec + wat + other_per_head
+            other = resident_other.get(rid, fallback_per_head)
+            total = resident.monthly_rate + elec + wat + other
             billing = Billing(
                 resident_id=resident.id,
                 billing_period=data.billing_period,
                 rent_amount=resident.monthly_rate,
                 electric_charge=elec,
                 water_charge=wat,
-                other_charges=other_per_head,
+                other_charges=other,
                 total_amount=total,
                 variance_pct=Decimal("0"),
                 status="draft",
@@ -370,14 +483,15 @@ async def generate_billings(data: BillingGenerateRequest, db: AsyncSession = Dep
         rid = str(resident.id)
         elec = resident_electric.get(rid, Decimal("0"))
         wat = resident_water.get(rid, Decimal("0"))
-        total = resident.monthly_rate + elec + wat + other_per_head
+        other = resident_other.get(rid, fallback_per_head)
+        total = resident.monthly_rate + elec + wat + other
         billing = Billing(
             resident_id=resident.id,
             billing_period=data.billing_period,
             rent_amount=resident.monthly_rate,
             electric_charge=elec,
             water_charge=wat,
-            other_charges=other_per_head,
+            other_charges=other,
             total_amount=total,
             variance_pct=Decimal("0"),
             status="draft",
@@ -392,7 +506,11 @@ async def generate_billings(data: BillingGenerateRequest, db: AsyncSession = Dep
 
 
 @router.post("/{billing_id}/approve", response_model=BillingOut)
-async def approve_billing(billing_id: UUID, db: AsyncSession = Depends(get_db)):
+async def approve_billing(
+    billing_id: UUID,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     billing = await db.get(Billing, billing_id)
     if not billing:
         raise HTTPException(status_code=404, detail="Billing not found")
@@ -403,7 +521,11 @@ async def approve_billing(billing_id: UUID, db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/{billing_id}/distribute", response_model=BillingOut)
-async def distribute_billing(billing_id: UUID, db: AsyncSession = Depends(get_db)):
+async def distribute_billing(
+    billing_id: UUID,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     billing = await db.get(Billing, billing_id)
     if not billing:
         raise HTTPException(status_code=404, detail="Billing not found")
@@ -416,7 +538,9 @@ async def distribute_billing(billing_id: UUID, db: AsyncSession = Depends(get_db
 
 
 @router.get("/meter-readings/template")
-async def download_meter_reading_template():
+async def download_meter_reading_template(
+    current_staff: models.Staff = Depends(auth.require_staff),
+):
     template_path = os.path.join(os.path.dirname(__file__), "..", "templates", "meter_reading_template.xlsx")
     if not os.path.exists(template_path):
         raise HTTPException(status_code=404, detail="Template not found")
@@ -432,6 +556,7 @@ async def download_meter_reading_template():
 @router.post("/meter-readings/upload", response_model=MeterReadingUploadResult)
 async def upload_meter_readings(
     file: UploadFile = File(...),
+    current_staff: models.Staff = Depends(auth.require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     if not file.filename.endswith((".xlsx", ".xls")):
@@ -560,6 +685,7 @@ async def upload_meter_readings(
 @router.post("/meter-readings/upload-daily-sheet", response_model=MeterReadingDailySheetResult)
 async def upload_daily_meter_sheet(
     file: UploadFile = File(...),
+    current_staff: models.Staff = Depends(auth.require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a daily meter reading Excel per dormer (e.g. '05_DORMERS ELEC & WATER - MAY 2026').
@@ -622,10 +748,17 @@ async def upload_daily_meter_sheet(
             all_errors.append(f"Sheet '{sheet_name}': Could not detect header row with date columns.")
             continue
 
+        # Build header map from header row for robust column detection
+        header_map = {}
+        for idx, val in enumerate(header_row):
+            if val is not None:
+                header_map[str(val).upper().strip()] = idx
+
         date_cols = []  # list of (col_index, date_value)
         col_total_usage = None
         col_water_days = None
         col_water_bill = None
+        col_water_rate = None
         col_misc = {}
 
         for idx, val in enumerate(header_row):
@@ -641,7 +774,10 @@ async def upload_daily_meter_sheet(
                     col_water_days = idx
                 elif vup == "WATER BILL":
                     col_water_bill = idx
-                elif vup in {"LAUNDRY", "DRINKING WATER", "ICE CREAM", "HONESTY STORE", "COFFEE", "LOST KEYCARD", "REF RENTAL"}:
+                elif vup == "RATE" and col_water_days is not None:
+                    # RATE column that appears after water days = water rate
+                    col_water_rate = idx
+                elif vup in {"LAUNDRY", "DRINKING WATER", "ICE CREAM", "HONESTY STORE", "COFFEE", "LOST KEYCARD", "REF RENTAL", "LAUNDRY DORM"}:
                     col_misc[vup] = idx
 
         if not date_cols:
@@ -667,19 +803,37 @@ async def upload_daily_meter_sheet(
         year = date_cols[0][1].year
         month = month_counts.most_common(1)[0][0]
 
+        # Detect column layout: new format has 'BED' header at col 2
+        # Old format: room(0), bed(1), name(2), rate(3), move_in(4), move_out(5)
+        # New format: room(0), flag(1), bed(2), name(3), rate(4), move_in(5), move_out(6)
+        has_bed_header = "BED" in header_map
+        bed_col = 2 if has_bed_header else 1
+        name_col = 3 if has_bed_header else 2
+        rate_col = 4 if has_bed_header else 3
+        move_in_col = 5 if has_bed_header else 4
+        move_out_col = 6 if has_bed_header else 5
+
         sheet_residents = 0
         sheet_readings = 0
+        current_room = None
 
         for row in ws.iter_rows(min_row=header_row_idx + 1, values_only=True):
-            if not row or row[0] is None:
+            if not row:
                 continue
 
-            room_number = str(row[0]).strip() if row[0] is not None else None
-            bed_letter = str(row[1]).strip() if row[1] is not None else None
-            resident_name = str(row[2]).strip() if row[2] is not None else None
-            rate = _parse_decimal(row[3]) if len(row) > 3 else None
-            move_in = _parse_date(row[4]) if len(row) > 4 else None
-            move_out = _parse_date(row[5]) if len(row) > 5 else None
+            # Room number may be on its own row or repeated; forward-fill
+            if row[0] is not None:
+                try:
+                    current_room = str(int(row[0]))
+                except (ValueError, TypeError):
+                    current_room = str(row[0]).strip()
+
+            room_number = current_room
+            bed_letter = str(row[bed_col]).strip() if row[bed_col] is not None else None
+            resident_name = str(row[name_col]).strip() if row[name_col] is not None else None
+            rate = _parse_decimal(row[rate_col]) if len(row) > rate_col else None
+            move_in = _parse_date(row[move_in_col]) if len(row) > move_in_col else None
+            move_out = _parse_date(row[move_out_col]) if len(row) > move_out_col else None
 
             if not resident_name:
                 continue
@@ -723,12 +877,14 @@ async def upload_daily_meter_sheet(
             existing_import_result = await db.execute(existing_import_query)
             existing_import = existing_import_result.scalar_one_or_none()
 
+            water_rate_val = _parse_decimal(row[col_water_rate]) if col_water_rate is not None and len(row) > col_water_rate else None
+
             if existing_import:
                 existing_import.building = building
                 existing_import.total_electric_usage = total_usage
                 existing_import.water_bill = water_bill
                 existing_import.water_days = water_days
-                existing_import.water_rate = _parse_decimal(row[header_map.get("RATE")]) if "RATE" in header_map and len(row) > header_map["RATE"] else None
+                existing_import.water_rate = water_rate_val
                 existing_import.misc_charges = misc_charges if misc_charges else None
                 existing_import.source_filename = file.filename
             else:
@@ -740,7 +896,7 @@ async def upload_daily_meter_sheet(
                     total_electric_usage=total_usage,
                     water_bill=water_bill,
                     water_days=water_days,
-                    water_rate=_parse_decimal(row[header_map.get("RATE")]) if "RATE" in header_map and len(row) > header_map["RATE"] else None,
+                    water_rate=water_rate_val,
                     misc_charges=misc_charges if misc_charges else None,
                     source_filename=file.filename,
                 )
@@ -814,6 +970,7 @@ async def list_meter_readings(
     year: Optional[int] = Query(None),
     month: Optional[int] = Query(None),
     limit: int = Query(1000, ge=1, le=5000),
+    current_staff: models.Staff = Depends(auth.require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     query = (
@@ -863,6 +1020,7 @@ async def get_daily_meter_grid(
     year: int = Query(...),
     month: int = Query(...),
     building: Optional[str] = Query(None),
+    current_staff: models.Staff = Depends(auth.require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     start_date = date(year, month, 1)
@@ -943,6 +1101,7 @@ async def get_daily_meter_grid(
 @router.post("/meter-readings/bulk-upsert")
 async def bulk_upsert_meter_readings(
     data: List[MeterReadingCreate],
+    current_staff: models.Staff = Depends(auth.require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     """Bulk upsert daily meter readings (used by the grid UI)."""
@@ -985,10 +1144,15 @@ async def bulk_upsert_meter_readings(
 
 
 @router.post("/preview", response_model=BillingPreviewResponse)
-async def preview_billings(data: BillingGenerateRequest, db: AsyncSession = Depends(get_db)):
+async def preview_billings(
+    data: BillingGenerateRequest,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     residents_by_room, no_room, all_rows = await _get_active_residents_with_rooms(db, data.building)
     if not all_rows:
-        raise HTTPException(status_code=400, detail="No active residents found")
+        detail = f"No active residents found" + (f" for building '{data.building}'" if data.building else "")
+        raise HTTPException(status_code=400, detail=detail)
 
     resident_electric = await _compute_resident_electric(db, data.billing_period, data.building)
     resident_water, total_days, rate_per_day = await _compute_water_by_days(
@@ -1083,6 +1247,7 @@ async def preview_billings(data: BillingGenerateRequest, db: AsyncSession = Depe
 async def list_billings(
     resident_id: Optional[UUID] = Query(None),
     status: Optional[str] = Query(None),
+    current_staff: models.Staff = Depends(auth.require_staff),
     db: AsyncSession = Depends(get_db),
 ):
     query = (

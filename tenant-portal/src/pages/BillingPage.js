@@ -13,11 +13,12 @@ export default function BillingPage() {
   const [expanded, setExpanded] = useState(null);
 
   useEffect(() => {
+    if (!tenant?.id) return;
     getBillings(tenant.id)
       .then(({ data }) => setBillings(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [tenant.id]);
+  }, [tenant?.id]);
 
   if (loading) return <LoadingSpinner />;
 

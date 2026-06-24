@@ -11,7 +11,7 @@ import uuid
 from pydantic import BaseModel, EmailStr
 
 from app.database import get_db
-from app import models, schemas
+from app import models, schemas, auth
 
 router = APIRouter()
 
@@ -51,7 +51,11 @@ class ReservationCreateRequest(BaseModel):
 
 
 @router.post("/reservations", response_model=schemas.ResidentOut, status_code=status.HTTP_201_CREATED)
-async def create_reservation(payload: ReservationCreateRequest, db: AsyncSession = Depends(get_db)):
+async def create_reservation(
+    payload: ReservationCreateRequest,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     inquiry = None
     if payload.inquiry_id:
         result = await db.execute(
@@ -105,6 +109,15 @@ async def create_reservation(payload: ReservationCreateRequest, db: AsyncSession
 
     if payload.move_out_date <= payload.move_in_date:
         raise HTTPException(status_code=status.HTTP_400_BAD_REQUEST, detail="Move-out date must be after move-in date")
+
+    # Check for duplicate email or phone
+    existing = await db.execute(
+        select(models.Resident).where(
+            (models.Resident.email == payload.email) | (models.Resident.phone == payload.phone)
+        )
+    )
+    if existing.scalar_one_or_none():
+        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email or phone already exists")
 
     # Pre-fill from inquiry if available
     full_name = payload.full_name
@@ -192,7 +205,11 @@ async def create_reservation(payload: ReservationCreateRequest, db: AsyncSession
 
 
 @router.post("/reservations/{resident_id}/payment-link", response_model=schemas.BillingOut)
-async def generate_payment_link(resident_id: UUID, db: AsyncSession = Depends(get_db)):
+async def generate_payment_link(
+    resident_id: UUID,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(models.Resident).where(models.Resident.id == resident_id))
     resident = result.scalar_one_or_none()
     if not resident:
@@ -221,7 +238,11 @@ async def generate_payment_link(resident_id: UUID, db: AsyncSession = Depends(ge
 
 
 @router.post("/moveins/{resident_id}/activate", response_model=schemas.ResidentOut)
-async def activate_movein(resident_id: UUID, db: AsyncSession = Depends(get_db)):
+async def activate_movein(
+    resident_id: UUID,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(select(models.Resident).where(models.Resident.id == resident_id))
     resident = result.scalar_one_or_none()
     if not resident:
@@ -268,7 +289,10 @@ async def activate_movein(resident_id: UUID, db: AsyncSession = Depends(get_db))
 
 
 @router.get("/rooms", response_model=list[schemas.RoomWithBedsOut])
-async def list_rooms_with_beds(db: AsyncSession = Depends(get_db)):
+async def list_rooms_with_beds(
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(models.Room)
         .options(selectinload(models.Room.beds).selectinload(models.Bed.resident))
@@ -323,7 +347,11 @@ async def list_rooms_with_beds(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/rooms/{room_id}/tenants", response_model=list[schemas.BedOut])
-async def get_room_tenants(room_id: UUID, db: AsyncSession = Depends(get_db)):
+async def get_room_tenants(
+    room_id: UUID,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    db: AsyncSession = Depends(get_db),
+):
     result = await db.execute(
         select(models.Bed)
         .where(models.Bed.room_id == room_id)

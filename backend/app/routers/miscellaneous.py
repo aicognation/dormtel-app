@@ -70,7 +70,7 @@ async def create_transaction(
 @router.patch("/{tx_id}", response_model=schemas.MiscellaneousTransactionOut)
 async def update_transaction(
     tx_id: UUID,
-    payload: schemas.MiscellaneousTransactionCreate,
+    payload: schemas.MiscellaneousTransactionUpdate,
     current_staff: models.Staff = Depends(auth.require_admin),
     db: AsyncSession = Depends(get_db),
 ):

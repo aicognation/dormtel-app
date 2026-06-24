@@ -41,9 +41,10 @@ export default function MiscellaneousPage() {
       const params = new URLSearchParams();
       if (categoryFilter !== 'all') params.append('category', categoryFilter);
       const data = await client.get(`/miscellaneous?${params.toString()}`);
-      setTransactions(data);
+      setTransactions(Array.isArray(data) ? data : []);
     } catch {
-      // handled by interceptor
+      toast.error('Failed to load transactions');
+      setTransactions([]);
     } finally {
       setLoading(false);
     }
@@ -104,8 +105,9 @@ export default function MiscellaneousPage() {
       }
       setModalOpen(false);
       fetchTransactions();
-    } catch {
-      // handled by interceptor
+    } catch (err) {
+      const msg = err.response?.data?.detail || `Failed to ${editing ? 'update' : 'create'} transaction`;
+      toast.error(msg);
     }
   };
 

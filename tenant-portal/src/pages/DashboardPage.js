@@ -14,11 +14,12 @@ export default function DashboardPage() {
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (!tenant?.id) return;
     getDashboard(tenant.id)
       .then(({ data }) => setData(data))
       .catch(() => {})
       .finally(() => setLoading(false));
-  }, [tenant.id]);
+  }, [tenant?.id]);
 
   if (loading) return <LoadingSpinner />;
   if (!data) return <p className="text-center text-gray-500 py-8">Unable to load dashboard</p>;

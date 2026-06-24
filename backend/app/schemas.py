@@ -1,6 +1,6 @@
 from pydantic import BaseModel, EmailStr, Field
 from datetime import date, datetime
-from typing import Optional, List
+from typing import Optional, List, Literal
 from decimal import Decimal
 from uuid import UUID
 
@@ -26,6 +26,11 @@ class ResidentCreate(ResidentBase):
     board_exam_type: Optional[str] = None
     lease_term_months: Optional[int] = None
     previous_stays: Optional[list] = None
+    status: Optional[str] = "prospect"
+    move_in_date: Optional[date] = None
+    move_out_date: Optional[date] = None
+    contract_end_date: Optional[date] = None
+    notes: Optional[str] = None
 
 class ResidentOut(ResidentBase):
     id: UUID
@@ -434,14 +439,17 @@ class TenantDashboardResponse(BaseModel):
     announcements: list = []
 
 class ServiceRequestBase(BaseModel):
-    category: str
+    category: Literal["plumbing", "electrical", "aircon", "pest_control", "wifi", "water_supply", "lock_key", "cleaning", "appliance", "other"]
     subject: str
     description: Optional[str] = None
     location: Optional[str] = None
-    priority: str = "medium"
+    priority: Literal["low", "medium", "high", "urgent"] = "medium"
 
 class ServiceRequestCreate(ServiceRequestBase):
     pass
+
+class ServiceRequestAdminCreate(ServiceRequestBase):
+    resident_id: UUID
 
 class ServiceRequestOut(ServiceRequestBase):
     id: UUID
@@ -671,6 +679,45 @@ class DepositOut(DepositBase):
         from_attributes = True
 
 
+# --- Billing Statement Schemas ---
+
+class BillingStatementGenerateRequest(BaseModel):
+    billing_period: str
+    scope_type: str = "resident"  # resident, room, floor, property
+    scope_target: Optional[str] = None  # resident_id, room_id, floor prefix, building/property_code
+    total_water_bill: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
+    other_charges: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
+    regenerate: bool = False
+    auto_send_email: bool = False
+    email_subject: Optional[str] = None
+    email_body: Optional[str] = None
+
+
+class BillingStatementRow(BaseModel):
+    statement_id: UUID
+    resident_id: UUID
+    resident_name: Optional[str] = None
+    billing_period: str
+    scope_type: str
+    scope_target: Optional[str] = None
+    file_name: str
+    file_path: str
+    file_size: Optional[int] = None
+    status: str
+    sent_to: Optional[str] = None
+    sent_at: Optional[datetime] = None
+    email_status: Optional[str] = None
+    created_at: datetime
+    total_amount: Optional[Decimal] = None
+
+
+class BillingStatementGenerateResponse(BaseModel):
+    generated: int
+    skipped: int
+    errors: List[str]
+    statements: List[BillingStatementRow]
+
+
 # --- Miscellaneous Transaction Schemas ---
 
 class MiscellaneousTransactionBase(BaseModel):
@@ -681,6 +728,16 @@ class MiscellaneousTransactionBase(BaseModel):
     status: str = "pending"
 
 class MiscellaneousTransactionCreate(MiscellaneousTransactionBase):
+    resident_id: Optional[UUID] = None
+    branch: Optional[str] = None
+    room_id: Optional[UUID] = None
+
+class MiscellaneousTransactionUpdate(BaseModel):
+    description: Optional[str] = None
+    amount: Optional[Decimal] = Field(default=None, ge=0)
+    category: Optional[str] = None
+    transaction_date: Optional[date] = None
+    status: Optional[str] = None
     resident_id: Optional[UUID] = None
     branch: Optional[str] = None
     room_id: Optional[UUID] = None
