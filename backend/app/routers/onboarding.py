@@ -52,7 +52,7 @@ class ReservationCreateRequest(BaseModel):
     deposits: Optional[list] = None
 
 
-@router.post("/reservations", response_model=schemas.ReservationResponse, status_code=status.HTTP_201_CREATED)
+@router.post("/reservations", response_model=schemas.ResidentOut, status_code=status.HTTP_201_CREATED)
 async def create_reservation(
     payload: ReservationCreateRequest,
     current_staff: models.Staff = Depends(auth.require_staff),
@@ -153,6 +153,21 @@ async def create_reservation(
     board_exam_type = payload.board_exam_type
     lease_term_months = payload.lease_term_months
 
+    # Sanitize empty strings to None for enum and optional fields
+    # (frontend sends "" for unselected dropdowns, PostgreSQL enums reject "")
+    if not dormer_type:
+        dormer_type = None
+    if not board_exam_type:
+        board_exam_type = None
+    if not source:
+        source = None
+    if not location:
+        location = None
+    if not payload.id_type:
+        payload.id_type = None
+    if not payload.id_number:
+        payload.id_number = None
+
     if inquiry:
         full_name = full_name or inquiry.prospect_name or ""
         email = email or inquiry.prospect_email or ""
@@ -219,9 +234,9 @@ async def create_reservation(
         inquiry.status = "converted"
         await db.commit()
 
-    # Build response with optional duplicate warnings
+    # Attach duplicate warnings to resident for frontend
     if warnings:
-        return {**{c.name: getattr(resident, c.name) for c in resident.__table__.columns}, "warnings": warnings}
+        resident.warnings = warnings
     return resident
 
 
