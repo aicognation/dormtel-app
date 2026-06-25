@@ -1365,7 +1365,7 @@ async def preview_billings(
             "grand_total": str(total_all),
             "electric_per_head": str(total_electric / total_residents if total_residents > 0 else Decimal("0")),
             "water_per_head": str(total_water / total_residents if total_residents > 0 else Decimal("0")),
-            "other_per_head": str(fallback_per_head),
+            "other_per_head": str(other_per_head),
             "total_days": total_days,
             "water_rate_per_day": str(rate_per_day),
         }

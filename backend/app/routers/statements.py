@@ -247,9 +247,10 @@ async def generate_statements(
     resident_water, _, _ = await billing_router._compute_water_by_days(
         db, data.billing_period, data.total_water_bill, building
     )
-    resident_other, _, fallback_other = await billing_router._compute_other_charges(
+    resident_other, total_other = await billing_router._compute_other_charges(
         db, data.billing_period, data.other_charges, building
     )
+    fallback_other = Decimal("0")  # result_map already has per-resident values
     previous_balances = await billing_router._compute_previous_balances(
         db, data.billing_period, building
     )
