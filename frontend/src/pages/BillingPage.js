@@ -39,6 +39,8 @@ export default function BillingPage() {
   const [editedCells, setEditedCells] = useState({});
   const [savingGrid, setSavingGrid] = useState(false);
   const [waterBill, setWaterBill] = useState('');
+  const [showMiscCharges, setShowMiscCharges] = useState(true);
+  const [showSummaryCols, setShowSummaryCols] = useState(true);
 
   // Preview billing tab state
   const [genForm, setGenForm] = useState({ billing_period: '', building: '', other_charges: '', total_water_bill: '' });
@@ -366,7 +368,10 @@ export default function BillingPage() {
       const res = await uploadDailyMeterSheet(file);
       toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
       e.target.value = '';
-      if (tab === 'meter-readings') fetchDailyGrid();
+      // Auto-switch to meter-readings tab and refresh grid
+      setTab('meter-readings');
+      // Small delay to ensure tab switch, then fetch
+      setTimeout(() => fetchDailyGrid(), 100);
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to upload daily meter sheet';
       toast.error(msg);
@@ -421,6 +426,51 @@ export default function BillingPage() {
     const m = String(month).padStart(2, '0');
     const d = String(day).padStart(2, '0');
     return `${year}-${m}-${d}`;
+  };
+
+  // Merge residents + vacant beds, grouped by room
+  const getAllGridRows = () => {
+    if (!gridData) return [];
+    const allRows = [];
+    const roomGroups = {};
+    const roomOrder = [];
+    (gridData.residents || []).forEach((r) => {
+      const room = r.room_number || '??';
+      if (!roomGroups[room]) { roomGroups[room] = []; roomOrder.push(room); }
+      roomGroups[room].push({ ...r, _type: 'resident' });
+    });
+    (gridData.vacant_beds || []).forEach((vb) => {
+      const room = vb.room_number || '??';
+      if (!roomGroups[room]) { roomGroups[room] = []; roomOrder.push(room); }
+      roomGroups[room].push({ ...vb, _type: 'vacant' });
+    });
+    roomOrder.sort((a, b) => {
+      if (a === '??') return 1;
+      if (b === '??') return -1;
+      return a.localeCompare(b, undefined, { numeric: true });
+    });
+    roomOrder.forEach((room) => {
+      const beds = roomGroups[room].sort((a, b) => {
+        if (a._type !== b._type) return a._type === 'resident' ? -1 : 1;
+        return (a.bed_letter || 'ZZ').localeCompare(b.bed_letter || 'ZZ');
+      });
+      beds.forEach((row, i) => {
+        allRows.push({ ...row, _room: room, _isFirstInRoom: i === 0 });
+      });
+    });
+    return allRows;
+  };
+
+  // Check if any resident has misc charges
+  const hasMiscData = () => {
+    if (!gridData) return false;
+    return (gridData.residents || []).some((r) => r.misc_charges && Object.keys(r.misc_charges).length > 0);
+  };
+
+  // Check if any resident has import summary data
+  const hasImportData = () => {
+    if (!gridData) return false;
+    return (gridData.residents || []).some((r) => r.total_electric_usage != null || r.elec_bill != null);
   };
 
   const billingColumns = [
@@ -649,89 +699,229 @@ export default function BillingPage() {
             </p>
           </div>
 
-          {/* Daily Grid */}
+          {/* Import Status Banner */}
+          {gridData?.import_info && (
+            <div className="bg-green-50 border border-green-200 rounded-lg p-3 flex items-center gap-3 text-sm">
+              <CheckCircle className="w-5 h-5 text-green-600 flex-shrink-0" />
+              <div className="flex-1">
+                <span className="font-medium text-green-800">Daily sheet imported</span>
+                <span className="text-green-700 ml-2">
+                  {gridData.import_info.resident_count} residents from <b>{gridData.import_info.source_filename}</b>
+                </span>
+                <span className="text-green-600 ml-2 text-xs">
+                  ({formatDateTime(gridData.import_info.imported_at)})
+                </span>
+              </div>
+            </div>
+          )}
+
+          {/* Summary toggle */}
+          {hasImportData() && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setShowSummaryCols(!showSummaryCols)}
+                className="text-xs text-blue-600 hover:text-blue-800 underline"
+              >
+                {showSummaryCols ? 'Hide' : 'Show'} Computed Charges
+              </button>
+              <span className="text-xs text-gray-400">|</span>
+              <span className="text-xs text-gray-500">
+                {gridData.residents.length} active residents
+                {(gridData.vacant_beds || []).length > 0 && `, ${gridData.vacant_beds.length} vacant beds`}
+              </span>
+            </div>
+          )}
+
+          {/* Enhanced Daily Grid */}
           {gridLoading ? (
             <div className="text-center py-8 text-gray-500">Loading grid...</div>
-          ) : gridData && gridData.residents.length === 0 ? (
+          ) : gridData && gridData.residents.length === 0 && !(gridData.vacant_beds || []).length ? (
             <div className="text-center py-8 text-gray-500">No active residents found for this period.</div>
           ) : gridData ? (
-            <div className="border rounded-md overflow-hidden">
-              <div className="overflow-x-auto">
-                <table className="min-w-full text-sm">
-                  <thead className="bg-gray-50">
-                    <tr>
-                      <th className="px-2 py-2 text-left font-medium text-gray-700 sticky left-0 bg-gray-50 z-10 border-r">Room</th>
-                      <th className="px-2 py-2 text-left font-medium text-gray-700 sticky left-[60px] bg-gray-50 z-10 border-r">Bed</th>
-                      <th className="px-2 py-2 text-left font-medium text-gray-700 sticky left-[100px] bg-gray-50 z-10 border-r min-w-[140px]">Dormer</th>
-                      <th className="px-2 py-2 text-right font-medium text-gray-700 border-r">Rate</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-700 border-r">Move In</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-700 border-r">Move Out</th>
-                      <th className="px-2 py-2 text-center font-medium text-gray-700 border-r">Days</th>
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <div className="overflow-x-auto" style={{ maxHeight: '70vh', overflowY: 'auto' }}>
+                <table className="border-collapse text-xs w-full">
+                  <thead className="sticky top-0 z-20">
+                    <tr className="bg-slate-50">
+                      {/* Zone 1: Identity (frozen left) */}
+                      <th className="px-2 py-2.5 text-left font-semibold text-slate-600 border-r border-slate-200 border-b-2 border-b-slate-300 sticky left-0 bg-slate-50 z-30 w-[56px]">Room</th>
+                      <th className="px-1.5 py-2.5 text-center font-semibold text-slate-600 border-r border-slate-200 border-b-2 border-b-slate-300 sticky left-[56px] bg-slate-50 z-30 w-[36px]">Bed</th>
+                      <th className="px-2 py-2.5 text-left font-semibold text-slate-600 border-r-2 border-r-slate-300 border-b-2 border-b-slate-300 sticky left-[92px] bg-slate-50 z-30 min-w-[150px]">Name</th>
+                      <th className="px-2 py-2.5 text-right font-semibold text-slate-600 border-r border-slate-200 border-b-2 border-b-slate-300 w-[68px]">Rate</th>
+                      <th className="px-1.5 py-2.5 text-center font-semibold text-slate-600 border-r border-slate-200 border-b-2 border-b-slate-300 w-[70px]">Move In</th>
+                      <th className="px-1.5 py-2.5 text-center font-semibold text-slate-600 border-r border-slate-200 border-b-2 border-b-slate-300 w-[70px]">Move Out</th>
+                      <th className="px-1.5 py-2.5 text-center font-semibold text-slate-600 border-r-2 border-r-slate-300 border-b-2 border-b-slate-300 w-[36px]">Days</th>
+                      {/* Zone 2: Date columns (scrollable) */}
                       {getDaysArray().map((d) => (
-                        <th key={d} className="px-1 py-2 text-center font-medium text-gray-700 border-r min-w-[52px]">
+                        <th key={d} className="px-0.5 py-2.5 text-center font-medium text-slate-500 border-r border-gray-100 border-b-2 border-b-slate-300 min-w-[46px]">
                           {d}
                         </th>
                       ))}
+                      {/* Zone 3: Summary columns (frozen right) */}
+                      {showSummaryCols && (
+                        <>
+                          <th className="px-1.5 py-2.5 text-center font-semibold text-amber-700 border-l-2 border-l-amber-300 border-r border-amber-100 border-b-2 border-b-slate-300 bg-amber-50 min-w-[60px]">Total<br/>Usage</th>
+                          <th className="px-1.5 py-2.5 text-center font-semibold text-amber-700 border-r border-amber-100 border-b-2 border-b-slate-300 bg-amber-50 min-w-[52px]">₱/kWh</th>
+                          <th className="px-1.5 py-2.5 text-center font-semibold text-amber-700 border-r border-amber-100 border-b-2 border-b-slate-300 bg-amber-50 min-w-[64px]">Sub<br/>Total</th>
+                          <th className="px-1.5 py-2.5 text-center font-semibold text-amber-700 border-r border-amber-100 border-b-2 border-b-slate-300 bg-amber-50 min-w-[52px]">VAT</th>
+                          <th className="px-1.5 py-2.5 text-center font-semibold text-amber-700 border-r border-amber-100 border-b-2 border-b-slate-300 bg-amber-50 min-w-[64px]">Elec<br/>Bill</th>
+                          <th className="px-1.5 py-2.5 text-center font-semibold text-teal-700 border-l border-l-teal-200 border-r border-teal-100 border-b-2 border-b-slate-300 bg-teal-50 min-w-[40px]">Days</th>
+                          <th className="px-1.5 py-2.5 text-center font-semibold text-teal-700 border-r border-teal-100 border-b-2 border-b-slate-300 bg-teal-50 min-w-[52px]">Rate</th>
+                          <th className="px-1.5 py-2.5 text-center font-semibold text-teal-700 border-r border-teal-100 border-b-2 border-b-slate-300 bg-teal-50 min-w-[64px]">Water<br/>Bill</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
-                  <tbody className="divide-y divide-gray-100">
-                    {gridData.residents.map((resident) => (
-                      <tr key={resident.resident_id} className="hover:bg-gray-50">
-                        <td className="px-2 py-1.5 text-gray-900 sticky left-0 bg-white z-10 border-r font-medium">
-                          {resident.room_number ?? '-'}
-                        </td>
-                        <td className="px-2 py-1.5 text-gray-700 sticky left-[60px] bg-white z-10 border-r">
-                          {resident.bed_letter ?? '-'}
-                        </td>
-                        <td className="px-2 py-1.5 text-gray-900 sticky left-[100px] bg-white z-10 border-r whitespace-nowrap">
-                          {resident.resident_name}
-                        </td>
-                        <td className="px-2 py-1.5 text-right text-gray-700 border-r">
-                          {resident.monthly_rate ? formatCurrency(resident.monthly_rate) : '-'}
-                        </td>
-                        <td className="px-2 py-1.5 text-center text-gray-500 border-r text-xs">
-                          {resident.move_in_date ? formatDate(resident.move_in_date) : '-'}
-                        </td>
-                        <td className="px-2 py-1.5 text-center text-gray-500 border-r text-xs">
-                          {resident.move_out_date ? formatDate(resident.move_out_date) : '-'}
-                        </td>
-                        <td className="px-2 py-1.5 text-center text-gray-700 border-r font-medium">
-                          {resident.days_in_month}
-                        </td>
-                        {getDaysArray().map((d) => {
-                          const dateKey = formatDateKey(gridYear, gridMonth, d);
-                          const cell = resident.readings[dateKey];
-                          const editKey = `${resident.resident_id}|${dateKey}`;
-                          const editedValue = editedCells[editKey]?.electric_reading;
-                          const displayValue = editedValue !== undefined
-                            ? editedValue
-                            : (cell?.electric_reading ?? '');
-                          const isEdited = editedValue !== undefined;
+                  <tbody>
+                    {getAllGridRows().map((row, idx) => {
+                      const isVacant = row._type === 'vacant';
+                      const roomBg = row._isFirstInRoom ? 'bg-slate-800 text-white font-bold text-center' : 'bg-slate-700 text-transparent text-center';
+                      const rowEven = idx % 2 === 0;
+                      const baseBg = isVacant ? 'bg-gray-50' : (rowEven ? 'bg-white' : 'bg-slate-50/40');
 
-                          return (
-                            <td key={d} className="px-1 py-1 border-r">
-                              <input
-                                type="number"
-                                value={displayValue}
-                                onChange={(e) => handleCellChange(resident.resident_id, dateKey, e.target.value)}
-                                className={`w-full text-center text-xs px-1 py-0.5 rounded border ${
-                                  isEdited
-                                    ? 'border-blue-400 bg-blue-50'
-                                    : 'border-gray-200'
-                                }`}
-                                placeholder=""
-                                step="0.01"
-                              />
-                            </td>
-                          );
-                        })}
-                      </tr>
-                    ))}
+                      return (
+                        <tr key={row._type === 'resident' ? row.resident_id : `v-${row.bed_code}`} className="group">
+                          {/* Room — grouped */}
+                          <td className={`px-1 py-1 border-r border-slate-200 sticky left-0 z-10 ${roomBg}`}
+                              style={row._isFirstInRoom ? { writingMode: 'horizontal-tb' } : {}}>
+                            {row._isFirstInRoom ? row._room : ''}
+                          </td>
+                          {/* Bed */}
+                          <td className={`px-1.5 py-1 text-center border-r border-slate-200 sticky left-[56px] z-10 font-medium ${isVacant ? 'bg-gray-50 text-gray-300' : (rowEven ? 'bg-white text-gray-600' : 'bg-slate-50/60 text-gray-600')}`}>
+                            {row.bed_letter || '-'}
+                          </td>
+                          {/* Name */}
+                          <td className={`px-2 py-1 border-r-2 border-r-slate-300 sticky left-[92px] z-10 whitespace-nowrap ${isVacant ? 'bg-gray-50 text-gray-300 italic' : (rowEven ? 'bg-white text-gray-800' : 'bg-slate-50/60 text-gray-800')}`}>
+                            {isVacant ? 'VACANT' : row.resident_name}
+                          </td>
+                          {/* Rate */}
+                          <td className={`px-2 py-1 text-right border-r border-gray-100 ${isVacant ? 'text-gray-200' : 'text-gray-600'} ${baseBg}`}>
+                            {!isVacant && row.monthly_rate ? formatCurrency(row.monthly_rate) : '-'}
+                          </td>
+                          {/* Move In */}
+                          <td className={`px-1.5 py-1 text-center border-r border-gray-100 ${isVacant ? 'text-gray-200' : 'text-gray-400'} ${baseBg}`}>
+                            {!isVacant && row.move_in_date ? formatDate(row.move_in_date) : '-'}
+                          </td>
+                          {/* Move Out */}
+                          <td className={`px-1.5 py-1 text-center border-r border-gray-100 ${isVacant ? 'text-gray-200' : 'text-gray-400'} ${baseBg}`}>
+                            {!isVacant && row.move_out_date ? formatDate(row.move_out_date) : '-'}
+                          </td>
+                          {/* Days */}
+                          <td className={`px-1.5 py-1 text-center border-r-2 border-r-slate-300 font-medium ${isVacant ? 'text-gray-200' : 'text-gray-700'} ${baseBg}`}>
+                            {!isVacant ? (row.days_in_month || 0) : '-'}
+                          </td>
+
+                          {/* Date columns */}
+                          {!isVacant ? getDaysArray().map((d) => {
+                            const dateKey = formatDateKey(gridYear, gridMonth, d);
+                            const cell = row.readings?.[dateKey];
+                            const editKey = `${row.resident_id}|${dateKey}`;
+                            const editedValue = editedCells[editKey]?.electric_reading;
+                            const displayValue = editedValue !== undefined ? editedValue : (cell?.electric_reading ?? '');
+                            const isEdited = editedValue !== undefined;
+
+                            return (
+                              <td key={d} className={`px-0.5 py-0.5 border-r border-gray-100 ${baseBg}`}>
+                                <input
+                                  type="number"
+                                  value={displayValue}
+                                  onChange={(e) => handleCellChange(row.resident_id, dateKey, e.target.value)}
+                                  className={`w-full text-center text-[11px] px-0.5 py-0.5 rounded border ${
+                                    isEdited ? 'border-amber-400 bg-amber-50 font-medium' : 'border-gray-200 focus:border-blue-400 focus:bg-blue-50'
+                                  }`}
+                                  placeholder=""
+                                  step="0.01"
+                                />
+                              </td>
+                            );
+                          }) : getDaysArray().map((d) => (
+                            <td key={d} className="px-0.5 py-1 border-r border-gray-100 bg-gray-50 text-center text-gray-200">-</td>
+                          ))}
+
+                          {/* Summary columns */}
+                          {showSummaryCols && (
+                            <>
+                              <td className={`px-1.5 py-1 text-center border-l-2 border-l-amber-300 border-r border-amber-100 font-medium ${isVacant ? 'bg-gray-50 text-gray-200' : 'bg-amber-50/50 text-gray-800'}`}>
+                                {!isVacant && row.total_electric_usage != null ? Number(row.total_electric_usage).toFixed(1) : '-'}
+                              </td>
+                              <td className={`px-1.5 py-1 text-center border-r border-amber-100 ${isVacant ? 'bg-gray-50 text-gray-200' : 'bg-amber-50/50 text-gray-600'}`}>
+                                {!isVacant && row.peso_kwh != null ? Number(row.peso_kwh).toFixed(2) : '-'}
+                              </td>
+                              <td className={`px-1.5 py-1 text-right border-r border-amber-100 ${isVacant ? 'bg-gray-50 text-gray-200' : 'bg-amber-50/50 text-gray-800'}`}>
+                                {!isVacant && row.sub_total != null ? Number(row.sub_total).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              </td>
+                              <td className={`px-1.5 py-1 text-right border-r border-amber-100 ${isVacant ? 'bg-gray-50 text-gray-200' : 'bg-amber-50/50 text-gray-600'}`}>
+                                {!isVacant && row.total_with_vat != null ? Number(row.total_with_vat).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              </td>
+                              <td className={`px-1.5 py-1 text-right border-r border-amber-100 font-semibold ${isVacant ? 'bg-gray-50 text-gray-200' : 'bg-amber-50/50 text-gray-900'}`}>
+                                {!isVacant && row.elec_bill != null ? Number(row.elec_bill).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              </td>
+                              <td className={`px-1.5 py-1 text-center border-l border-l-teal-200 border-r border-teal-100 ${isVacant ? 'bg-gray-50 text-gray-200' : 'bg-teal-50/50 text-gray-700'}`}>
+                                {!isVacant && row.water_days != null ? row.water_days : '-'}
+                              </td>
+                              <td className={`px-1.5 py-1 text-right border-r border-teal-100 ${isVacant ? 'bg-gray-50 text-gray-200' : 'bg-teal-50/50 text-gray-600'}`}>
+                                {!isVacant && row.water_rate != null ? Number(row.water_rate).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              </td>
+                              <td className={`px-1.5 py-1 text-right border-r border-teal-100 font-semibold ${isVacant ? 'bg-gray-50 text-gray-200' : 'bg-teal-50/50 text-gray-900'}`}>
+                                {!isVacant && row.water_bill != null ? Number(row.water_bill).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              </td>
+                            </>
+                          )}
+                        </tr>
+                      );
+                    })}
                   </tbody>
                 </table>
               </div>
             </div>
           ) : null}
+
+          {/* Misc Charges Sub-table */}
+          {hasMiscData() && (
+            <div className="border border-gray-200 rounded-lg overflow-hidden">
+              <button
+                onClick={() => setShowMiscCharges(!showMiscCharges)}
+                className="w-full flex items-center justify-between px-4 py-2 bg-amber-50 hover:bg-amber-100 transition-colors text-sm font-medium text-amber-800"
+              >
+                <span>Misc Charges (from daily sheet)</span>
+                <span className="text-xs">{showMiscCharges ? '▼ Collapse' : '▶ Expand'}</span>
+              </button>
+              {showMiscCharges && (
+                <div className="overflow-x-auto">
+                  <table className="w-full text-xs border-collapse">
+                    <thead>
+                      <tr className="bg-amber-50/70">
+                        <th className="px-2 py-2 text-left font-semibold text-slate-600 border-r border-amber-200 w-[56px]">Room</th>
+                        <th className="px-1.5 py-2 text-center font-semibold text-slate-600 border-r border-amber-200 w-[36px]">Bed</th>
+                        <th className="px-2 py-2 text-left font-semibold text-slate-600 border-r-2 border-r-amber-300 min-w-[150px]">Name</th>
+                        {['laundry_dorm', 'laundry', 'drinking_water', 'ice_cream', 'coffee', 'honesty_store', 'lost_keycard', 'ref_rental'].map((key) => (
+                          <th key={key} className="px-2 py-2 text-center font-semibold text-amber-700 border-r border-amber-100 min-w-[70px]">
+                            {key.replace(/_/g, ' ').replace(/\b\w/g, (c) => c.toUpperCase())}
+                          </th>
+                        ))}
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {(gridData.residents || [])
+                        .filter((r) => r.misc_charges && Object.keys(r.misc_charges).length > 0)
+                        .map((r, i) => (
+                          <tr key={r.resident_id} className={i % 2 === 0 ? 'bg-white' : 'bg-amber-50/20'}>
+                            <td className="px-2 py-1 border-r border-amber-100 font-medium text-gray-700">{r.room_number || '-'}</td>
+                            <td className="px-1.5 py-1 text-center border-r border-amber-100 text-gray-600">{r.bed_letter || '-'}</td>
+                            <td className="px-2 py-1 border-r-2 border-r-amber-300 whitespace-nowrap text-gray-800">{r.resident_name}</td>
+                            {['laundry_dorm', 'laundry', 'drinking_water', 'ice_cream', 'coffee', 'honesty_store', 'lost_keycard', 'ref_rental'].map((key) => (
+                              <td key={key} className="px-2 py-1 text-right border-r border-amber-100 text-gray-700">
+                                {r.misc_charges?.[key] ? Number(r.misc_charges[key]).toLocaleString('en-PH', { minimumFractionDigits: 2, maximumFractionDigits: 2 }) : '-'}
+                              </td>
+                            ))}
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              )}
+            </div>
+          )}
 
           {/* Raw Meter Readings Table (optional, for reference) */}
           <div className="pt-4">

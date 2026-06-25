@@ -260,12 +260,39 @@ class MeterReadingDailyRow(BaseModel):
     move_out_date: Optional[date] = None
     days_in_month: int = 0
     readings: dict[str, MeterReadingDailyCell] = {}
+    # Import summary data (from MeterReadingImport)
+    total_electric_usage: Optional[Decimal] = None
+    peso_kwh: Optional[Decimal] = None
+    sub_total: Optional[Decimal] = None
+    total_with_vat: Optional[Decimal] = None
+    elec_bill: Optional[Decimal] = None
+    water_bill: Optional[Decimal] = None
+    water_days: Optional[int] = None
+    water_rate: Optional[Decimal] = None
+    misc_charges: Optional[dict] = None
+    source_filename: Optional[str] = None
+
+
+class VacantBedRow(BaseModel):
+    room_number: str
+    bed_code: str
+    bed_letter: Optional[str] = None
+    bed_number: int = 0
+
+
+class ImportInfo(BaseModel):
+    source_filename: Optional[str] = None
+    imported_at: Optional[datetime] = None
+    resident_count: int = 0
+
 
 class MeterReadingDailyGridOut(BaseModel):
     year: int
     month: int
     days_in_month: int
     residents: list[MeterReadingDailyRow]
+    vacant_beds: list[VacantBedRow] = []
+    import_info: Optional[ImportInfo] = None
     water_config: dict
 
 class MeterReadingUploadResult(BaseModel):

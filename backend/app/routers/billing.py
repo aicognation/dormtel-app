@@ -18,6 +18,7 @@ from app.models import MeterReading, MeterReadingImport, Billing, Resident, Room
 from app.schemas import (
     MeterReadingCreate, MeterReadingOut, MeterReadingDailyGridOut,
     MeterReadingDailyRow, MeterReadingDailyCell,
+    VacantBedRow, ImportInfo,
     BillingOut, BillingWithResidentOut,
     MeterReadingUploadResult, MeterReadingDailySheetResult,
 )
@@ -851,6 +852,10 @@ async def upload_daily_meter_sheet(
 
         date_cols = []  # list of (col_index, date_value)
         col_total_usage = None
+        col_peso_kwh = None
+        col_sub_total = None
+        col_total_with_vat = None
+        col_elec_bill = None
         col_water_days = None
         col_water_bill = None
         col_water_rate = None
@@ -865,6 +870,14 @@ async def upload_daily_meter_sheet(
                 vup = val.upper().strip()
                 if vup == "TOTAL USAGE":
                     col_total_usage = idx
+                elif vup in ("PESO/KWH", "PESO/KW.H", "₱/KWH", "PESO / KWH"):
+                    col_peso_kwh = idx
+                elif vup == "SUB TOTAL":
+                    col_sub_total = idx
+                elif vup in ("TOTAL WITH VAT", "TOTAL W/ VAT"):
+                    col_total_with_vat = idx
+                elif vup == "ELEC BILL":
+                    col_elec_bill = idx
                 elif "# OF DAYS" in vup and "WATER" in vup:
                     col_water_days = idx
                 elif vup == "WATER BILL":
@@ -945,6 +958,10 @@ async def upload_daily_meter_sheet(
 
             # Extract pre-computed totals
             total_usage = _parse_decimal(row[col_total_usage]) if col_total_usage is not None and len(row) > col_total_usage else None
+            peso_kwh = _parse_decimal(row[col_peso_kwh]) if col_peso_kwh is not None and len(row) > col_peso_kwh else None
+            sub_total = _parse_decimal(row[col_sub_total]) if col_sub_total is not None and len(row) > col_sub_total else None
+            total_with_vat = _parse_decimal(row[col_total_with_vat]) if col_total_with_vat is not None and len(row) > col_total_with_vat else None
+            elec_bill = _parse_decimal(row[col_elec_bill]) if col_elec_bill is not None and len(row) > col_elec_bill else None
             water_days = None
             if col_water_days is not None and len(row) > col_water_days:
                 try:
@@ -977,6 +994,10 @@ async def upload_daily_meter_sheet(
             if existing_import:
                 existing_import.building = building
                 existing_import.total_electric_usage = total_usage
+                existing_import.peso_kwh = peso_kwh
+                existing_import.sub_total = sub_total
+                existing_import.total_with_vat = total_with_vat
+                existing_import.elec_bill = elec_bill
                 existing_import.water_bill = water_bill
                 existing_import.water_days = water_days
                 existing_import.water_rate = water_rate_val
@@ -989,6 +1010,10 @@ async def upload_daily_meter_sheet(
                     year=year,
                     month=month,
                     total_electric_usage=total_usage,
+                    peso_kwh=peso_kwh,
+                    sub_total=sub_total,
+                    total_with_vat=total_with_vat,
+                    elec_bill=elec_bill,
                     water_bill=water_bill,
                     water_days=water_days,
                     water_rate=water_rate_val,
@@ -1149,6 +1174,24 @@ async def get_daily_meter_grid(
     reading_result = await db.execute(reading_query)
     readings = reading_result.scalars().all()
 
+    # Fetch MeterReadingImport records for this period
+    import_query = select(MeterReadingImport).where(
+        MeterReadingImport.year == year,
+        MeterReadingImport.month == month,
+    )
+    if building:
+        import_query = import_query.where(MeterReadingImport.building == building)
+    import_result = await db.execute(import_query)
+    imports = import_result.scalars().all()
+
+    # Index imports by resident_id
+    imports_map = {}
+    latest_import = None
+    for imp in imports:
+        imports_map[str(imp.resident_id)] = imp
+        if latest_import is None or imp.created_at > latest_import.created_at:
+            latest_import = imp
+
     # Index readings by resident_id and date
     readings_map = {}
     for r in readings:
@@ -1163,6 +1206,9 @@ async def get_daily_meter_grid(
             status=r.status,
         )
 
+    # Track which beds have active residents
+    occupied_bed_ids = set()
+
     residents_out = []
     for resident, bed, room in rows:
         rid = str(resident.id)
@@ -1170,6 +1216,10 @@ async def get_daily_meter_grid(
         bed_letter = None
         if bed and bed.bed_code:
             bed_letter = bed.bed_code[-1] if len(bed.bed_code) > 0 else None
+            occupied_bed_ids.add(str(bed.id))
+
+        # Merge import data if available
+        imp = imports_map.get(rid)
 
         residents_out.append(MeterReadingDailyRow(
             resident_id=resident.id,
@@ -1182,13 +1232,57 @@ async def get_daily_meter_grid(
             move_out_date=resident.move_out_date,
             days_in_month=days,
             readings=readings_map.get(rid, {}),
+            # Import summary data
+            total_electric_usage=imp.total_electric_usage if imp else None,
+            peso_kwh=imp.peso_kwh if imp else None,
+            sub_total=imp.sub_total if imp else None,
+            total_with_vat=imp.total_with_vat if imp else None,
+            elec_bill=imp.elec_bill if imp else None,
+            water_bill=imp.water_bill if imp else None,
+            water_days=imp.water_days if imp else None,
+            water_rate=imp.water_rate if imp else None,
+            misc_charges=imp.misc_charges if imp else None,
+            source_filename=imp.source_filename if imp else None,
         ))
+
+    # Find vacant beds (beds with no active resident assigned)
+    vacant_beds = []
+    all_beds_query = (
+        select(Bed, Room)
+        .join(Room, Bed.room_id == Room.id)
+    )
+    if building:
+        all_beds_query = all_beds_query.where(Room.building == building)
+    all_beds_query = all_beds_query.order_by(Room.room_number.asc(), Bed.bed_number.asc())
+    all_beds_result = await db.execute(all_beds_query)
+    for bed_item, room_item in all_beds_result.all():
+        if str(bed_item.id) not in occupied_bed_ids:
+            bed_letter_v = None
+            if bed_item.bed_code:
+                bed_letter_v = bed_item.bed_code[-1] if len(bed_item.bed_code) > 0 else None
+            vacant_beds.append(VacantBedRow(
+                room_number=room_item.room_number if room_item else "",
+                bed_code=bed_item.bed_code,
+                bed_letter=bed_letter_v,
+                bed_number=bed_item.bed_number,
+            ))
+
+    # Build import info
+    import_info = None
+    if latest_import:
+        import_info = ImportInfo(
+            source_filename=latest_import.source_filename,
+            imported_at=latest_import.created_at,
+            resident_count=len(imports),
+        )
 
     return MeterReadingDailyGridOut(
         year=year,
         month=month,
         days_in_month=days_in_month,
         residents=residents_out,
+        vacant_beds=vacant_beds,
+        import_info=import_info,
         water_config={},
     )
 
