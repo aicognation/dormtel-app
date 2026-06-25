@@ -7,7 +7,8 @@ import { Bell, LogOut, User, ChevronDown } from 'lucide-react';
 export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
-  const { staff, logout, isManager } = useAuth();
+  const { staff, logout, isManager, schema } = useAuth();
+  const activeSchema = schema();
 
   return (
     <div className="min-h-screen bg-gray-50">
@@ -21,6 +22,17 @@ export default function AppShell() {
           </div>
 
           <div className="flex items-center gap-3">
+            {/* Active Schema Badge */}
+            <span
+              className={`hidden sm:inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-bold uppercase tracking-wide ${
+                activeSchema === 'pilot'
+                  ? 'bg-amber-100 text-amber-700 border border-amber-200'
+                  : 'bg-blue-100 text-blue-700 border border-blue-200'
+              }`}
+            >
+              {activeSchema}
+            </span>
+
             {isManager && (
               <button className="relative p-2 text-gray-500 hover:text-gray-700 rounded-lg hover:bg-gray-100">
                 <Bell className="w-5 h-5" />
@@ -50,6 +62,10 @@ export default function AppShell() {
                     <div className="px-4 py-2 border-b border-gray-100 sm:hidden">
                       <p className="text-sm font-medium text-gray-800">{staff?.full_name}</p>
                       <p className="text-xs text-gray-500 capitalize">{staff?.role}</p>
+                    </div>
+                    <div className="px-4 py-2 border-b border-gray-100">
+                      <p className="text-xs text-gray-500">Database</p>
+                      <p className="text-sm font-semibold text-gray-800 uppercase">{activeSchema}</p>
                     </div>
                     <button
                       onClick={() => { setMenuOpen(false); }}

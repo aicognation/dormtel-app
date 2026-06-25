@@ -310,6 +310,16 @@ class MeterReadingDailySheetResult(BaseModel):
     errors: list[str]
     message: str
 
+class BillingImportStatusOut(BaseModel):
+    billing_period: str
+    building: Optional[str] = None
+    has_imports: bool
+    import_count: int
+    total_imported_water: Optional[Decimal] = None
+    total_imported_misc: Optional[Decimal] = None
+    total_imported_electric: Optional[Decimal] = None
+    source_filename: Optional[str] = None
+
 class CheckpointOut(BaseModel):
     id: UUID
     checkpoint_id: str
@@ -588,6 +598,7 @@ class TenantProfileResponse(BaseModel):
 class StaffLoginRequest(BaseModel):
     email: EmailStr
     password: str
+    db_schema: Optional[str] = "demo"
 
 class StaffLoginResponse(BaseModel):
     access_token: str

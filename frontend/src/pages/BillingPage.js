@@ -10,7 +10,7 @@ import StatusBadge from '../components/ui/StatusBadge';
 import {
   listBillings, submitMeterReading, generateBilling, approveBilling, distributeBilling,
   downloadMeterReadingTemplate, uploadMeterReadings, uploadDailyMeterSheet, listMeterReadings, previewBilling,
-  getDailyMeterGrid, bulkUpsertMeterReadings,
+  getDailyMeterGrid, bulkUpsertMeterReadings, getBillingImportStatus,
 } from '../api/billing';
 import { generateStatements, listStatements, downloadStatement, sendStatementEmail } from '../api/statements';
 import { listResidents } from '../api/residents';
@@ -46,6 +46,8 @@ export default function BillingPage() {
   const [genForm, setGenForm] = useState({ billing_period: '', building: '', other_charges: '', total_water_bill: '' });
   const [previewData, setPreviewData] = useState(null);
   const [previewLoading, setPreviewLoading] = useState(false);
+  const [importStatus, setImportStatus] = useState(null);
+  const [importStatusLoading, setImportStatusLoading] = useState(false);
 
   // Statements tab state
   const [statements, setStatements] = useState([]);
@@ -143,34 +145,36 @@ export default function BillingPage() {
     fetchRooms();
   }, [fetchRooms]);
 
-  const fetchStatements = useCallback(async () => {
-    setStatementsLoading(true);
-    try {
-      const result = await listStatements({ limit: 100 });
-      setStatements(Array.isArray(result) ? result : []);
-    } catch {
-      toast.error('Failed to load statements');
-      setStatements([]);
-    } finally {
-      setStatementsLoading(false);
-    }
-  }, []);
-
-  const fetchResidents = useCallback(async () => {
-    try {
-      const result = await listResidents({ status: 'active' });
-      setResidents(Array.isArray(result) ? result : []);
-    } catch {
-      // silently fail
-    }
-  }, []);
-
+  // Query import status when billing period changes
   useEffect(() => {
-    if (tab === 'statements') {
-      fetchStatements();
-      if (residents.length === 0) fetchResidents();
+    if (!genForm.billing_period || genForm.billing_period.length < 7) {
+      setImportStatus(null);
+      return;
     }
-  }, [tab, fetchStatements, fetchResidents, residents.length]);
+    const fetchImportStatus = async () => {
+      setImportStatusLoading(true);
+      try {
+        const result = await getBillingImportStatus({
+          billing_period: genForm.billing_period,
+          building: genForm.building || undefined,
+        });
+        setImportStatus(result.data);
+        // Auto-fill totals from imports
+        if (result.data.has_imports) {
+          setGenForm((f) => ({
+            ...f,
+            total_water_bill: result.data.total_imported_water || f.total_water_bill,
+            other_charges: result.data.total_imported_misc || f.other_charges,
+          }));
+        }
+      } catch {
+        setImportStatus(null);
+      } finally {
+        setImportStatusLoading(false);
+      }
+    };
+    fetchImportStatus();
+  }, [genForm.billing_period, genForm.building]);
 
   const handleMeterSubmit = async (e) => {
     e.preventDefault();
@@ -368,10 +372,15 @@ export default function BillingPage() {
       const res = await uploadDailyMeterSheet(file);
       toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
       e.target.value = '';
-      // Auto-switch to meter-readings tab and refresh grid
-      setTab('meter-readings');
-      // Small delay to ensure tab switch, then fetch
-      setTimeout(() => fetchDailyGrid(), 100);
+      if (tab === 'meter-readings') fetchDailyGrid();
+      // Refresh import status if we're on preview tab
+      if (genForm.billing_period) {
+        const statusRes = await getBillingImportStatus({
+          billing_period: genForm.billing_period,
+          building: genForm.building || undefined,
+        });
+        setImportStatus(statusRes.data);
+      }
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to upload daily meter sheet';
       toast.error(msg);
@@ -943,27 +952,36 @@ export default function BillingPage() {
               <p className="text-sm text-gray-500 mb-4">
                 Enter the billing period. Electric is computed from per-resident daily meter readings. Water is computed from days stayed × rate derived from the total SOGO water bill.
               </p>
+              {importStatusLoading && (
+                <div className="text-sm text-gray-500 mb-4">Checking for imported daily sheet data...</div>
+              )}
+              {importStatus?.has_imports && (
+                <div className="bg-green-50 border border-green-200 rounded-md p-3 mb-4 text-sm">
+                  <p className="text-green-800 font-medium">
+                    Using imported values from daily sheet
+                    {importStatus.source_filename ? ` (${importStatus.source_filename})` : ''}
+                  </p>
+                  <p className="text-green-700 mt-1">
+                    Imported water: {formatCurrency(importStatus.total_imported_water)} |
+                    Imported misc: {formatCurrency(importStatus.total_imported_misc)} |
+                    Imported electric: {formatCurrency(importStatus.total_imported_electric)}
+                  </p>
+                </div>
+              )}
               <form onSubmit={handlePreview} className="space-y-4">
                 <FormField label="Billing Period" name="billing_period" required value={genForm.billing_period}
                   onChange={(e) => setGenForm({ ...genForm, billing_period: e.target.value })} placeholder="e.g. 2026-05" />
-                <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Building (optional)</label>
-                  <select
-                    value={genForm.building}
-                    onChange={(e) => setGenForm({ ...genForm, building: e.target.value })}
-                    className="w-full rounded-md border border-gray-300 px-3 py-2 text-sm"
-                  >
-                    <option value="">All buildings</option>
-                    {Array.from(new Set((rooms || []).map((r) => r.building).filter(Boolean))).sort().map((b) => (
-                      <option key={b} value={b}>{b}</option>
-                    ))}
-                  </select>
-                </div>
-                <FormField label="Total SOGO Water Bill (₱)" name="total_water_bill" type="number" value={genForm.total_water_bill}
-                  onChange={(e) => setGenForm({ ...genForm, total_water_bill: e.target.value })}
-                  placeholder="Total water consumption billed by SOGO" />
-                <FormField label="Other Charges (₱)" name="other_charges" type="number" value={genForm.other_charges}
-                  onChange={(e) => setGenForm({ ...genForm, other_charges: e.target.value })} />
+                <FormField label="Building (optional)" name="building" value={genForm.building}
+                  onChange={(e) => setGenForm({ ...genForm, building: e.target.value })} />
+                {!importStatus?.has_imports && (
+                  <>
+                    <FormField label="Total SOGO Water Bill (₱)" name="total_water_bill" type="number" value={genForm.total_water_bill}
+                      onChange={(e) => setGenForm({ ...genForm, total_water_bill: e.target.value })}
+                      placeholder="Total water consumption billed by SOGO" />
+                    <FormField label="Other Charges (₱)" name="other_charges" type="number" value={genForm.other_charges}
+                      onChange={(e) => setGenForm({ ...genForm, other_charges: e.target.value })} />
+                  </>
+                )}
                 <div className="flex gap-2 pt-2">
                   <Button variant="secondary" type="button" onClick={() => setTab('billings')}>Cancel</Button>
                   <Button type="submit" loading={previewLoading}>

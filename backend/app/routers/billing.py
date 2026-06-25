@@ -21,6 +21,7 @@ from app.schemas import (
     VacantBedRow, ImportInfo,
     BillingOut, BillingWithResidentOut,
     MeterReadingUploadResult, MeterReadingDailySheetResult,
+    BillingImportStatusOut,
 )
 
 
@@ -76,8 +77,8 @@ router = APIRouter()
 class BillingGenerateRequest(BaseModel):
     billing_period: str
     building: Optional[str] = None
-    other_charges: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
-    total_water_bill: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
+    other_charges: Optional[Decimal] = Field(default=None, ge=0)
+    total_water_bill: Optional[Decimal] = Field(default=None, ge=0)
 
 
 async def _get_active_residents_with_rooms(
@@ -145,26 +146,7 @@ async def _compute_resident_electric(
             resident_electric[rid] = imp.total_electric_usage
             imported_residents.add(rid)
 
-    # Build active resident -> room map so room-level readings can be split
-    resident_room_query = (
-        select(Resident, Bed, Room)
-        .join(Bed, Resident.bed_id == Bed.id, isouter=True)
-        .join(Room, Bed.room_id == Room.id, isouter=True)
-        .where(Resident.status == "active")
-    )
-    if building:
-        resident_room_query = resident_room_query.where(Room.building == building)
-    resident_room_result = await db.execute(resident_room_query)
-    room_to_residents = {}
-    resident_to_room = {}
-    for resident, bed, room in resident_room_result.all():
-        rid = str(resident.id)
-        if room:
-            room_id = str(room.id)
-            resident_to_room[rid] = room_id
-            room_to_residents.setdefault(room_id, []).append(rid)
-
-    # For residents without an import, fall back to summing meter readings
+    # For residents without an import, fall back to computing usage from cumulative readings
     query = select(MeterReading).where(
         MeterReading.reading_date >= start_date,
         MeterReading.reading_date < end_date,
@@ -175,22 +157,20 @@ async def _compute_resident_electric(
     result = await db.execute(query)
     readings = result.scalars().all()
 
+    resident_readings = {}
     for reading in readings:
-        elec = reading.electric_reading or Decimal("0")
-        if reading.resident_id:
-            rid = str(reading.resident_id)
-            if rid in imported_residents:
-                continue
-            resident_electric[rid] = resident_electric.get(rid, Decimal("0")) + elec
-        elif reading.room_id:
-            room_id = str(reading.room_id)
-            rids = room_to_residents.get(room_id, [])
-            if rids:
-                split = elec / len(rids)
-                for rid in rids:
-                    if rid in imported_residents:
-                        continue
-                    resident_electric[rid] = resident_electric.get(rid, Decimal("0")) + split
+        rid = str(reading.resident_id)
+        if rid in imported_residents:
+            continue
+        if rid not in resident_readings:
+            resident_readings[rid] = []
+        resident_readings[rid].append(reading.electric_reading or Decimal("0"))
+
+    for rid, values in resident_readings.items():
+        if len(values) >= 2:
+            resident_electric[rid] = max(values) - min(values)
+        elif len(values) == 1:
+            resident_electric[rid] = values[0]
 
     return resident_electric
 
@@ -257,6 +237,14 @@ async def _compute_water_by_days(
 
     imported_water = {str(imp.resident_id): imp.water_bill for imp in imports if imp.water_bill is not None}
 
+    if imported_water:
+        # Use imported water bills directly; return dummy total_days/rate
+        resident_water = {}
+        for resident, bed, room in rows:
+            rid = str(resident.id)
+            resident_water[rid] = imported_water.get(rid, Decimal("0"))
+        return resident_water, 0, Decimal("0")
+
     total_days = 0
     resident_days = {}
     for resident, bed, room in rows:
@@ -264,15 +252,12 @@ async def _compute_water_by_days(
         total_days += days
         resident_days[str(resident.id)] = days
 
-    effective_total_water = total_water_bill if total_water_bill is not None else Decimal("0")
-    rate_per_day = effective_total_water / total_days if total_days > 0 else Decimal("0")
+    water_input = total_water_bill or Decimal("0")
+    rate_per_day = water_input / total_days if total_days > 0 else Decimal("0")
 
     resident_water = {}
     for rid, days in resident_days.items():
-        if rid in imported_water:
-            resident_water[rid] = imported_water[rid]
-        else:
-            resident_water[rid] = Decimal(str(days)) * rate_per_day
+        resident_water[rid] = Decimal(str(days)) * rate_per_day
 
     return resident_water, total_days, rate_per_day
 
@@ -284,21 +269,22 @@ async def _compute_other_charges(
     building: Optional[str] = None,
 ):
     """Compute other charges per resident.
-    If daily-sheet imports have misc_charges, use those per resident.
-    Otherwise divide the input other_charges equally."""
+    If imports exist with misc charges, use those per resident.
+    Otherwise divide total_other_charges equally."""
     year, month = map(int, billing_period.split("-"))
 
+    # Get resident count
     query = (
-        select(Resident, Bed, Room)
+        select(Resident)
         .join(Bed, Resident.bed_id == Bed.id, isouter=True)
         .join(Room, Bed.room_id == Room.id, isouter=True)
         .where(Resident.status == "active")
     )
     if building:
         query = query.where(Room.building == building)
-
     result = await db.execute(query)
-    rows = result.all()
+    residents = result.scalars().all()
+    total_residents = len(residents)
 
     # Check for imported misc charges
     import_query = select(MeterReadingImport)
@@ -312,106 +298,31 @@ async def _compute_other_charges(
     imports = import_result.scalars().all()
 
     imported_misc = {}
-    for imp in imports:
-        if imp.misc_charges:
-            total_misc = Decimal("0")
-            for key, val in imp.misc_charges.items():
-                try:
-                    total_misc += Decimal(str(val))
-                except Exception:
-                    pass
-            if total_misc > 0:
-                imported_misc[str(imp.resident_id)] = total_misc
+    if imports:
+        for imp in imports:
+            if imp.misc_charges:
+                total_misc = Decimal("0")
+                for key, val in imp.misc_charges.items():
+                    try:
+                        total_misc += Decimal(str(val))
+                    except Exception:
+                        pass
+                if total_misc > 0:
+                    imported_misc[str(imp.resident_id)] = total_misc
 
-    total_residents = len(rows)
-    fallback_per_head = (other_charges_input or Decimal("0")) / total_residents if total_residents > 0 else Decimal("0")
+    if imported_misc:
+        result_map = {}
+        for resident in residents:
+            result_map[str(resident.id)] = imported_misc.get(str(resident.id), Decimal("0"))
+        return result_map, Decimal("0")
 
-    resident_other = {}
-    for resident, bed, room in rows:
-        rid = str(resident.id)
-        if rid in imported_misc:
-            resident_other[rid] = imported_misc[rid]
-        else:
-            resident_other[rid] = fallback_per_head
-
-    return resident_other, total_residents, fallback_per_head
-
-
-def _get_previous_period(billing_period: str) -> str:
-    """Return the previous billing period string (e.g. '2026-01' -> '2025-12')."""
-    year, month = map(int, billing_period.split("-"))
-    if month == 1:
-        return f"{year - 1}-12"
-    return f"{year}-{month - 1:02d}"
-
-
-async def _compute_previous_balances(
-    db: AsyncSession,
-    billing_period: str,
-    building: Optional[str] = None,
-):
-    """Compute unpaid balance from the previous billing period for each resident.
-    Returns a dict mapping resident_id (str) -> previous_balance (Decimal)."""
-    prev_period = _get_previous_period(billing_period)
-
-    query = select(Billing).where(Billing.billing_period == prev_period)
-
-    result = await db.execute(query)
-    prev_billings = result.scalars().all()
-
-    if not prev_billings:
-        return {}
-
-    # Batch-load all payments for previous-period billings
-    billing_ids = [b.id for b in prev_billings]
-    payment_result = await db.execute(
-        select(Payment.billing_id, func.sum(Payment.amount).label("total_paid"))
-        .where(
-            Payment.billing_id.in_(billing_ids),
-            Payment.status.in_(["verified", "matched"]),
-        )
-        .group_by(Payment.billing_id)
-    )
-    payment_map = {str(row.billing_id): row.total_paid for row in payment_result.all()}
-
-    balances = {}
-    for b in prev_billings:
-        paid = payment_map.get(str(b.id), Decimal("0"))
-        remaining = b.total_amount - paid
-        if remaining > 0:
-            balances[str(b.resident_id)] = remaining
-
-    return balances
-
-
-async def _create_debit_ledger_entry(
-    db: AsyncSession,
-    resident_id: UUID,
-    amount: Decimal,
-    description: str,
-    reference_id: UUID,
-):
-    """Create a debit LedgerEntry and update the running balance."""
-    result = await db.execute(
-        select(LedgerEntry)
-        .where(LedgerEntry.resident_id == resident_id)
-        .order_by(LedgerEntry.created_at.desc())
-        .limit(1)
-    )
-    last_entry = result.scalar_one_or_none()
-    running_balance = last_entry.running_balance if last_entry else Decimal("0.00")
-    # Debit increases what the resident owes (subtract from running balance)
-    new_balance = running_balance - amount
-
-    entry = LedgerEntry(
-        resident_id=resident_id,
-        entry_type="debit",
-        amount=amount,
-        description=description,
-        reference_id=reference_id,
-        running_balance=new_balance,
-    )
-    db.add(entry)
+    # Fallback: divide equally
+    total_other = other_charges_input or Decimal("0")
+    per_head = total_other / total_residents if total_residents > 0 else Decimal("0")
+    result_map = {}
+    for resident in residents:
+        result_map[str(resident.id)] = per_head
+    return result_map, total_other
 
 
 @router.post("/meter-readings", response_model=MeterReadingOut)
@@ -527,10 +438,9 @@ async def generate_billings(
     resident_water, total_days, rate_per_day = await _compute_water_by_days(
         db, data.billing_period, data.total_water_bill, data.building
     )
-    resident_other, total_residents, fallback_per_head = await _compute_other_charges(
+    resident_other, total_other = await _compute_other_charges(
         db, data.billing_period, data.other_charges, data.building
     )
-    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building)
 
     billings = []
 
@@ -542,9 +452,8 @@ async def generate_billings(
             rid = str(resident.id)
             elec = resident_electric.get(rid, Decimal("0"))
             wat = resident_water.get(rid, Decimal("0"))
-            other = resident_other.get(rid, fallback_per_head)
-            prev_bal = previous_balances.get(rid, Decimal("0"))
-            total = resident.monthly_rate + elec + wat + other + prev_bal
+            other = resident_other.get(rid, Decimal("0"))
+            total = resident.monthly_rate + elec + wat + other
             billing = Billing(
                 resident_id=resident.id,
                 billing_period=data.billing_period,
@@ -552,7 +461,6 @@ async def generate_billings(
                 electric_charge=elec,
                 water_charge=wat,
                 other_charges=other,
-                previous_balance=prev_bal,
                 total_amount=total,
                 variance_pct=Decimal("0"),
                 status="draft",
@@ -565,9 +473,8 @@ async def generate_billings(
         rid = str(resident.id)
         elec = resident_electric.get(rid, Decimal("0"))
         wat = resident_water.get(rid, Decimal("0"))
-        other = resident_other.get(rid, fallback_per_head)
-        prev_bal = previous_balances.get(rid, Decimal("0"))
-        total = resident.monthly_rate + elec + wat + other + prev_bal
+        other = resident_other.get(rid, Decimal("0"))
+        total = resident.monthly_rate + elec + wat + other
         billing = Billing(
             resident_id=resident.id,
             billing_period=data.billing_period,
@@ -575,7 +482,6 @@ async def generate_billings(
             electric_charge=elec,
             water_charge=wat,
             other_charges=other,
-            previous_balance=prev_bal,
             total_amount=total,
             variance_pct=Decimal("0"),
             status="draft",
@@ -787,6 +693,18 @@ async def upload_meter_readings(
     )
 
 
+def _parse_header_date(val: str):
+    """Try to parse a string as a date using common formats."""
+    from datetime import datetime
+    formats = ["%m/%d/%Y", "%m-%d-%Y", "%Y-%m-%d", "%d/%m/%Y", "%d-%m-%Y"]
+    for fmt in formats:
+        try:
+            return datetime.strptime(val.strip(), fmt)
+        except ValueError:
+            continue
+    return None
+
+
 @router.post("/meter-readings/upload-daily-sheet", response_model=MeterReadingDailySheetResult)
 async def upload_daily_meter_sheet(
     file: UploadFile = File(...),
@@ -881,6 +799,7 @@ async def upload_daily_meter_sheet(
         col_water_bill = None
         col_water_rate = None
         col_misc = {}
+        header_map = {}  # map normalized header name -> column index
 
         for idx, val in enumerate(header_row):
             if val is None:
@@ -888,26 +807,20 @@ async def upload_daily_meter_sheet(
             if isinstance(val, datetime):
                 date_cols.append((idx, val))
             elif isinstance(val, str):
-                vup = val.upper().strip()
-                if vup == "TOTAL USAGE":
-                    col_total_usage = idx
-                elif vup in ("PESO/KWH", "PESO/KW.H", "₱/KWH", "PESO / KWH"):
-                    col_peso_kwh = idx
-                elif vup == "SUB TOTAL":
-                    col_sub_total = idx
-                elif vup in ("TOTAL WITH VAT", "TOTAL W/ VAT"):
-                    col_total_with_vat = idx
-                elif vup == "ELEC BILL":
-                    col_elec_bill = idx
-                elif "# OF DAYS" in vup and "WATER" in vup:
-                    col_water_days = idx
-                elif vup == "WATER BILL":
-                    col_water_bill = idx
-                elif vup == "RATE" and col_water_days is not None:
-                    # RATE column that appears after water days = water rate
-                    col_water_rate = idx
-                elif vup in {"LAUNDRY", "DRINKING WATER", "ICE CREAM", "HONESTY STORE", "COFFEE", "LOST KEYCARD", "REF RENTAL", "LAUNDRY DORM"}:
-                    col_misc[vup] = idx
+                parsed_date = _parse_header_date(val)
+                if parsed_date:
+                    date_cols.append((idx, parsed_date))
+                else:
+                    vup = val.upper().strip()
+                    header_map[vup] = idx
+                    if vup == "TOTAL USAGE":
+                        col_total_usage = idx
+                    elif "# OF DAYS" in vup and "WATER" in vup:
+                        col_water_days = idx
+                    elif vup == "WATER BILL":
+                        col_water_bill = idx
+                    elif vup in {"LAUNDRY", "DRINKING WATER", "ICE CREAM", "HONESTY STORE", "COFFEE", "LOST KEYCARD", "REF RENTAL"}:
+                        col_misc[vup] = idx
 
         if not date_cols:
             all_errors.append(f"Sheet '{sheet_name}': No date columns found in header row.")
@@ -1368,17 +1281,17 @@ async def preview_billings(
     resident_water, total_days, rate_per_day = await _compute_water_by_days(
         db, data.billing_period, data.total_water_bill, data.building
     )
-    resident_other, total_residents, fallback_per_head = await _compute_other_charges(
+    resident_other, total_other = await _compute_other_charges(
         db, data.billing_period, data.other_charges, data.building
     )
-    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building)
+
+    total_residents = len(all_rows)
 
     preview_rows = []
     total_rent = Decimal("0")
     total_electric = Decimal("0")
     total_water = Decimal("0")
-    total_other = Decimal("0")
-    total_prev = Decimal("0")
+    total_other_computed = Decimal("0")
     total_all = Decimal("0")
 
     # Residents with rooms
@@ -1390,9 +1303,8 @@ async def preview_billings(
             rid = str(resident.id)
             elec = resident_electric.get(rid, Decimal("0"))
             wat = resident_water.get(rid, Decimal("0"))
-            other = resident_other.get(rid, fallback_per_head)
-            prev_bal = previous_balances.get(rid, Decimal("0"))
-            total = resident.monthly_rate + elec + wat + other + prev_bal
+            other = resident_other.get(rid, Decimal("0"))
+            total = resident.monthly_rate + elec + wat + other
             preview_rows.append(BillingPreviewRow(
                 resident_id=resident.id,
                 resident_name=resident.full_name,
@@ -1404,14 +1316,12 @@ async def preview_billings(
                 electric_charge=elec,
                 water_charge=wat,
                 other_charges=other,
-                previous_balance=prev_bal,
                 total_amount=total,
             ))
             total_rent += resident.monthly_rate
             total_electric += elec
             total_water += wat
-            total_other += other
-            total_prev += prev_bal
+            total_other_computed += other
             total_all += total
 
     # Residents without a room
@@ -1419,9 +1329,8 @@ async def preview_billings(
         rid = str(resident.id)
         elec = resident_electric.get(rid, Decimal("0"))
         wat = resident_water.get(rid, Decimal("0"))
-        other = resident_other.get(rid, fallback_per_head)
-        prev_bal = previous_balances.get(rid, Decimal("0"))
-        total = resident.monthly_rate + elec + wat + other + prev_bal
+        other = resident_other.get(rid, Decimal("0"))
+        total = resident.monthly_rate + elec + wat + other
         preview_rows.append(BillingPreviewRow(
             resident_id=resident.id,
             resident_name=resident.full_name,
@@ -1433,15 +1342,15 @@ async def preview_billings(
             electric_charge=elec,
             water_charge=wat,
             other_charges=other,
-            previous_balance=prev_bal,
             total_amount=total,
         ))
         total_rent += resident.monthly_rate
         total_electric += elec
         total_water += wat
-        total_other += other
-        total_prev += prev_bal
+        total_other_computed += other
         total_all += total
+
+    other_per_head = total_other_computed / total_residents if total_residents > 0 else Decimal("0")
 
     return BillingPreviewResponse(
         billing_period=data.billing_period,
@@ -1452,8 +1361,7 @@ async def preview_billings(
             "total_rent": str(total_rent),
             "total_electric": str(total_electric),
             "total_water": str(total_water),
-            "total_other": str(total_other),
-            "total_previous_balance": str(total_prev),
+            "total_other": str(total_other_computed),
             "grand_total": str(total_all),
             "electric_per_head": str(total_electric / total_residents if total_residents > 0 else Decimal("0")),
             "water_per_head": str(total_water / total_residents if total_residents > 0 else Decimal("0")),
@@ -1461,6 +1369,62 @@ async def preview_billings(
             "total_days": total_days,
             "water_rate_per_day": str(rate_per_day),
         }
+    )
+
+
+@router.get("/import-status", response_model=BillingImportStatusOut)
+async def get_billing_import_status(
+    billing_period: str = Query(..., description="YYYY-MM"),
+    building: Optional[str] = Query(None),
+    db: AsyncSession = Depends(get_db),
+):
+    year, month = map(int, billing_period.split("-"))
+    query = select(MeterReadingImport).where(
+        MeterReadingImport.year == year,
+        MeterReadingImport.month == month,
+    )
+    if building:
+        query = query.where(MeterReadingImport.building == building)
+
+    result = await db.execute(query)
+    imports = result.scalars().all()
+
+    if not imports:
+        return BillingImportStatusOut(
+            billing_period=billing_period,
+            building=building,
+            has_imports=False,
+            import_count=0,
+        )
+
+    total_water = Decimal("0")
+    total_misc = Decimal("0")
+    total_electric = Decimal("0")
+    source_filename = None
+
+    for imp in imports:
+        if imp.water_bill:
+            total_water += imp.water_bill
+        if imp.total_electric_usage:
+            total_electric += imp.total_electric_usage
+        if imp.misc_charges:
+            for key, val in imp.misc_charges.items():
+                try:
+                    total_misc += Decimal(str(val))
+                except Exception:
+                    pass
+        if imp.source_filename:
+            source_filename = imp.source_filename
+
+    return BillingImportStatusOut(
+        billing_period=billing_period,
+        building=building,
+        has_imports=True,
+        import_count=len(imports),
+        total_imported_water=total_water,
+        total_imported_misc=total_misc,
+        total_imported_electric=total_electric,
+        source_filename=source_filename,
     )
 
 

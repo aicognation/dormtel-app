@@ -20,6 +20,7 @@ export function AuthProvider({ children }) {
       setStaff(data);
     } catch {
       localStorage.removeItem('dt_token');
+      localStorage.removeItem('dt_schema');
       setStaff(null);
     } finally {
       setLoading(false);
@@ -30,20 +31,23 @@ export function AuthProvider({ children }) {
     loadStaff();
   }, [loadStaff]);
 
-  const login = async (email, password) => {
-    const data = await client.post('/auth/login', { email, password });
+  const login = async (email, password, db_schema = 'demo') => {
+    const data = await client.post('/auth/login', { email, password, db_schema });
     localStorage.setItem('dt_token', data.access_token);
+    localStorage.setItem('dt_schema', db_schema);
     setStaff(data.staff);
     return data;
   };
 
   const logout = () => {
     localStorage.removeItem('dt_token');
+    localStorage.removeItem('dt_schema');
     setStaff(null);
     window.location.href = '/login';
   };
 
   const token = () => localStorage.getItem('dt_token');
+  const schema = () => localStorage.getItem('dt_schema') || 'demo';
 
   const value = {
     staff,
@@ -54,6 +58,7 @@ export function AuthProvider({ children }) {
     login,
     logout,
     token,
+    schema,
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

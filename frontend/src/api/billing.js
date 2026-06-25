@@ -57,3 +57,7 @@ export function getDailyMeterGrid(params) {
 export function previewBilling(data) {
   return client.post('/billings/preview', data);
 }
+
+export function getBillingImportStatus(params) {
+  return client.get('/billings/import-status', { params });
+}
