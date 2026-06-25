@@ -268,7 +268,7 @@ async def generate_statements(
             resident, data.billing_period, resident_electric, resident_water, resident_other, fallback_other, previous_balances
         )
 
-        # Check for existing billing record
+        # Check for existing billing record and statement
         existing_billing_query = select(Billing).where(
             Billing.resident_id == resident.id,
             Billing.billing_period == data.billing_period,
@@ -276,9 +276,16 @@ async def generate_statements(
         existing_billing_result = await db.execute(existing_billing_query)
         existing_billing = existing_billing_result.scalar_one_or_none()
 
-        if existing_billing and not data.regenerate:
+        existing_statement_query = select(BillingStatement).where(
+            BillingStatement.resident_id == resident.id,
+            BillingStatement.billing_period == data.billing_period,
+        )
+        existing_statement_result = await db.execute(existing_statement_query)
+        existing_statement = existing_statement_result.scalar_one_or_none()
+
+        if existing_statement and not data.regenerate:
             skipped += 1
-            errors.append(f"Billing already exists for {resident.full_name}; use regenerate to overwrite")
+            errors.append(f"Statement already exists for {resident.full_name}; use regenerate to overwrite")
             continue
 
         # Upsert Billing record
@@ -333,14 +340,7 @@ async def generate_statements(
         with open(file_path + ".meta.json", "w") as f:
             json.dump(metadata, f, indent=2)
 
-        # Upsert BillingStatement record
-        existing_statement_query = select(BillingStatement).where(
-            BillingStatement.resident_id == resident.id,
-            BillingStatement.billing_period == data.billing_period,
-        )
-        existing_statement_result = await db.execute(existing_statement_query)
-        existing_statement = existing_statement_result.scalar_one_or_none()
-
+        # Upsert BillingStatement record (existing_statement already queried above)
         if existing_statement and data.regenerate:
             existing_statement.file_path = file_path
             existing_statement.file_name = file_name
@@ -350,7 +350,7 @@ async def generate_statements(
             existing_statement.scope_type = data.scope_type
             existing_statement.scope_target = data.scope_target
             statement_record = existing_statement
-        else:
+        elif not existing_statement:
             statement_record = BillingStatement(
                 resident_id=resident.id,
                 billing_period=data.billing_period,

@@ -690,9 +690,18 @@ async def upload_meter_readings(
     resident_lookup = {}
     for resident, bed in residents_rows:
         key = (resident.full_name or "").strip().upper()
-        resident_lookup[key] = resident
-        if bed and bed.bed_code:
-            resident_lookup[bed.bed_code.upper()] = resident
+        has_bed = bed is not None and bed.bed_code is not None
+        if key in resident_lookup:
+            # Prefer the resident with a bed assignment over orphans
+            existing_has_bed = resident_lookup[key].get("_has_bed", False)
+            if has_bed and not existing_has_bed:
+                resident_lookup[key] = {"_has_bed": True, "resident": resident}
+            # Don't overwrite a bed-linked resident with an orphan
+        else:
+            resident_lookup[key] = {"_has_bed": has_bed, "resident": resident}
+        if has_bed:
+            resident_lookup[bed.bed_code.upper()] = {"_has_bed": True, "resident": resident}
+    resident_lookup = {k: v["resident"] for k, v in resident_lookup.items()}
 
     imported = 0
     skipped = 0
@@ -814,9 +823,21 @@ async def upload_daily_meter_sheet(
     resident_lookup = {}
     for resident, bed in residents_rows:
         key = (resident.full_name or "").strip().upper()
-        resident_lookup[key] = resident
-        if bed and bed.bed_code:
-            resident_lookup[bed.bed_code.upper()] = resident
+        has_bed = bed is not None and bed.bed_code is not None
+        if key in resident_lookup:
+            # Prefer the resident with a bed assignment over orphans
+            existing_has_bed = resident_lookup[key].get("_has_bed", False)
+            if has_bed and not existing_has_bed:
+                resident_lookup[key] = {"_has_bed": True, "resident": resident}
+            # Don't overwrite a bed-linked resident with an orphan
+        else:
+            resident_lookup[key] = {"_has_bed": has_bed, "resident": resident}
+        # Bed code always maps directly (no ambiguity)
+        if has_bed:
+            resident_lookup[bed.bed_code.upper()] = {"_has_bed": True, "resident": resident}
+
+    # Flatten: extract just the resident objects
+    resident_lookup = {k: v["resident"] for k, v in resident_lookup.items()}
 
     total_residents_imported = 0
     total_daily_readings = 0
