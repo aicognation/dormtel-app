@@ -64,10 +64,23 @@ export default function PaymentPage() {
     if (!tenant?.id) return;
     setPaying(true);
     try {
+      // Convert proof file to base64 if present
+      let proofBase64 = null;
+      if (proofFile) {
+        proofBase64 = await new Promise((resolve, reject) => {
+          const reader = new FileReader();
+          reader.onload = () => resolve(reader.result);
+          reader.onerror = reject;
+          reader.readAsDataURL(proofFile);
+        });
+      }
+
       const { data } = await makePayment(tenant.id, {
         billing_id: outstandingBill?.id || null,
         amount: parseFloat(amount),
         method,
+        gateway_ref: referenceNo || null,
+        proof_of_payment: proofBase64 || null,
       });
       setSuccess(data);
       toast.success('Payment submitted successfully!');

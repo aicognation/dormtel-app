@@ -38,6 +38,7 @@ services:
       STATEMENTS_DIR: /app/statements
     volumes:
       - statements_data:/app/statements
+      - proofs_data:/app/proofs
     depends_on:
       db:
         condition: service_healthy
@@ -65,3 +66,4 @@ services:
 volumes:
   postgres_data:
   statements_data:
+  proofs_data:

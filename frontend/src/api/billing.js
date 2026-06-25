@@ -1,7 +1,4 @@
-import axios from 'axios';
 import client from './client';
-
-const API_BASE = process.env.REACT_APP_API_URL || '';
 
 export function listBillings(params = {}) {
   return client.get('/billings/', { params });
@@ -28,7 +25,7 @@ export function distributeBilling(id) {
 }
 
 export function downloadMeterReadingTemplate() {
-  return axios.get(`${API_BASE}/api/v1/billings/meter-readings/template`, {
+  return client.get('/billings/meter-readings/template', {
     responseType: 'blob',
   });
 }
@@ -36,7 +33,7 @@ export function downloadMeterReadingTemplate() {
 export function uploadMeterReadings(file) {
   const formData = new FormData();
   formData.append('file', file);
-  return axios.post(`${API_BASE}/api/v1/billings/meter-readings/upload`, formData, {
+  return client.post('/billings/meter-readings/upload', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 }
@@ -44,7 +41,7 @@ export function uploadMeterReadings(file) {
 export function uploadDailyMeterSheet(file) {
   const formData = new FormData();
   formData.append('file', file);
-  return axios.post(`${API_BASE}/api/v1/billings/meter-readings/upload-daily-sheet`, formData, {
+  return client.post('/billings/meter-readings/upload-daily-sheet', formData, {
     headers: { 'Content-Type': 'multipart/form-data' },
   });
 }

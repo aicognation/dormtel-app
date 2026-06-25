@@ -14,7 +14,7 @@ from pydantic import BaseModel, Field
 
 from app.database import get_db
 from app import models, auth
-from app.models import MeterReading, MeterReadingImport, Billing, Resident, Room, Bed
+from app.models import MeterReading, MeterReadingImport, Billing, Resident, Room, Bed, Payment, LedgerEntry
 from app.schemas import (
     MeterReadingCreate, MeterReadingOut, MeterReadingDailyGridOut,
     MeterReadingDailyRow, MeterReadingDailyCell,
@@ -34,6 +34,7 @@ class BillingPreviewRow(BaseModel):
     electric_charge: Decimal
     water_charge: Decimal
     other_charges: Decimal
+    previous_balance: Optional[Decimal] = Decimal("0")
     total_amount: Decimal
 
 
@@ -335,6 +336,83 @@ async def _compute_other_charges(
     return resident_other, total_residents, fallback_per_head
 
 
+def _get_previous_period(billing_period: str) -> str:
+    """Return the previous billing period string (e.g. '2026-01' -> '2025-12')."""
+    year, month = map(int, billing_period.split("-"))
+    if month == 1:
+        return f"{year - 1}-12"
+    return f"{year}-{month - 1:02d}"
+
+
+async def _compute_previous_balances(
+    db: AsyncSession,
+    billing_period: str,
+    building: Optional[str] = None,
+):
+    """Compute unpaid balance from the previous billing period for each resident.
+    Returns a dict mapping resident_id (str) -> previous_balance (Decimal)."""
+    prev_period = _get_previous_period(billing_period)
+
+    query = select(Billing).where(Billing.billing_period == prev_period)
+
+    result = await db.execute(query)
+    prev_billings = result.scalars().all()
+
+    if not prev_billings:
+        return {}
+
+    # Batch-load all payments for previous-period billings
+    billing_ids = [b.id for b in prev_billings]
+    payment_result = await db.execute(
+        select(Payment.billing_id, func.sum(Payment.amount).label("total_paid"))
+        .where(
+            Payment.billing_id.in_(billing_ids),
+            Payment.status.in_(["verified", "matched"]),
+        )
+        .group_by(Payment.billing_id)
+    )
+    payment_map = {str(row.billing_id): row.total_paid for row in payment_result.all()}
+
+    balances = {}
+    for b in prev_billings:
+        paid = payment_map.get(str(b.id), Decimal("0"))
+        remaining = b.total_amount - paid
+        if remaining > 0:
+            balances[str(b.resident_id)] = remaining
+
+    return balances
+
+
+async def _create_debit_ledger_entry(
+    db: AsyncSession,
+    resident_id: UUID,
+    amount: Decimal,
+    description: str,
+    reference_id: UUID,
+):
+    """Create a debit LedgerEntry and update the running balance."""
+    result = await db.execute(
+        select(LedgerEntry)
+        .where(LedgerEntry.resident_id == resident_id)
+        .order_by(LedgerEntry.created_at.desc())
+        .limit(1)
+    )
+    last_entry = result.scalar_one_or_none()
+    running_balance = last_entry.running_balance if last_entry else Decimal("0.00")
+    # Debit increases what the resident owes (subtract from running balance)
+    new_balance = running_balance - amount
+
+    entry = LedgerEntry(
+        resident_id=resident_id,
+        entry_type="debit",
+        amount=amount,
+        description=description,
+        reference_id=reference_id,
+        running_balance=new_balance,
+    )
+    db.add(entry)
+
+
 @router.post("/meter-readings", response_model=MeterReadingOut)
 async def submit_meter_reading(
     data: MeterReadingCreate,
@@ -451,6 +529,7 @@ async def generate_billings(
     resident_other, total_residents, fallback_per_head = await _compute_other_charges(
         db, data.billing_period, data.other_charges, data.building
     )
+    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building)
 
     billings = []
 
@@ -463,7 +542,8 @@ async def generate_billings(
             elec = resident_electric.get(rid, Decimal("0"))
             wat = resident_water.get(rid, Decimal("0"))
             other = resident_other.get(rid, fallback_per_head)
-            total = resident.monthly_rate + elec + wat + other
+            prev_bal = previous_balances.get(rid, Decimal("0"))
+            total = resident.monthly_rate + elec + wat + other + prev_bal
             billing = Billing(
                 resident_id=resident.id,
                 billing_period=data.billing_period,
@@ -471,6 +551,7 @@ async def generate_billings(
                 electric_charge=elec,
                 water_charge=wat,
                 other_charges=other,
+                previous_balance=prev_bal,
                 total_amount=total,
                 variance_pct=Decimal("0"),
                 status="draft",
@@ -484,7 +565,8 @@ async def generate_billings(
         elec = resident_electric.get(rid, Decimal("0"))
         wat = resident_water.get(rid, Decimal("0"))
         other = resident_other.get(rid, fallback_per_head)
-        total = resident.monthly_rate + elec + wat + other
+        prev_bal = previous_balances.get(rid, Decimal("0"))
+        total = resident.monthly_rate + elec + wat + other + prev_bal
         billing = Billing(
             resident_id=resident.id,
             billing_period=data.billing_period,
@@ -492,12 +574,25 @@ async def generate_billings(
             electric_charge=elec,
             water_charge=wat,
             other_charges=other,
+            previous_balance=prev_bal,
             total_amount=total,
             variance_pct=Decimal("0"),
             status="draft",
         )
         db.add(billing)
         billings.append(billing)
+
+    await db.flush()
+
+    # Create debit ledger entries for each billing
+    for billing in billings:
+        await _create_debit_ledger_entry(
+            db,
+            resident_id=billing.resident_id,
+            amount=billing.total_amount,
+            description=f"Billing for {billing.billing_period}",
+            reference_id=billing.id,
+        )
 
     await db.commit()
     for b in billings:
@@ -1158,15 +1253,17 @@ async def preview_billings(
     resident_water, total_days, rate_per_day = await _compute_water_by_days(
         db, data.billing_period, data.total_water_bill, data.building
     )
-
-    total_residents = len(all_rows)
-    other_per_head = data.other_charges / total_residents if total_residents > 0 else Decimal("0")
+    resident_other, total_residents, fallback_per_head = await _compute_other_charges(
+        db, data.billing_period, data.other_charges, data.building
+    )
+    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building)
 
     preview_rows = []
     total_rent = Decimal("0")
     total_electric = Decimal("0")
     total_water = Decimal("0")
     total_other = Decimal("0")
+    total_prev = Decimal("0")
     total_all = Decimal("0")
 
     # Residents with rooms
@@ -1178,7 +1275,9 @@ async def preview_billings(
             rid = str(resident.id)
             elec = resident_electric.get(rid, Decimal("0"))
             wat = resident_water.get(rid, Decimal("0"))
-            total = resident.monthly_rate + elec + wat + other_per_head
+            other = resident_other.get(rid, fallback_per_head)
+            prev_bal = previous_balances.get(rid, Decimal("0"))
+            total = resident.monthly_rate + elec + wat + other + prev_bal
             preview_rows.append(BillingPreviewRow(
                 resident_id=resident.id,
                 resident_name=resident.full_name,
@@ -1189,13 +1288,15 @@ async def preview_billings(
                 rent_amount=resident.monthly_rate,
                 electric_charge=elec,
                 water_charge=wat,
-                other_charges=other_per_head,
+                other_charges=other,
+                previous_balance=prev_bal,
                 total_amount=total,
             ))
             total_rent += resident.monthly_rate
             total_electric += elec
             total_water += wat
-            total_other += other_per_head
+            total_other += other
+            total_prev += prev_bal
             total_all += total
 
     # Residents without a room
@@ -1203,7 +1304,9 @@ async def preview_billings(
         rid = str(resident.id)
         elec = resident_electric.get(rid, Decimal("0"))
         wat = resident_water.get(rid, Decimal("0"))
-        total = resident.monthly_rate + elec + wat + other_per_head
+        other = resident_other.get(rid, fallback_per_head)
+        prev_bal = previous_balances.get(rid, Decimal("0"))
+        total = resident.monthly_rate + elec + wat + other + prev_bal
         preview_rows.append(BillingPreviewRow(
             resident_id=resident.id,
             resident_name=resident.full_name,
@@ -1214,13 +1317,15 @@ async def preview_billings(
             rent_amount=resident.monthly_rate,
             electric_charge=elec,
             water_charge=wat,
-            other_charges=other_per_head,
+            other_charges=other,
+            previous_balance=prev_bal,
             total_amount=total,
         ))
         total_rent += resident.monthly_rate
         total_electric += elec
         total_water += wat
-        total_other += other_per_head
+        total_other += other
+        total_prev += prev_bal
         total_all += total
 
     return BillingPreviewResponse(
@@ -1233,10 +1338,11 @@ async def preview_billings(
             "total_electric": str(total_electric),
             "total_water": str(total_water),
             "total_other": str(total_other),
+            "total_previous_balance": str(total_prev),
             "grand_total": str(total_all),
             "electric_per_head": str(total_electric / total_residents if total_residents > 0 else Decimal("0")),
             "water_per_head": str(total_water / total_residents if total_residents > 0 else Decimal("0")),
-            "other_per_head": str(other_per_head),
+            "other_per_head": str(fallback_per_head),
             "total_days": total_days,
             "water_rate_per_day": str(rate_per_day),
         }

@@ -20,7 +20,7 @@ from reportlab.lib.styles import getSampleStyleSheet
 
 from app import models, auth
 from app.database import get_db
-from app.models import Resident, Bed, Room, Billing, BillingStatement
+from app.models import Resident, Bed, Room, Billing, BillingStatement, Payment, LedgerEntry
 from app.schemas import (
     BillingStatementGenerateRequest,
     BillingStatementGenerateResponse,
@@ -58,18 +58,21 @@ def _compute_billing_for_resident(
     resident_water: dict,
     resident_other: dict,
     fallback_other: Decimal,
+    previous_balances: dict = None,
 ) -> dict:
     rid = str(resident.id)
     rent = resident.monthly_rate or Decimal("0")
     elec = resident_electric.get(rid, Decimal("0"))
     wat = resident_water.get(rid, Decimal("0"))
     other = resident_other.get(rid, fallback_other)
-    total = rent + elec + wat + other
+    prev_bal = (previous_balances or {}).get(rid, Decimal("0"))
+    total = rent + elec + wat + other + prev_bal
     return {
         "rent_amount": rent,
         "electric_charge": elec,
         "water_charge": wat,
         "other_charges": other,
+        "previous_balance": prev_bal,
         "total_amount": total,
     }
 
@@ -120,8 +123,11 @@ def _generate_pdf_statement(
         ["Electric", f"{charges['electric_charge']:,.2f}"],
         ["Water", f"{charges['water_charge']:,.2f}"],
         ["Other Charges", f"{charges['other_charges']:,.2f}"],
-        ["Total Amount Due", f"{charges['total_amount']:,.2f}"],
     ]
+    prev_bal = charges.get("previous_balance", Decimal("0"))
+    if prev_bal > 0:
+        charge_data.append(["Previous Balance", f"{prev_bal:,.2f}"])
+    charge_data.append(["Total Amount Due", f"{charges['total_amount']:,.2f}"])
     charge_table = Table(charge_data, colWidths=[360, 120])
     charge_table.setStyle(TableStyle([
         ("BACKGROUND", (0, 0), (-1, 0), colors.HexColor("#1e3a5f")),
@@ -244,6 +250,9 @@ async def generate_statements(
     resident_other, _, fallback_other = await billing_router._compute_other_charges(
         db, data.billing_period, data.other_charges, building
     )
+    previous_balances = await billing_router._compute_previous_balances(
+        db, data.billing_period, building
+    )
 
     folder = _period_folder(data.billing_period)
     _ensure_dir(folder)
@@ -256,7 +265,7 @@ async def generate_statements(
     for resident, bed, room in rows:
         rid = str(resident.id)
         charges = _compute_billing_for_resident(
-            resident, data.billing_period, resident_electric, resident_water, resident_other, fallback_other
+            resident, data.billing_period, resident_electric, resident_water, resident_other, fallback_other, previous_balances
         )
 
         # Check for existing billing record
@@ -278,6 +287,7 @@ async def generate_statements(
             existing_billing.electric_charge = charges["electric_charge"]
             existing_billing.water_charge = charges["water_charge"]
             existing_billing.other_charges = charges["other_charges"]
+            existing_billing.previous_balance = charges.get("previous_balance", Decimal("0"))
             existing_billing.total_amount = charges["total_amount"]
             # Preserve existing workflow status (do not regress approved/distributed/paid billings)
             if existing_billing.status not in ("approved", "distributed", "paid"):
@@ -291,6 +301,7 @@ async def generate_statements(
                 electric_charge=charges["electric_charge"],
                 water_charge=charges["water_charge"],
                 other_charges=charges["other_charges"],
+                previous_balance=charges.get("previous_balance", Decimal("0")),
                 total_amount=charges["total_amount"],
                 status="draft",
             )
@@ -352,6 +363,17 @@ async def generate_statements(
                 status="generated",
             )
             db.add(statement_record)
+
+        # Create debit ledger entry for new billing records
+        if not existing_billing:
+            await db.flush()  # ensure billing_record.id is available
+            await billing_router._create_debit_ledger_entry(
+                db,
+                resident_id=billing_record.resident_id,
+                amount=billing_record.total_amount,
+                description=f"Billing for {billing_record.billing_period}",
+                reference_id=billing_record.id,
+            )
 
         await db.commit()
         await db.refresh(statement_record)

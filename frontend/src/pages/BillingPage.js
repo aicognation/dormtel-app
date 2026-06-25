@@ -16,7 +16,7 @@ import { generateStatements, listStatements, downloadStatement, sendStatementEma
 import { listResidents } from '../api/residents';
 import { listRooms } from '../api/onboarding';
 import { BILLING_STATUSES } from '../utils/constants';
-import { formatCurrency, formatDate, shortUUID } from '../utils/formatters';
+import { formatCurrency, formatDate, formatDateTime, shortUUID } from '../utils/formatters';
 
 export default function BillingPage() {
   const [tab, setTab] = useState('billings');
@@ -330,7 +330,7 @@ export default function BillingPage() {
   const handleDownloadTemplate = async () => {
     try {
       const res = await downloadMeterReadingTemplate();
-      const blob = new Blob([res.data], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
+      const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
       const url = window.URL.createObjectURL(blob);
       const link = document.createElement('a');
       link.href = url;
@@ -350,7 +350,7 @@ export default function BillingPage() {
     if (!file) return;
     try {
       const res = await uploadMeterReadings(file);
-      toast.success(res.data.message || `Uploaded ${res.data.imported} readings`);
+      toast.success(res.message || `Uploaded ${res.imported} readings`);
       e.target.value = '';
       if (tab === 'meter-readings') fetchDailyGrid();
     } catch (err) {
@@ -364,7 +364,7 @@ export default function BillingPage() {
     if (!file) return;
     try {
       const res = await uploadDailyMeterSheet(file);
-      toast.success(res.data.message || `Uploaded daily sheet for ${res.data.building}`);
+      toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
       e.target.value = '';
       if (tab === 'meter-readings') fetchDailyGrid();
     } catch (err) {

@@ -127,6 +127,7 @@ class BillingCreate(BillingBase):
 class BillingOut(BillingBase):
     id: UUID
     resident_id: UUID
+    previous_balance: Optional[Decimal] = Field(default=Decimal("0"), ge=0)
     total_amount: Decimal
     status: str
     created_at: datetime
@@ -534,6 +535,8 @@ class TenantPayRequest(BaseModel):
     billing_id: Optional[UUID] = None
     amount: Decimal = Field(..., ge=0)
     method: str
+    gateway_ref: Optional[str] = None
+    proof_of_payment: Optional[str] = None
 
 class TenantProfileResponse(BaseModel):
     id: UUID

@@ -39,13 +39,12 @@ services:
     volumes:
       - ./backend/app:/app/app
       - statements_data:/app/statements
+      - proofs_data:/app/proofs
     depends_on:
       db:
         condition: service_healthy
       redis:
         condition: service_healthy
-    volumes:
-      - ./backend/app:/app/app
 
   frontend:
     build: ./frontend
@@ -64,3 +63,4 @@ services:
 volumes:
   postgres_data:
   statements_data:
+  proofs_data:

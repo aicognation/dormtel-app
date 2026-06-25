@@ -179,7 +179,7 @@ class Payment(Base):
     status = Column(Enum("pending", "verified", "matched", "unreconciled", "refunded", name="payment_status"), nullable=False, default="pending")
     matched_at = Column(DateTime)
     sales_invoice_no = Column(String(50))
-    receipt_no = Column(String(50))
+    receipt_no = Column(String(500))
     webhook_payload = Column(JSON)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     resident = relationship("Resident", back_populates="payments")

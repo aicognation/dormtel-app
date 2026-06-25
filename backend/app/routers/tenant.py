@@ -5,6 +5,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from uuid import UUID
 from typing import List, Optional
+import os, base64, uuid as _uuid_mod
 
 from app.database import get_db
 from app.models import (
@@ -284,7 +285,33 @@ async def tenant_pay(
             billing_id = billing.id
 
     import uuid as _uuid
-    ref = f"TP-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(_uuid.uuid4())[:8]}"
+    ref = body.gateway_ref or f"TP-{datetime.utcnow().strftime('%Y%m%d%H%M%S')}-{str(_uuid.uuid4())[:8]}"
+
+    # Save proof-of-payment file if provided (base64-encoded)
+    receipt_path = None
+    if body.proof_of_payment:
+        try:
+            now = datetime.utcnow()
+            proof_dir = os.path.join("/app/proofs", str(now.year), f"{now.month:02d}")
+            os.makedirs(proof_dir, exist_ok=True)
+            ext = ".png"  # default
+            header = body.proof_of_payment[:30]
+            if "jpeg" in header or "jpg" in header:
+                ext = ".jpg"
+            elif "pdf" in header:
+                ext = ".pdf"
+            # Strip data-URI prefix if present
+            b64_data = body.proof_of_payment
+            if "," in b64_data[:80]:
+                b64_data = b64_data.split(",", 1)[1]
+            file_bytes = base64.b64decode(b64_data)
+            fname = f"proof_{str(resident_id)[:8]}_{now.strftime('%Y%m%d%H%M%S')}_{str(_uuid.uuid4())[:6]}{ext}"
+            fpath = os.path.join(proof_dir, fname)
+            with open(fpath, "wb") as f:
+                f.write(file_bytes)
+            receipt_path = fpath
+        except Exception:
+            receipt_path = None  # non-fatal; payment still goes through
 
     payment = Payment(
         resident_id=resident_id,
@@ -294,6 +321,7 @@ async def tenant_pay(
         gateway_ref=ref,
         status="verified",
         matched_at=datetime.utcnow(),
+        receipt_no=receipt_path,
     )
     db.add(payment)
     await db.flush()
