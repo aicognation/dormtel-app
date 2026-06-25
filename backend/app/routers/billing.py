@@ -926,15 +926,24 @@ async def upload_daily_meter_sheet(
         year = date_cols[0][1].year
         month = month_counts.most_common(1)[0][0]
 
-        # Detect column layout: new format has 'BED' header at col 2
-        # Old format: room(0), bed(1), name(2), rate(3), move_in(4), move_out(5)
-        # New format: room(0), flag(1), bed(2), name(3), rate(4), move_in(5), move_out(6)
-        has_bed_header = "BED" in header_map
-        bed_col = 2 if has_bed_header else 1
-        name_col = 3 if has_bed_header else 2
-        rate_col = 4 if has_bed_header else 3
-        move_in_col = 5 if has_bed_header else 4
-        move_out_col = 6 if has_bed_header else 5
+        # Detect column layout based on position of 'BED' header
+        # New format: room(0), flag(1), BED(2), name(3), rate(4), move_in(5), move_out(6)
+        # Old format: room(0), BED(1), name(2), rate(3), move_in(4), move_out(5)
+        # No BED header: same as old format (fallback)
+        bed_header_idx = header_map.get("BED")
+        has_flag_column = bed_header_idx is not None and bed_header_idx == 2
+        if has_flag_column:
+            bed_col = 2
+            name_col = 3
+            rate_col = 4
+            move_in_col = 5
+            move_out_col = 6
+        else:
+            bed_col = 1
+            name_col = 2
+            rate_col = 3
+            move_in_col = 4
+            move_out_col = 5
 
         sheet_residents = 0
         sheet_readings = 0
