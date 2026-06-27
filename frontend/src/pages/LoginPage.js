@@ -9,7 +9,9 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
-  const [schema, setSchema] = useState('demo');
+  const [schema, setSchema] = useState(() => {
+    return localStorage.getItem('dt_schema') || 'demo';
+  });
   const [showPassword, setShowPassword] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
 

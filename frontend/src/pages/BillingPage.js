@@ -131,6 +131,29 @@ export default function BillingPage() {
     }
   }, []);
 
+  const fetchStatements = useCallback(async () => {
+    setStatementsLoading(true);
+    try {
+      const params = {};
+      const result = await listStatements(params);
+      setStatements(Array.isArray(result) ? result : []);
+    } catch {
+      toast.error('Failed to load statements');
+      setStatements([]);
+    } finally {
+      setStatementsLoading(false);
+    }
+  }, []);
+
+  const fetchResidents = useCallback(async () => {
+    try {
+      const result = await listResidents({ status: 'active' });
+      setResidents(Array.isArray(result) ? result : []);
+    } catch {
+      // silently fail — resident dropdown is non-critical
+    }
+  }, []);
+
   useEffect(() => {
     fetchData();
   }, [fetchData]);
@@ -139,11 +162,15 @@ export default function BillingPage() {
     if (tab === 'meter-readings') {
       fetchDailyGrid();
     }
-  }, [tab, fetchDailyGrid]);
+    if (tab === 'statements') {
+      fetchStatements();
+    }
+  }, [tab, fetchDailyGrid, fetchStatements]);
 
   useEffect(() => {
     fetchRooms();
-  }, [fetchRooms]);
+    fetchResidents();
+  }, [fetchRooms, fetchResidents]);
 
   // Query import status when billing period changes
   useEffect(() => {
@@ -158,13 +185,13 @@ export default function BillingPage() {
           billing_period: genForm.billing_period,
           building: genForm.building || undefined,
         });
-        setImportStatus(result.data);
+        setImportStatus(result);
         // Auto-fill totals from imports
-        if (result.data.has_imports) {
+        if (result.has_imports) {
           setGenForm((f) => ({
             ...f,
-            total_water_bill: result.data.total_imported_water || f.total_water_bill,
-            other_charges: result.data.total_imported_misc || f.other_charges,
+            total_water_bill: result.total_imported_water || f.total_water_bill,
+            other_charges: result.total_imported_misc || f.other_charges,
           }));
         }
       } catch {
@@ -357,6 +384,9 @@ export default function BillingPage() {
     try {
       const res = await uploadMeterReadings(file);
       toast.success(res.message || `Uploaded ${res.imported} readings`);
+      if (res.errors && res.errors.length > 0) {
+        res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
+      }
       e.target.value = '';
       if (tab === 'meter-readings') fetchDailyGrid();
     } catch (err) {
@@ -371,6 +401,9 @@ export default function BillingPage() {
     try {
       const res = await uploadDailyMeterSheet(file);
       toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
+      if (res.errors && res.errors.length > 0) {
+        res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
+      }
       e.target.value = '';
       if (tab === 'meter-readings') fetchDailyGrid();
       // Refresh import status if we're on preview tab
@@ -379,7 +412,7 @@ export default function BillingPage() {
           billing_period: genForm.billing_period,
           building: genForm.building || undefined,
         });
-        setImportStatus(statusRes.data);
+        setImportStatus(statusRes);
       }
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to upload daily meter sheet';
@@ -402,9 +435,14 @@ export default function BillingPage() {
     }
     setSavingGrid(true);
     try {
+      if (!gridBuilding) {
+        toast.error('Please select a building before saving readings');
+        setSavingGrid(false);
+        return;
+      }
       // Build payload with building from grid context
       const payload = edits.map((e) => ({
-        building: gridBuilding || 'DT01',
+        building: gridBuilding,
         resident_id: e.resident_id,
         reading_date: e.reading_date,
         electric_reading: e.electric_reading,

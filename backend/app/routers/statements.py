@@ -6,6 +6,7 @@ from datetime import datetime, date
 from decimal import Decimal
 from typing import Optional, List
 from io import BytesIO
+from xml.sax.saxutils import escape as xml_escape
 
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import FileResponse, StreamingResponse
@@ -91,20 +92,22 @@ def _generate_pdf_statement(
     styles = getSampleStyleSheet()
     story = []
 
+    resident_name = resident.full_name or "Unknown Resident"
+
     story.append(Paragraph("<b>DormTel Statement of Account</b>", styles["Title"]))
     story.append(Spacer(1, 12))
-    story.append(Paragraph(f"Billing Period: <b>{billing_period}</b>", styles["Normal"]))
+    story.append(Paragraph(f"Billing Period: <b>{xml_escape(billing_period)}</b>", styles["Normal"]))
     story.append(Paragraph(f"Generated: {datetime.utcnow().strftime('%Y-%m-%d %H:%M UTC')}", styles["Normal"]))
     if scope_type != "resident":
-        story.append(Paragraph(f"Scope: {scope_type.title()} — {scope_target or 'N/A'}", styles["Normal"]))
+        story.append(Paragraph(f"Scope: {xml_escape(scope_type.title())} — {xml_escape(scope_target or 'N/A')}", styles["Normal"]))
     story.append(Spacer(1, 16))
 
     resident_info = [
-        ["Resident", resident.full_name],
-        ["Email", resident.email or "—"],
-        ["Phone", resident.phone or "—"],
-        ["Room", room.room_number if room else "—"],
-        ["Bed", bed.bed_code if bed else "—"],
+        ["Resident", xml_escape(resident_name)],
+        ["Email", xml_escape(resident.email) if resident.email else "—"],
+        ["Phone", xml_escape(resident.phone) if resident.phone else "—"],
+        ["Room", xml_escape(room.room_number) if room and room.room_number else "—"],
+        ["Bed", xml_escape(bed.bed_code) if bed and bed.bed_code else "—"],
         ["Move-in", str(resident.move_in_date) if resident.move_in_date else "—"],
         ["Move-out", str(resident.move_out_date) if resident.move_out_date else "—"],
     ]
@@ -169,7 +172,7 @@ async def _send_statement_email(
             from_email=os.environ.get("FROM_EMAIL", "billing@dormtel.app"),
             to_emails=resident.email,
             subject=subject or f"DormTel Statement of Account — {statement.billing_period}",
-            html_content=body or f"<p>Hi {resident.full_name},</p><p>Please find your statement of account for <strong>{statement.billing_period}</strong> attached.</p><p>Thank you.</p>",
+            html_content=body or f"<p>Hi {resident.full_name or 'Resident'},</p><p>Please find your statement of account for <strong>{statement.billing_period}</strong> attached.</p><p>Thank you.</p>",
         )
         with open(statement.file_path, "rb") as f:
             file_data = f.read()
@@ -225,7 +228,7 @@ async def generate_statements(
                 (Room.property_code.ilike(data.scope_target)) | (Room.building.ilike(data.scope_target))
             )
     else:
-        raise HTTPException(status_code=400, detail=f"Invalid scope_type: {data.scope_type}")
+        raise HTTPException(status_code=400, detail=f"Invalid scope_type: {data.scope_type}. Valid options: resident, room, floor, property")
 
     result = await db.execute(query)
     rows = result.all()
@@ -265,6 +268,7 @@ async def generate_statements(
 
     for resident, bed, room in rows:
         rid = str(resident.id)
+        resident_name = resident.full_name or "Unknown Resident"
         charges = _compute_billing_for_resident(
             resident, data.billing_period, resident_electric, resident_water, resident_other, fallback_other, previous_balances
         )
@@ -286,7 +290,7 @@ async def generate_statements(
 
         if existing_statement and not data.regenerate:
             skipped += 1
-            errors.append(f"Statement already exists for {resident.full_name}; use regenerate to overwrite")
+            errors.append(f"Statement already exists for {resident_name}; use regenerate to overwrite")
             continue
 
         # Upsert Billing record
@@ -318,18 +322,18 @@ async def generate_statements(
         # Generate PDF
         scope_target = data.scope_target
         if data.scope_type == "resident":
-            scope_target = resident.full_name
+            scope_target = resident_name
         pdf_buffer = _generate_pdf_statement(resident, bed, room, data.billing_period, charges, data.scope_type, scope_target)
         pdf_bytes = pdf_buffer.getvalue()
 
-        file_name = f"statement_{_safe_filename(data.billing_period)}_{_safe_filename(resident.full_name)}_{rid[:8]}.pdf"
+        file_name = f"statement_{_safe_filename(data.billing_period)}_{_safe_filename(resident_name)}_{rid[:8]}.pdf"
         file_path = os.path.join(folder, file_name)
         with open(file_path, "wb") as f:
             f.write(pdf_bytes)
 
         metadata = {
             "resident_id": rid,
-            "resident_name": resident.full_name,
+            "resident_name": resident_name,
             "billing_period": data.billing_period,
             "scope_type": data.scope_type,
             "scope_target": data.scope_target,
@@ -395,7 +399,7 @@ async def generate_statements(
         statements_out.append(BillingStatementRow(
             statement_id=statement_record.id,
             resident_id=resident.id,
-            resident_name=resident.full_name,
+            resident_name=resident_name,
             billing_period=data.billing_period,
             scope_type=data.scope_type,
             scope_target=data.scope_target,

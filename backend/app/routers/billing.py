@@ -71,6 +71,12 @@ def _parse_decimal(val):
         return None
 
 
+def _normalize_name(name):
+    if not name:
+        return ""
+    return name.strip().upper().replace("\u00d1", "N").replace("\u00f1", "n")
+
+
 router = APIRouter()
 
 
@@ -194,7 +200,7 @@ def _count_days_stayed(move_in_date, move_out_date, period_start, period_end):
     if effective_start > effective_end:
         return 0
 
-    return (effective_end - effective_start).days + 1
+    return (effective_end - effective_start).days
 
 
 async def _compute_water_by_days(
@@ -676,7 +682,7 @@ async def upload_meter_readings(
     residents_rows = residents_result.all()
     resident_lookup = {}
     for resident, bed in residents_rows:
-        key = (resident.full_name or "").strip().upper()
+        key = _normalize_name(resident.full_name)
         has_bed = bed is not None and bed.bed_code is not None
         if key in resident_lookup:
             # Prefer the resident with a bed assignment over orphans
@@ -722,7 +728,7 @@ async def upload_meter_readings(
 
         resident_id = None
         if resident_name:
-            resident = resident_lookup.get(resident_name.upper())
+            resident = resident_lookup.get(_normalize_name(resident_name))
             if resident:
                 resident_id = resident.id
 
@@ -821,7 +827,7 @@ async def upload_daily_meter_sheet(
     residents_rows = residents_result.all()
     resident_lookup = {}
     for resident, bed in residents_rows:
-        key = (resident.full_name or "").strip().upper()
+        key = _normalize_name(resident.full_name)
         has_bed = bed is not None and bed.bed_code is not None
         if key in resident_lookup:
             # Prefer the resident with a bed assignment over orphans
@@ -923,7 +929,8 @@ async def upload_daily_meter_sheet(
         # Determine year/month from the most common month among date columns
         from collections import Counter
         month_counts = Counter([d.month for _, d in date_cols])
-        year = date_cols[0][1].year
+        year_counts = Counter(d.year for _, d in date_cols)
+        year = year_counts.most_common(1)[0][0]
         month = month_counts.most_common(1)[0][0]
 
         # Detect column layout based on position of 'BED' header
@@ -971,7 +978,7 @@ async def upload_daily_meter_sheet(
                 continue
 
             # Match resident
-            resident = resident_lookup.get(resident_name.upper())
+            resident = resident_lookup.get(_normalize_name(resident_name))
             if not resident and bed_letter and room_number:
                 bed_code = f"{room_number}{bed_letter}".upper()
                 resident = resident_lookup.get(bed_code)
@@ -1374,6 +1381,7 @@ async def preview_billings(
     resident_other, total_other = await _compute_other_charges(
         db, data.billing_period, data.other_charges, data.building
     )
+    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building)
 
     total_residents = len(all_rows)
 
@@ -1394,7 +1402,8 @@ async def preview_billings(
             elec = resident_electric.get(rid, Decimal("0"))
             wat = resident_water.get(rid, Decimal("0"))
             other = resident_other.get(rid, Decimal("0"))
-            total = resident.monthly_rate + elec + wat + other
+            prev_bal = previous_balances.get(rid, Decimal("0"))
+            total = resident.monthly_rate + elec + wat + other + prev_bal
             preview_rows.append(BillingPreviewRow(
                 resident_id=resident.id,
                 resident_name=resident.full_name,
@@ -1406,6 +1415,7 @@ async def preview_billings(
                 electric_charge=elec,
                 water_charge=wat,
                 other_charges=other,
+                previous_balance=prev_bal,
                 total_amount=total,
             ))
             total_rent += resident.monthly_rate
@@ -1420,7 +1430,8 @@ async def preview_billings(
         elec = resident_electric.get(rid, Decimal("0"))
         wat = resident_water.get(rid, Decimal("0"))
         other = resident_other.get(rid, Decimal("0"))
-        total = resident.monthly_rate + elec + wat + other
+        prev_bal = previous_balances.get(rid, Decimal("0"))
+        total = resident.monthly_rate + elec + wat + other + prev_bal
         preview_rows.append(BillingPreviewRow(
             resident_id=resident.id,
             resident_name=resident.full_name,
@@ -1432,6 +1443,7 @@ async def preview_billings(
             electric_charge=elec,
             water_charge=wat,
             other_charges=other,
+            previous_balance=prev_bal,
             total_amount=total,
         ))
         total_rent += resident.monthly_rate
