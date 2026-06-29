@@ -14,13 +14,13 @@ export default function TenantHeader() {
           </div>
           <div>
             <h1 className="text-sm font-bold leading-tight">DormTel</h1>
-            <p className="text-[10px] text-brand-gold leading-tight">My Dorm, My Home</p>
+            <p className="text-[11px] text-brand-gold leading-tight">My Dorm, My Home</p>
           </div>
         </div>
         {tenant && (
           <div className="text-right">
             <p className="text-sm font-semibold leading-tight">{tenant.full_name}</p>
-            <div className="flex items-center justify-end gap-1 text-[10px] text-gray-300">
+            <div className="flex items-center justify-end gap-1 text-[11px] text-gray-300">
               <MapPin size={10} />
               <span>{tenant.room_number} · {tenant.building}</span>
             </div>

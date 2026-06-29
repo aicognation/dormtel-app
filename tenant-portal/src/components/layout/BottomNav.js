@@ -26,14 +26,14 @@ export default function BottomNav() {
           <button
             key={path}
             onClick={() => navigate(path)}
-            className={`flex-1 flex flex-col items-center py-2 px-1 transition-colors ${
+            className={`flex-1 flex flex-col items-center py-2.5 px-1 transition-colors min-h-[48px] ${
               isActive(path)
                 ? 'text-brand-navy'
                 : 'text-gray-400 hover:text-gray-600'
             }`}
           >
             <Icon size={20} strokeWidth={isActive(path) ? 2.5 : 1.5} />
-            <span className={`text-[10px] mt-0.5 ${isActive(path) ? 'font-bold' : ''}`}>
+            <span className={`text-xs mt-0.5 ${isActive(path) ? 'font-bold' : ''}`}>
               {label}
             </span>
           </button>

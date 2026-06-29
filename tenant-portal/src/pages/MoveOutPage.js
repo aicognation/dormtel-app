@@ -218,13 +218,13 @@ export default function MoveOutPage() {
               return (
                 <React.Fragment key={step.key}>
                   <div className="flex flex-col items-center">
-                    <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                    <div className={`w-11 h-11 rounded-full flex items-center justify-center ${
                       isCompleted ? 'bg-brand-navy text-white' :
                       'bg-gray-100 text-gray-400'
                     } ${isCurrent ? 'ring-2 ring-brand-gold ring-offset-2' : ''}`}>
                       <Icon size={18} />
                     </div>
-                    <span className={`text-[9px] mt-1 text-center leading-tight ${
+                    <span className={`text-[11px] mt-1 text-center leading-tight ${
                       isCompleted ? 'font-semibold text-brand-navy' : 'text-gray-400'
                     }`}>{step.label}</span>
                   </div>

@@ -232,7 +232,7 @@ export default function PaymentPage() {
               {proofFile ? proofFile.name : 'Tap to upload screenshot or PDF'}
             </span>
           </button>
-          <p className="text-[10px] text-gray-400 mt-1">Max file size: 5MB</p>
+          <p className="text-xs text-gray-400 mt-1">Max file size: 5MB</p>
         </div>
       )}
 

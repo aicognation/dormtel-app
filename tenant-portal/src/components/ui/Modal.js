@@ -10,7 +10,7 @@ export default function Modal({ isOpen, onClose, title, children }) {
       <div className="relative bg-white rounded-t-2xl sm:rounded-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto shadow-xl">
         <div className="sticky top-0 bg-white rounded-t-2xl px-4 py-3 border-b border-gray-100 flex items-center justify-between z-10">
           <h2 className="text-lg font-bold text-gray-900">{title}</h2>
-          <button onClick={onClose} className="p-1 rounded-full hover:bg-gray-100">
+          <button onClick={onClose} className="p-2 rounded-full hover:bg-gray-100 min-w-[44px] min-h-[44px] flex items-center justify-center">
             <X size={20} className="text-gray-500" />
           </button>
         </div>

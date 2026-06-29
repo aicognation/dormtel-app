@@ -36,7 +36,7 @@ export default function DashboardPage() {
         <p className="text-xs text-gray-400 mt-0.5">
           Room {data.room_number} · {data.building} · Bed {data.bed_number}
         </p>
-        <p className="text-[10px] text-brand-navy mt-1">Last updated: {new Date().toLocaleDateString('en-PH')}</p>
+        <p className="text-xs text-brand-navy mt-1">Last updated: {new Date().toLocaleDateString('en-PH')}</p>
       </div>
 
       {/* Contract Status */}
@@ -74,7 +74,7 @@ export default function DashboardPage() {
           </div>
           <button
             onClick={(e) => { e.stopPropagation(); navigate('/tenant/pay'); }}
-            className="bg-brand-gold text-brand-navy px-4 py-2 rounded-xl text-sm font-bold hover:bg-yellow-400 transition-colors"
+            className="bg-brand-gold text-brand-navy px-4 py-2.5 rounded-xl text-sm font-bold hover:bg-yellow-400 transition-colors min-h-[44px]"
           >
             Pay Now
           </button>
@@ -89,7 +89,7 @@ export default function DashboardPage() {
         >
           <Wrench size={20} className="mx-auto text-amber-500 mb-1" />
           <p className="text-xl font-bold text-gray-900">{data.open_requests}</p>
-          <p className="text-[10px] text-gray-500">Open Requests</p>
+          <p className="text-xs text-gray-500">Open Requests</p>
         </div>
         <div
           className="bg-white rounded-xl p-3 shadow-sm text-center cursor-pointer hover:shadow-md transition-shadow"
@@ -99,7 +99,7 @@ export default function DashboardPage() {
           <p className="text-sm font-bold text-gray-900">
             {data.last_payment_amount ? formatCurrency(data.last_payment_amount) : '-'}
           </p>
-          <p className="text-[10px] text-gray-500">Last Payment</p>
+          <p className="text-xs text-gray-500">Last Payment</p>
         </div>
         <div
           className="bg-white rounded-xl p-3 shadow-sm text-center cursor-pointer hover:shadow-md transition-shadow"
@@ -109,7 +109,7 @@ export default function DashboardPage() {
           <p className="text-sm font-bold text-gray-900">
             {data.current_billing_total ? formatCurrency(data.current_billing_total) : '-'}
           </p>
-          <p className="text-[10px] text-gray-500">Current Bill</p>
+          <p className="text-xs text-gray-500">Current Bill</p>
         </div>
         <div
           className="bg-white rounded-xl p-3 shadow-sm text-center cursor-pointer hover:shadow-md transition-shadow"
@@ -117,7 +117,7 @@ export default function DashboardPage() {
         >
           <FileCheck size={20} className="mx-auto text-purple-500 mb-1" />
           <p className="text-xl font-bold text-gray-900">{data.paid_billings_count}</p>
-          <p className="text-[10px] text-gray-500">My Payments</p>
+          <p className="text-xs text-gray-500">My Payments</p>
         </div>
       </div>
 
@@ -155,7 +155,7 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900">My Inquiries</p>
-            <p className="text-[10px] text-gray-500">Submit inquiry or complaint</p>
+            <p className="text-xs text-gray-500">Submit inquiry or complaint</p>
           </div>
         </button>
         <button
@@ -167,7 +167,7 @@ export default function DashboardPage() {
           </div>
           <div>
             <p className="text-sm font-semibold text-gray-900">My Moving-out</p>
-            <p className="text-[10px] text-gray-500">Request clearance</p>
+            <p className="text-xs text-gray-500">Request clearance</p>
           </div>
         </button>
       </div>
@@ -193,7 +193,7 @@ export default function DashboardPage() {
                   <div className="flex-1">
                     <p className="text-sm font-semibold text-gray-900">{a.title}</p>
                     <p className="text-xs text-gray-500 mt-0.5 line-clamp-2">{a.content}</p>
-                    <p className="text-[10px] text-gray-400 mt-1">{formatDate(a.published_at)}</p>
+                    <p className="text-xs text-gray-400 mt-1">{formatDate(a.published_at)}</p>
                   </div>
                   <ChevronRight size={16} className="text-gray-300 flex-shrink-0 mt-0.5" />
                 </div>

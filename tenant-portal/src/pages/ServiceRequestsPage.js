@@ -78,7 +78,7 @@ export default function ServiceRequestsPage() {
     <div className="space-y-4">
       <div className="flex items-center justify-between">
         <h2 className="text-lg font-bold text-gray-900">My Service Requests</h2>
-        <Button variant="accent" className="flex items-center gap-1 text-xs px-3 py-2" onClick={() => setShowModal(true)}>
+        <Button variant="accent" className="flex items-center gap-1 text-sm px-3 py-2.5 min-h-[44px]" onClick={() => setShowModal(true)}>
           <Plus size={16} /> New Request
         </Button>
       </div>
@@ -156,7 +156,7 @@ export default function ServiceRequestsPage() {
                   <div className={`w-8 h-8 ${color} rounded-lg flex items-center justify-center`}>
                     <Icon size={14} className="text-white" />
                   </div>
-                  <span className="text-[9px] text-gray-600 leading-tight text-center">{label}</span>
+                  <span className="text-[11px] text-gray-600 leading-tight text-center">{label}</span>
                 </button>
               ))}
             </div>
@@ -206,7 +206,7 @@ export default function ServiceRequestsPage() {
                 <button
                   key={p}
                   onClick={() => setForm({ ...form, priority: p })}
-                  className={`flex-1 py-2 rounded-xl text-xs font-medium border-2 capitalize transition-all ${
+                  className={`flex-1 py-2.5 rounded-xl text-xs font-medium border-2 capitalize transition-all min-h-[44px] ${
                     form.priority === p ? 'border-brand-navy bg-brand-navy text-white' : 'border-gray-100 text-gray-600'
                   }`}
                 >

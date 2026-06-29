@@ -70,7 +70,7 @@ export default function InquiryPage() {
           <MessageSquare size={20} className="text-brand-navy" />
           <h2 className="text-lg font-bold text-gray-900">My Inquiries</h2>
         </div>
-        <Button variant="accent" className="flex items-center gap-1 text-xs px-3 py-2" onClick={() => setShowModal(true)}>
+        <Button variant="accent" className="flex items-center gap-1 text-sm px-3 py-2.5 min-h-[44px]" onClick={() => setShowModal(true)}>
           <Plus size={16} /> New Inquiry
         </Button>
       </div>
@@ -155,7 +155,7 @@ export default function InquiryPage() {
                 <p className={`text-sm font-semibold ${inquiryType === id ? 'text-brand-navy' : 'text-gray-900'}`}>
                   {label}
                 </p>
-                <p className="text-[10px] text-gray-500 mt-0.5">{description}</p>
+                <p className="text-xs text-gray-500 mt-0.5">{description}</p>
               </button>
             ))}
           </div>
@@ -170,7 +170,7 @@ export default function InquiryPage() {
               rows={5}
               className="w-full px-3 py-2.5 border border-gray-200 rounded-xl text-sm focus:outline-none focus:ring-2 focus:ring-brand-navy resize-none"
             />
-            <p className="text-[10px] text-gray-400 mt-1">
+            <p className="text-xs text-gray-400 mt-1">
               Your inquiry will be sent to the DormTel admin team and appear in the Inquiry Management dashboard.
             </p>
           </div>
