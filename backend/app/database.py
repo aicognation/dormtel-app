@@ -2,6 +2,7 @@ from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession, async_sess
 from sqlalchemy.orm import declarative_base
 from sqlalchemy import text
 from fastapi import Request
+from typing import Optional
 import os
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/dormtel")
@@ -30,6 +31,22 @@ def _extract_schema_from_request(request: Request = None) -> str:
         except Exception:
             pass
     return DEFAULT_SCHEMA
+
+
+def _extract_property_from_request(request: Request = None) -> Optional[str]:
+    """Extract property_code from JWT token in request."""
+    if not request:
+        return None
+    auth_header = request.headers.get("Authorization", "")
+    if auth_header.startswith("Bearer "):
+        token = auth_header[7:]
+        try:
+            from jose import jwt
+            payload = jwt.decode(token, os.getenv("JWT_SECRET_KEY", "dormtel-dev-secret-change-in-production"), algorithms=["HS256"])
+            return payload.get("property_code")
+        except Exception:
+            pass
+    return None
 
 
 async def get_db(request: Request = None):

@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useProperty } from '../contexts/PropertyContext';
 import client from '../api/client';
 import { Search, Users, Filter, Pencil, Trash2, Eye, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -7,6 +8,7 @@ import { listRooms } from '../api/onboarding';
 
 export default function ResidentsPage() {
   const { isAdmin } = useAuth();
+  const { propertyCode } = useProperty();
   const [residents, setResidents] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -36,7 +38,7 @@ export default function ResidentsPage() {
 
   useEffect(() => {
     fetchResidents();
-  }, []);
+  }, [propertyCode]);
 
   useEffect(() => {
     const fetchRooms = async () => {
@@ -48,7 +50,7 @@ export default function ResidentsPage() {
       }
     };
     fetchRooms();
-  }, []);
+  }, [propertyCode]);
 
   const filtered = residents.filter((r) => {
     const s = search.toLowerCase();

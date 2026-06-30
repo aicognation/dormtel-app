@@ -19,6 +19,7 @@ async def list_residents(
     status: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     query = (
@@ -27,11 +28,11 @@ async def list_residents(
         .order_by(models.Resident.created_at.desc())
     )
 
-    # Branch admin filter
-    if current_staff.role == "admin" and current_staff.managed_branch:
-        # Filter residents whose bed's room property_code matches managed_branch
-        # We'll do this in Python for simplicity with async ORM, or use a join filter
-        pass  # Let all through for now; refine if needed
+    # Property filter via JWT
+    if property_code:
+        query = query.join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True) \
+                     .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True) \
+                     .where(models.Room.property_code == property_code)
 
     if status:
         query = query.where(models.Resident.status == status)

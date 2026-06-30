@@ -12,8 +12,10 @@ import { getConvertibleInquiries } from '../api/inquiries';
 import { ID_TYPES, DORMER_TYPES, LOCATIONS, BOARD_EXAM_TYPES, LEASE_TERMS } from '../utils/constants';
 import { formatCurrency } from '../utils/formatters';
 import ViewTenantsModal from '../components/onboarding/ViewTenantsModal';
+import { useProperty } from '../contexts/PropertyContext';
 
 export default function OnboardingPage() {
+  const { propertyCode } = useProperty();
   const [rooms, setRooms] = useState([]);
   const [loading, setLoading] = useState(true);
   const [showReserve, setShowReserve] = useState(false);
@@ -53,7 +55,7 @@ export default function OnboardingPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [propertyCode]);
 
   const fetchInquiries = useCallback(async () => {
     setLoadingInquiries(true);

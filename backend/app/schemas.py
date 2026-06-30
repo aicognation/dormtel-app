@@ -604,6 +604,28 @@ class StaffLoginResponse(BaseModel):
     access_token: str
     token_type: str = "bearer"
     staff: "StaffOut"
+    requires_property_selection: bool = True
+
+
+class PropertyOut(BaseModel):
+    code: str
+    name: str
+    address: Optional[str] = None
+    is_active: bool
+
+    class Config:
+        from_attributes = True
+
+
+class PropertySelectRequest(BaseModel):
+    property_code: str
+
+
+class PropertyLoginResponse(BaseModel):
+    access_token: str
+    token_type: str = "bearer"
+    property_code: str
+    property_name: str
 
 class StaffCreate(BaseModel):
     full_name: str

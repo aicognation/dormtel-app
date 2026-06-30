@@ -14,6 +14,7 @@ import {
 } from '../api/moveouts';
 import { MOVEOUT_STATUSES } from '../utils/constants';
 import { formatDate, formatCurrency, shortUUID, truncate } from '../utils/formatters';
+import { useProperty } from '../contexts/PropertyContext';
 
 function ResidentDetailCard({ r }) {
   return (
@@ -83,6 +84,7 @@ function ResidentDetailCard({ r }) {
 }
 
 export default function MoveOutsPage() {
+  const { propertyCode } = useProperty();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', resident_id: '', year: '', month: '' });
@@ -110,7 +112,7 @@ export default function MoveOutsPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, propertyCode]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

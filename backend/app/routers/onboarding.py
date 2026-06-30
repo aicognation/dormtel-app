@@ -56,6 +56,7 @@ class ReservationCreateRequest(BaseModel):
 async def create_reservation(
     payload: ReservationCreateRequest,
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     inquiry = None
@@ -83,12 +84,19 @@ async def create_reservation(
         if bed.status != "available":
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Bed is not available")
     else:
-        result = await db.execute(
+        bed_query = (
             select(models.Bed)
             .where(models.Bed.status == "available")
             .options(selectinload(models.Bed.room))
             .order_by(models.Bed.bed_code)
         )
+        if property_code:
+            bed_query = (
+                bed_query
+                .join(models.Room, models.Bed.room_id == models.Room.id)
+                .where(models.Room.property_code == property_code)
+            )
+        result = await db.execute(bed_query)
         bed = result.scalars().first()
         if not bed:
             raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="No available beds")
@@ -327,6 +335,7 @@ async def activate_movein(
 @router.get("/rooms", response_model=list[schemas.RoomWithBedsOut])
 async def list_rooms_with_beds(
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     result = await db.execute(
@@ -335,6 +344,10 @@ async def list_rooms_with_beds(
         .order_by(models.Room.room_number)
     )
     rooms = result.scalars().all()
+
+    # Filter by property_code from JWT
+    if property_code:
+        rooms = [r for r in rooms if r.property_code == property_code]
 
     output = []
     for room in rooms:

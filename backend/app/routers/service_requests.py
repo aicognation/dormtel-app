@@ -34,6 +34,7 @@ async def list_service_requests(
     priority: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     stmt = (
         select(ServiceRequest, Resident.full_name.label("resident_name"))
@@ -50,6 +51,12 @@ async def list_service_requests(
         filters.append(ServiceRequest.priority == priority)
     if filters:
         stmt = stmt.where(and_(*filters))
+    if property_code:
+        stmt = (stmt
+            .join(models.Bed, Resident.bed_id == models.Bed.id, isouter=True)
+            .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+            .where(models.Room.property_code == property_code)
+        )
     stmt = stmt.order_by(ServiceRequest.submitted_at.desc())
     result = await db.execute(stmt)
     rows = result.all()

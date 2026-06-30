@@ -72,6 +72,20 @@ async def get_current_staff(
     return staff
 
 
+def get_current_property(
+    credentials: Optional[HTTPAuthorizationCredentials] = Depends(security),
+) -> Optional[str]:
+    """Extract property_code from JWT. Returns None if not set (pre-selection token)."""
+    if not credentials:
+        return None
+    token = credentials.credentials
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        return payload.get("property_code")
+    except JWTError:
+        return None
+
+
 class RoleChecker:
     def __init__(self, allowed_roles: list[str]):
         self.allowed_roles = allowed_roles

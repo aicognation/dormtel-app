@@ -20,6 +20,7 @@ async def list_transactions(
     from_date: Optional[date] = Query(None),
     to_date: Optional[date] = Query(None),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     query = select(models.MiscellaneousTransaction).order_by(models.MiscellaneousTransaction.created_at.desc())
@@ -34,6 +35,13 @@ async def list_transactions(
         query = query.where(models.MiscellaneousTransaction.transaction_date >= from_date)
     if to_date:
         query = query.where(models.MiscellaneousTransaction.transaction_date <= to_date)
+
+    # Property filter via JWT — filter by branch column or include transactions with no room
+    if property_code:
+        query = query.where(
+            (models.MiscellaneousTransaction.branch == property_code) |
+            (models.MiscellaneousTransaction.room_id.is_(None))
+        )
 
     # Branch admin filter
     if current_staff.role == "admin" and current_staff.managed_branch:

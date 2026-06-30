@@ -454,6 +454,7 @@ async def list_statements(
     limit: int = Query(100, ge=1, le=500),
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     query = (
         select(BillingStatement, Resident)
@@ -464,6 +465,10 @@ async def list_statements(
         query = query.where(BillingStatement.resident_id == resident_id)
     if billing_period:
         query = query.where(BillingStatement.billing_period == billing_period)
+    if property_code:
+        query = query.join(Bed, Resident.bed_id == Bed.id, isouter=True) \
+                     .join(Room, Bed.room_id == Room.id, isouter=True) \
+                     .where(Room.property_code == property_code)
     query = query.limit(limit)
     result = await db.execute(query)
     out = []

@@ -11,8 +11,10 @@ import { listResidents } from '../api/residents';
 import { listStaff } from '../api/auth';
 import { SERVICE_REQUEST_STATUSES, SERVICE_REQUEST_CATEGORIES, SERVICE_REQUEST_PRIORITIES } from '../utils/constants';
 import { formatDateTime, truncate, shortUUID } from '../utils/formatters';
+import { useProperty } from '../contexts/PropertyContext';
 
 export default function ServiceRequestsAdminPage() {
+  const { propertyCode } = useProperty();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', category: '', priority: '' });
@@ -51,7 +53,7 @@ export default function ServiceRequestsAdminPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, propertyCode]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

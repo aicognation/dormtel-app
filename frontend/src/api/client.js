@@ -13,6 +13,10 @@ client.interceptors.request.use((config) => {
   if (token) {
     config.headers.Authorization = `Bearer ${token}`;
   }
+  const propertyCode = localStorage.getItem('dt_property');
+  if (propertyCode) {
+    config.headers['X-Property-Code'] = propertyCode;
+  }
   return config;
 });
 

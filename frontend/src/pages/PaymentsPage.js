@@ -16,6 +16,7 @@ import {
   getDormerLedger, getAllLedgers,
 } from '../api/payments';
 import { formatCurrency, formatDate, shortUUID } from '../utils/formatters';
+import { useProperty } from '../contexts/PropertyContext';
 
 const STATUS_OPTIONS = [
   { value: '', label: 'All Statuses' },
@@ -40,6 +41,7 @@ const STATUS_LABELS = {
 };
 
 export default function PaymentsPage() {
+  const { propertyCode } = useProperty();
   const [tab, setTab] = useState('reconciliation');
 
   // Reconciliation tab state
@@ -76,7 +78,7 @@ export default function PaymentsPage() {
     } finally {
       setRecLoading(false);
     }
-  }, []);
+  }, [propertyCode]);
 
   const fetchLedgers = useCallback(async () => {
     setLedgersLoading(true);
@@ -92,7 +94,7 @@ export default function PaymentsPage() {
     } finally {
       setLedgersLoading(false);
     }
-  }, [ledgerSearch, ledgerStatus]);
+  }, [ledgerSearch, ledgerStatus, propertyCode]);
 
   useEffect(() => { fetchRecData(); }, [fetchRecData]);
 

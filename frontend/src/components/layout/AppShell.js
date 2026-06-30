@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Outlet } from 'react-router-dom';
 import { useAuth } from '../../contexts/AuthContext';
+import { useProperty } from '../../contexts/PropertyContext';
 import Sidebar from './Sidebar';
 import { Bell, LogOut, User, ChevronDown } from 'lucide-react';
 
@@ -8,6 +9,7 @@ export default function AppShell() {
   const [sidebarOpen, setSidebarOpen] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
   const { staff, logout, isManager, schema } = useAuth();
+  const { property } = useProperty();
   const activeSchema = schema();
 
   return (
@@ -19,6 +21,11 @@ export default function AppShell() {
         <div className="flex items-center justify-between px-4 sm:px-6 py-3">
           <div className="flex items-center gap-2">
             <h2 className="text-lg font-semibold text-gray-800">Management Portal</h2>
+            {property && (
+              <span className="bg-brand-gold/20 text-brand-gold px-3 py-1 rounded-full text-xs font-bold">
+                {property.code} — {property.name}
+              </span>
+            )}
           </div>
 
           <div className="flex items-center gap-3">

@@ -42,6 +42,7 @@ export function AuthProvider({ children }) {
   const logout = () => {
     localStorage.removeItem('dt_token');
     localStorage.removeItem('dt_schema');
+    localStorage.removeItem('dt_property');
     setStaff(null);
     window.location.href = '/login';
   };

@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useNavigate } from 'react-router-dom';
+import { useProperty } from '../contexts/PropertyContext';
 import {
   TrendingUp,
   MessageSquareText,
@@ -30,6 +31,7 @@ const PERIODS = [
 
 export default function Dashboard() {
   const navigate = useNavigate();
+  const { propertyCode } = useProperty();
   const [stats, setStats] = useState(null);
   const [loading, setLoading] = useState(true);
   const [period, setPeriod] = useState('monthly');
@@ -48,7 +50,7 @@ export default function Dashboard() {
       }
     }
     fetchStats();
-  }, [period]);
+  }, [period, propertyCode]);
 
   const colorMap = {
     green: { bg: 'bg-green-100', text: 'text-green-700', border: 'border-green-200' },

@@ -17,8 +17,10 @@ import { listResidents } from '../api/residents';
 import { listRooms } from '../api/onboarding';
 import { BILLING_STATUSES } from '../utils/constants';
 import { formatCurrency, formatDate, formatDateTime, shortUUID } from '../utils/formatters';
+import { useProperty } from '../contexts/PropertyContext';
 
 export default function BillingPage() {
+  const { propertyCode } = useProperty();
   const [tab, setTab] = useState('billings');
 
   // Billings tab state
@@ -91,7 +93,7 @@ export default function BillingPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, propertyCode]);
 
   const fetchMeterReadings = useCallback(async () => {
     setMeterLoading(true);
@@ -103,7 +105,7 @@ export default function BillingPage() {
     } finally {
       setMeterLoading(false);
     }
-  }, []);
+  }, [propertyCode]);
 
   const fetchDailyGrid = useCallback(async () => {
     setGridLoading(true);
@@ -120,7 +122,7 @@ export default function BillingPage() {
     } finally {
       setGridLoading(false);
     }
-  }, [gridYear, gridMonth, gridBuilding]);
+  }, [gridYear, gridMonth, gridBuilding, propertyCode]);
 
   const fetchRooms = useCallback(async () => {
     try {
@@ -129,7 +131,7 @@ export default function BillingPage() {
     } catch {
       // silently fail
     }
-  }, []);
+  }, [propertyCode]);
 
   const fetchStatements = useCallback(async () => {
     setStatementsLoading(true);
@@ -143,7 +145,7 @@ export default function BillingPage() {
     } finally {
       setStatementsLoading(false);
     }
-  }, []);
+  }, [propertyCode]);
 
   const fetchResidents = useCallback(async () => {
     try {
@@ -152,7 +154,7 @@ export default function BillingPage() {
     } catch {
       // silently fail — resident dropdown is non-critical
     }
-  }, []);
+  }, [propertyCode]);
 
   useEffect(() => {
     fetchData();

@@ -5,6 +5,16 @@ from sqlalchemy.dialects.postgresql import UUID, INET
 from sqlalchemy.orm import relationship
 from app.database import Base
 
+
+class Property(Base):
+    __tablename__ = "properties"
+    code = Column(String(10), primary_key=True)
+    name = Column(String(100), nullable=False)
+    address = Column(String(255))
+    is_active = Column(Boolean, default=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
 class Resident(Base):
     __tablename__ = "residents"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

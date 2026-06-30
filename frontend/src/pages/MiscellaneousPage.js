@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useProperty } from '../contexts/PropertyContext';
 import client from '../api/client';
 import { MoreHorizontal, Plus, Search, Filter, Pencil, Trash2, X } from 'lucide-react';
 import toast from 'react-hot-toast';
@@ -20,6 +21,7 @@ const CATEGORIES = [
 
 export default function MiscellaneousPage() {
   const { isAdmin } = useAuth();
+  const { propertyCode } = useProperty();
   const [transactions, setTransactions] = useState([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
@@ -52,7 +54,7 @@ export default function MiscellaneousPage() {
 
   useEffect(() => {
     fetchTransactions();
-  }, [categoryFilter]);
+  }, [categoryFilter, propertyCode]);
 
   const filtered = transactions.filter((t) => {
     if (!search) return true;

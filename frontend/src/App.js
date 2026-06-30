@@ -2,9 +2,11 @@ import React from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
+import { PropertyProvider, useProperty } from './contexts/PropertyContext';
 import AppShell from './components/layout/AppShell';
 import ErrorBoundary from './components/ErrorBoundary';
 import LoginPage from './pages/LoginPage';
+import PropertySelectPage from './pages/PropertySelectPage';
 import Dashboard from './pages/Dashboard';
 import InquiriesPage from './pages/InquiriesPage';
 import QrInquiryPage from './pages/QrInquiryPage';
@@ -21,6 +23,7 @@ import ServiceRequestsAdminPage from './pages/ServiceRequestsAdminPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
+  const { propertyCode } = useProperty();
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center">
@@ -28,13 +31,16 @@ function ProtectedRoute({ children }) {
       </div>
     );
   }
-  return isAuthenticated ? children : <Navigate to="/login" replace />;
+  if (!isAuthenticated) return <Navigate to="/login" replace />;
+  if (!propertyCode) return <Navigate to="/select-property" replace />;
+  return children;
 }
 
 function AppRoutes() {
   return (
     <Routes>
       <Route path="/login" element={<LoginPage />} />
+      <Route path="/select-property" element={<PropertySelectPage />} />
       <Route
         element={
           <ProtectedRoute>
@@ -66,16 +72,18 @@ export default function App() {
   return (
     <Router>
       <AuthProvider>
-        <Toaster
-          position="top-right"
-          toastOptions={{
-            duration: 4000,
-            style: { fontSize: '14px' },
-            success: { iconTheme: { primary: '#16a34a', secondary: '#fff' } },
-            error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
-          }}
-        />
-        <AppRoutes />
+        <PropertyProvider>
+          <Toaster
+            position="top-right"
+            toastOptions={{
+              duration: 4000,
+              style: { fontSize: '14px' },
+              success: { iconTheme: { primary: '#16a34a', secondary: '#fff' } },
+              error: { iconTheme: { primary: '#dc2626', secondary: '#fff' } },
+            }}
+          />
+          <AppRoutes />
+        </PropertyProvider>
       </AuthProvider>
     </Router>
   );

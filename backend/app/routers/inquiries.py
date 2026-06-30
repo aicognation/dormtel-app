@@ -93,6 +93,7 @@ async def list_inquiries(
     source: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     stmt = select(Inquiry)
     filters = []
@@ -100,6 +101,8 @@ async def list_inquiries(
         filters.append(Inquiry.status == status)
     if source:
         filters.append(Inquiry.source == source)
+    if property_code:
+        filters.append(Inquiry.property_code == property_code)
     if filters:
         stmt = stmt.where(and_(*filters))
     stmt = stmt.order_by(Inquiry.created_at.desc())
@@ -111,12 +114,15 @@ async def list_inquiries(
 async def list_tenant_inquiries(
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     stmt = (
         select(Inquiry)
         .where(Inquiry.resident_id.is_not(None))
         .order_by(Inquiry.created_at.desc())
     )
+    if property_code:
+        stmt = stmt.where(Inquiry.property_code == property_code)
     result = await db.execute(stmt)
     return result.scalars().all()
 
@@ -125,12 +131,15 @@ async def list_tenant_inquiries(
 async def list_convertible_inquiries(
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     stmt = (
         select(Inquiry)
         .where(Inquiry.status.in_(["new", "responded", "escalated"]))
         .order_by(Inquiry.created_at.desc())
     )
+    if property_code:
+        stmt = stmt.where(Inquiry.property_code == property_code)
     result = await db.execute(stmt)
     return result.scalars().all()
 

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, Depends, HTTPException, status
+from fastapi import APIRouter, Depends, HTTPException, Request, status
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, text
 from datetime import datetime, timedelta
@@ -33,6 +33,65 @@ async def login(payload: schemas.StaffLoginRequest, db: AsyncSession = Depends(g
     return schemas.StaffLoginResponse(
         access_token=access_token,
         staff=schemas.StaffOut.model_validate(staff),
+        requires_property_selection=True,
+    )
+
+
+@router.get("/properties")
+async def list_properties(db: AsyncSession = Depends(get_db)):
+    """List all active properties. No auth required."""
+    result = await db.execute(
+        select(models.Property).where(models.Property.is_active == True).order_by(models.Property.code)
+    )
+    properties = result.scalars().all()
+    return [
+        {"code": p.code, "name": p.name, "address": p.address}
+        for p in properties
+    ]
+
+
+@router.post("/select-property")
+async def select_property(
+    payload: schemas.PropertySelectRequest,
+    request: Request,
+    current_staff: models.Staff = Depends(auth.get_current_staff),
+    db: AsyncSession = Depends(get_db),
+):
+    """Issue a new JWT with property_code embedded."""
+    # Validate property exists
+    result = await db.execute(
+        select(models.Property).where(models.Property.code == payload.property_code)
+    )
+    prop = result.scalar_one_or_none()
+    if not prop:
+        raise HTTPException(status_code=400, detail="Invalid property code")
+
+    # Extract schema from current JWT
+    auth_header = request.headers.get("Authorization", "")
+    schema_name = "demo"
+    if auth_header.startswith("Bearer "):
+        from jose import jwt as jose_jwt
+        try:
+            token_payload = jose_jwt.decode(
+                auth_header[7:],
+                auth.SECRET_KEY,
+                algorithms=[auth.ALGORITHM]
+            )
+            schema_name = token_payload.get("schema", "demo")
+        except Exception:
+            pass
+
+    # Issue new token with property_code
+    access_token = auth.create_access_token(data={
+        "sub": str(current_staff.id),
+        "role": current_staff.role,
+        "schema": schema_name,
+        "property_code": payload.property_code,
+    })
+    return schemas.PropertyLoginResponse(
+        access_token=access_token,
+        property_code=payload.property_code,
+        property_name=prop.name,
     )
 
 

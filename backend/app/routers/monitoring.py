@@ -7,6 +7,7 @@ from sqlalchemy import select, func
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
+from app import auth
 from app.models import Room, Resident, Billing, Bed
 from app.schemas import MonitoringReportResponse, DailyMonitoringRow
 
@@ -15,16 +16,20 @@ router = APIRouter()
 
 @router.get("/daily", response_model=MonitoringReportResponse)
 async def get_daily_monitoring(
-    property_code: str = Query("DT01"),
+    property_code: Optional[str] = Query(None),
     year: int = Query(2026),
     month: int = Query(4),
+    jwt_property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     """Return daily monitoring report for a property and month.
     Falls back to demo data if no billing records exist."""
 
+    # Use JWT property_code if no explicit query param
+    effective_property = property_code or jwt_property_code or "DT01"
+
     # Count total beds for property
-    room_stmt = select(Room).where(Room.property_code == property_code)
+    room_stmt = select(Room).where(Room.property_code == effective_property)
     room_result = await db.execute(room_stmt)
     rooms = room_result.scalars().all()
     total_beds = sum(r.capacity for r in rooms)
@@ -41,6 +46,12 @@ async def get_daily_monitoring(
         Resident.status.in_(["active", "reserved"]),
         Billing.billing_period == f"{year}-{month:02d}"
     )
+    if effective_property:
+        billing_stmt = (billing_stmt
+            .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+            .join(Room, Bed.room_id == Room.id, isouter=True)
+            .where(Room.property_code == effective_property)
+        )
     billing_result = await db.execute(billing_stmt)
     billings = billing_result.scalars().all()
 
@@ -54,6 +65,12 @@ async def get_daily_monitoring(
             Resident.move_in_date <= current,
             (Resident.move_out_date.is_(None)) | (Resident.move_out_date >= current)
         )
+        if effective_property:
+            resident_stmt = (resident_stmt
+                .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+                .join(Room, Bed.room_id == Room.id, isouter=True)
+                .where(Room.property_code == effective_property)
+            )
         resident_result = await db.execute(resident_stmt)
         active_residents = len(resident_result.scalars().all())
 
@@ -93,7 +110,7 @@ async def get_daily_monitoring(
     total_target = sum(r.room_sales_target for r in daily_rows)
 
     return MonitoringReportResponse(
-        property_code=property_code,
+        property_code=effective_property,
         month=f"{year}-{month:02d}",
         daily_rows=daily_rows,
         summary={
@@ -109,12 +126,14 @@ async def get_daily_monitoring(
 @router.get("/occupancy")
 async def get_current_occupancy(
     property_code: Optional[str] = Query(None),
+    jwt_property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     """Return current occupancy snapshot."""
+    effective_property = property_code or jwt_property_code
     room_stmt = select(Room)
-    if property_code:
-        room_stmt = room_stmt.where(Room.property_code == property_code)
+    if effective_property:
+        room_stmt = room_stmt.where(Room.property_code == effective_property)
     room_result = await db.execute(room_stmt)
     rooms = room_result.scalars().all()
 
@@ -122,19 +141,19 @@ async def get_current_occupancy(
 
     # Count occupied beds via Bed.status = 'occupied'
     bed_stmt = select(func.count(Bed.id)).where(Bed.status == "occupied")
-    if property_code:
-        bed_stmt = bed_stmt.join(Room).where(Room.property_code == property_code)
+    if effective_property:
+        bed_stmt = bed_stmt.join(Room).where(Room.property_code == effective_property)
     bed_result = await db.execute(bed_stmt)
     occupied = bed_result.scalar() or 0
 
     resident_stmt = select(func.count(Resident.id)).where(Resident.status == "active")
-    if property_code:
-        resident_stmt = resident_stmt.join(Bed).join(Room).where(Room.property_code == property_code)
+    if effective_property:
+        resident_stmt = resident_stmt.join(Bed).join(Room).where(Room.property_code == effective_property)
     resident_result = await db.execute(resident_stmt)
     active_count = resident_result.scalar() or 0
 
     return {
-        "property_code": property_code or "all",
+        "property_code": effective_property or "all",
         "total_beds": total_beds,
         "occupied_beds": occupied,
         "available_beds": total_beds - occupied,

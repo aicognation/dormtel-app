@@ -10,8 +10,10 @@ import StatusBadge from '../components/ui/StatusBadge';
 import { listInquiries, createInquiry, respondToInquiry, respondToInquiryManual, escalateInquiry } from '../api/inquiries';
 import { INQUIRY_SOURCES, INQUIRY_STATUSES } from '../utils/constants';
 import { formatDateTime, truncate } from '../utils/formatters';
+import { useProperty } from '../contexts/PropertyContext';
 
 export default function InquiriesPage() {
+  const { propertyCode } = useProperty();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', source: '' });
@@ -36,7 +38,7 @@ export default function InquiriesPage() {
     } finally {
       setLoading(false);
     }
-  }, [filters]);
+  }, [filters, propertyCode]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
 

@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from decimal import Decimal
 import calendar
 from uuid import UUID
+from typing import Optional
 
 from app.database import get_db
 from app import models, schemas
@@ -246,6 +247,7 @@ async def list_moveouts(
     month: int = Query(None),
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     query = (
         select(models.MoveOut, models.Resident, models.Bed, models.Room)
@@ -268,6 +270,10 @@ async def list_moveouts(
         )
     elif year:
         query = query.where(extract("year", models.MoveOut.requested_date) == year)
+
+    # Property filter via JWT
+    if property_code:
+        query = query.where(models.Room.property_code == property_code)
 
     result = await db.execute(query)
     rows = result.all()

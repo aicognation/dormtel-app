@@ -15,6 +15,7 @@ router = APIRouter()
 async def list_moveins(
     period: Literal["past", "current", "future"] = Query("current"),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     today = date.today()
@@ -40,6 +41,12 @@ async def list_moveins(
         )
     elif period == "future":
         query = query.where(models.Resident.move_in_date > today)
+
+    # Property filter via JWT
+    if property_code:
+        query = query.join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True) \
+                     .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True) \
+                     .where(models.Room.property_code == property_code)
 
     result = await db.execute(query)
     residents = result.scalars().all()

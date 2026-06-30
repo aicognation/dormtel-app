@@ -23,6 +23,7 @@ from app.schemas import (
     MeterReadingUploadResult, MeterReadingDailySheetResult,
     BillingImportStatusOut,
 )
+from app.utils.property_filter import get_property_buildings
 
 
 class BillingPreviewRow(BaseModel):
@@ -90,6 +91,7 @@ class BillingGenerateRequest(BaseModel):
 async def _get_active_residents_with_rooms(
     db: AsyncSession,
     building: Optional[str] = None,
+    property_code: Optional[str] = None,
 ):
     """Get active residents joined with their bed and room."""
     query = (
@@ -98,6 +100,8 @@ async def _get_active_residents_with_rooms(
         .join(Room, Bed.room_id == Room.id, isouter=True)
         .where(Resident.status == "active")
     )
+    if property_code:
+        query = query.where(Room.property_code == property_code)
     if building:
         query = query.where(Room.building == building)
 
@@ -123,6 +127,7 @@ async def _compute_resident_electric(
     db: AsyncSession,
     billing_period: str,
     building: Optional[str] = None,
+    property_code: Optional[str] = None,
 ):
     """Sum per-resident electric meter readings for the billing period.
     If a daily-sheet import exists for the resident, use the pre-computed total."""
@@ -133,9 +138,16 @@ async def _compute_resident_electric(
     else:
         end_date = date(year, month + 1, 1)
 
+    # Resolve building filter from property_code if provided
+    property_buildings = None
+    if property_code:
+        property_buildings = await get_property_buildings(db, property_code)
+
     # Check for imported daily-sheet totals first
     import_query = select(MeterReadingImport)
-    if building:
+    if property_buildings:
+        import_query = import_query.where(MeterReadingImport.building.in_(property_buildings))
+    elif building:
         import_query = import_query.where(MeterReadingImport.building == building)
     import_query = import_query.where(
         MeterReadingImport.year == year,
@@ -157,7 +169,9 @@ async def _compute_resident_electric(
         MeterReading.reading_date >= start_date,
         MeterReading.reading_date < end_date,
     )
-    if building:
+    if property_buildings:
+        query = query.where(MeterReading.building.in_(property_buildings))
+    elif building:
         query = query.where(MeterReading.building == building)
 
     result = await db.execute(query)
@@ -208,6 +222,7 @@ async def _compute_water_by_days(
     billing_period: str,
     total_water_bill: Optional[Decimal] = None,
     building: Optional[str] = None,
+    property_code: Optional[str] = None,
 ):
     """Compute water charge per resident based on days stayed.
     If a daily-sheet import exists with a water_bill, use it directly."""
@@ -224,15 +239,24 @@ async def _compute_water_by_days(
         .join(Room, Bed.room_id == Room.id, isouter=True)
         .where(Resident.status == "active")
     )
+    if property_code:
+        query = query.where(Room.property_code == property_code)
     if building:
         query = query.where(Room.building == building)
 
     result = await db.execute(query)
     rows = result.all()
 
+    # Resolve building filter from property_code if provided
+    property_buildings = None
+    if property_code:
+        property_buildings = await get_property_buildings(db, property_code)
+
     # Check for imported water bills
     import_query = select(MeterReadingImport)
-    if building:
+    if property_buildings:
+        import_query = import_query.where(MeterReadingImport.building.in_(property_buildings))
+    elif building:
         import_query = import_query.where(MeterReadingImport.building == building)
     import_query = import_query.where(
         MeterReadingImport.year == year,
@@ -273,6 +297,7 @@ async def _compute_other_charges(
     billing_period: str,
     other_charges_input: Optional[Decimal] = None,
     building: Optional[str] = None,
+    property_code: Optional[str] = None,
 ):
     """Compute other charges per resident.
     If imports exist with misc charges, use those per resident.
@@ -286,15 +311,24 @@ async def _compute_other_charges(
         .join(Room, Bed.room_id == Room.id, isouter=True)
         .where(Resident.status == "active")
     )
+    if property_code:
+        query = query.where(Room.property_code == property_code)
     if building:
         query = query.where(Room.building == building)
     result = await db.execute(query)
     residents = result.scalars().all()
     total_residents = len(residents)
 
+    # Resolve building filter from property_code if provided
+    property_buildings = None
+    if property_code:
+        property_buildings = await get_property_buildings(db, property_code)
+
     # Check for imported misc charges
     import_query = select(MeterReadingImport)
-    if building:
+    if property_buildings:
+        import_query = import_query.where(MeterReadingImport.building.in_(property_buildings))
+    elif building:
         import_query = import_query.where(MeterReadingImport.building == building)
     import_query = import_query.where(
         MeterReadingImport.year == year,
@@ -365,6 +399,7 @@ async def _compute_previous_balances(
     db: AsyncSession,
     billing_period: str,
     building: Optional[str] = None,
+    property_code: Optional[str] = None,
 ) -> dict:
     """Compute unpaid balances from prior billing periods for each resident."""
     year, month = map(int, billing_period.split("-"))
@@ -381,10 +416,13 @@ async def _compute_previous_balances(
         .join(Resident, Billing.resident_id == Resident.id)
         .where(Billing.billing_period == prev_period)
     )
-    if building:
+    if building or property_code:
         query = query.join(Bed, Resident.bed_id == Bed.id, isouter=True)
         query = query.join(Room, Bed.room_id == Room.id, isouter=True)
-        query = query.where(Room.building == building)
+        if property_code:
+            query = query.where(Room.property_code == property_code)
+        if building:
+            query = query.where(Room.building == building)
 
     result = await db.execute(query)
     rows = result.all()
@@ -497,9 +535,10 @@ async def submit_meter_reading(
 async def generate_billings(
     data: BillingGenerateRequest,
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
-    residents_by_room, no_room, all_rows = await _get_active_residents_with_rooms(db, data.building)
+    residents_by_room, no_room, all_rows = await _get_active_residents_with_rooms(db, data.building, property_code)
     if not all_rows:
         detail = f"No active residents found" + (f" for building '{data.building}'" if data.building else "")
         raise HTTPException(status_code=400, detail=detail)
@@ -516,14 +555,14 @@ async def generate_billings(
     if existing:
         return existing
 
-    resident_electric = await _compute_resident_electric(db, data.billing_period, data.building)
+    resident_electric = await _compute_resident_electric(db, data.billing_period, data.building, property_code)
     resident_water, total_days, rate_per_day = await _compute_water_by_days(
-        db, data.billing_period, data.total_water_bill, data.building
+        db, data.billing_period, data.total_water_bill, data.building, property_code
     )
     resident_other, total_other = await _compute_other_charges(
-        db, data.billing_period, data.other_charges, data.building
+        db, data.billing_period, data.other_charges, data.building, property_code
     )
-    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building)
+    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building, property_code)
 
     billings = []
 
@@ -1122,6 +1161,7 @@ async def list_meter_readings(
     month: Optional[int] = Query(None),
     limit: int = Query(1000, ge=1, le=5000),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     query = (
@@ -1131,6 +1171,8 @@ async def list_meter_readings(
         .join(Bed, Resident.bed_id == Bed.id, isouter=True)
         .order_by(MeterReading.reading_date.desc())
     )
+    if property_code:
+        query = query.where(Room.property_code == property_code)
     if building:
         query = query.where(MeterReading.building == building)
     if resident_id:
@@ -1172,6 +1214,7 @@ async def get_daily_meter_grid(
     month: int = Query(...),
     building: Optional[str] = Query(None),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     start_date = date(year, month, 1)
@@ -1188,6 +1231,8 @@ async def get_daily_meter_grid(
         .join(Room, Bed.room_id == Room.id, isouter=True)
         .where(Resident.status == "active")
     )
+    if property_code:
+        query = query.where(Room.property_code == property_code)
     if building:
         query = query.where(Room.building == building)
     query = query.order_by(Room.room_number.asc().nullslast(), Bed.bed_number.asc().nullslast())
@@ -1200,6 +1245,8 @@ async def get_daily_meter_grid(
         MeterReading.reading_date < end_date,
         MeterReading.resident_id.isnot(None),
     )
+    if property_code:
+        reading_query = reading_query.join(Room, MeterReading.room_id == Room.id, isouter=True).where(Room.property_code == property_code)
     if building:
         reading_query = reading_query.where(MeterReading.building == building)
     reading_result = await db.execute(reading_query)
@@ -1210,6 +1257,10 @@ async def get_daily_meter_grid(
         MeterReadingImport.year == year,
         MeterReadingImport.month == month,
     )
+    if property_code:
+        _prop_buildings = await get_property_buildings(db, property_code)
+        if _prop_buildings:
+            import_query = import_query.where(MeterReadingImport.building.in_(_prop_buildings))
     if building:
         import_query = import_query.where(MeterReadingImport.building == building)
     import_result = await db.execute(import_query)
@@ -1282,6 +1333,8 @@ async def get_daily_meter_grid(
         select(Bed, Room)
         .join(Room, Bed.room_id == Room.id)
     )
+    if property_code:
+        all_beds_query = all_beds_query.where(Room.property_code == property_code)
     if building:
         all_beds_query = all_beds_query.where(Room.building == building)
     all_beds_query = all_beds_query.order_by(Room.room_number.asc(), Bed.bed_number.asc())
@@ -1367,21 +1420,22 @@ async def bulk_upsert_meter_readings(
 async def preview_billings(
     data: BillingGenerateRequest,
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
-    residents_by_room, no_room, all_rows = await _get_active_residents_with_rooms(db, data.building)
+    residents_by_room, no_room, all_rows = await _get_active_residents_with_rooms(db, data.building, property_code)
     if not all_rows:
         detail = f"No active residents found" + (f" for building '{data.building}'" if data.building else "")
         raise HTTPException(status_code=400, detail=detail)
 
-    resident_electric = await _compute_resident_electric(db, data.billing_period, data.building)
+    resident_electric = await _compute_resident_electric(db, data.billing_period, data.building, property_code)
     resident_water, total_days, rate_per_day = await _compute_water_by_days(
-        db, data.billing_period, data.total_water_bill, data.building
+        db, data.billing_period, data.total_water_bill, data.building, property_code
     )
     resident_other, total_other = await _compute_other_charges(
-        db, data.billing_period, data.other_charges, data.building
+        db, data.billing_period, data.other_charges, data.building, property_code
     )
-    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building)
+    previous_balances = await _compute_previous_balances(db, data.billing_period, data.building, property_code)
 
     total_residents = len(all_rows)
 
@@ -1535,6 +1589,7 @@ async def list_billings(
     resident_id: Optional[UUID] = Query(None),
     status: Optional[str] = Query(None),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     query = (
@@ -1543,6 +1598,8 @@ async def list_billings(
         .join(Bed, Resident.bed_id == Bed.id, isouter=True)
         .join(Room, Bed.room_id == Room.id, isouter=True)
     )
+    if property_code:
+        query = query.where(Room.property_code == property_code)
     if resident_id:
         query = query.where(Billing.resident_id == resident_id)
     if status:

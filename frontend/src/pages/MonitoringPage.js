@@ -7,6 +7,7 @@ import Button from '../components/ui/Button';
 import DataTable from '../components/ui/DataTable';
 import { getDailyMonitoring, getCurrentOccupancy } from '../api/monitoring';
 import { formatCurrency } from '../utils/formatters';
+import { useProperty } from '../contexts/PropertyContext';
 
 const PROPERTIES = [
   { value: 'DT01', label: 'Recto Branch' },
@@ -14,12 +15,20 @@ const PROPERTIES = [
 ];
 
 export default function MonitoringPage() {
-  const [propertyCode, setPropertyCode] = useState('DT01');
+  const { propertyCode: contextPropertyCode } = useProperty();
+  const [propertyCode, setPropertyCode] = useState(contextPropertyCode || 'DT01');
   const [year, setYear] = useState(2026);
   const [month, setMonth] = useState(4);
   const [report, setReport] = useState(null);
   const [occupancy, setOccupancy] = useState(null);
   const [loading, setLoading] = useState(true);
+
+  // Sync local propertyCode with global PropertyContext selection
+  useEffect(() => {
+    if (contextPropertyCode) {
+      setPropertyCode(contextPropertyCode);
+    }
+  }, [contextPropertyCode]);
 
   const fetchData = useCallback(async () => {
     setLoading(true);

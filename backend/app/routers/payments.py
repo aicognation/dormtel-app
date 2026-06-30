@@ -166,8 +166,18 @@ async def manual_reconcile(
 async def list_unmatched(
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
-    result = await db.execute(select(Payment).where(Payment.status == "unreconciled"))
+    query = select(Payment).where(Payment.status == "unreconciled")
+    if property_code:
+        query = (
+            query
+            .join(Resident, Payment.resident_id == Resident.id)
+            .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+            .join(Room, Bed.room_id == Room.id, isouter=True)
+            .where(Room.property_code == property_code)
+        )
+    result = await db.execute(query)
     payments = result.scalars().all()
     return payments
 
@@ -179,12 +189,21 @@ async def list_payments(
     limit: int = Query(500, ge=1, le=2000),
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     query = select(Payment).order_by(Payment.created_at.desc())
     if resident_id:
         query = query.where(Payment.resident_id == resident_id)
     if status:
         query = query.where(Payment.status == status)
+    if property_code:
+        query = (
+            query
+            .join(Resident, Payment.resident_id == Resident.id)
+            .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+            .join(Room, Bed.room_id == Room.id, isouter=True)
+            .where(Room.property_code == property_code)
+        )
     query = query.limit(limit)
     result = await db.execute(query)
     return result.scalars().all()
@@ -234,15 +253,25 @@ async def match_payment(
 async def daily_sales_report(
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     today = date.today()
     start = datetime.combine(today, time.min)
     end = datetime.combine(today, time.max)
 
-    result = await db.execute(
+    query = (
         select(func.sum(Payment.amount), func.count(Payment.id))
         .where(Payment.matched_at >= start, Payment.matched_at <= end)
     )
+    if property_code:
+        query = (
+            query
+            .join(Resident, Payment.resident_id == Resident.id)
+            .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+            .join(Room, Bed.room_id == Room.id, isouter=True)
+            .where(Room.property_code == property_code)
+        )
+    result = await db.execute(query)
     row = result.one()
     total_amount = row[0] or Decimal("0.00")
     total_transactions = row[1] or 0
@@ -373,6 +402,7 @@ async def list_all_ledgers(
     status: Optional[str] = Query(None),
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
 ):
     # Fetch all active residents with bed/room
     query = (
@@ -382,6 +412,8 @@ async def list_all_ledgers(
         .where(Resident.status.in_(["active", "reserved", "moved_out"]))
         .order_by(Room.room_number.asc().nullslast(), Bed.bed_number.asc().nullslast())
     )
+    if property_code:
+        query = query.where(Room.property_code == property_code)
     result = await db.execute(query)
     rows = result.all()
 

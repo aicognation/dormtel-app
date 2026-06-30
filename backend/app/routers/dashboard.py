@@ -7,6 +7,7 @@ from typing import Optional
 import calendar
 
 from app.database import get_db
+from app import auth
 from app import models, schemas
 
 router = APIRouter()
@@ -15,6 +16,7 @@ router = APIRouter()
 @router.get("/stats", response_model=schemas.DashboardStatsOut)
 async def get_dashboard_stats(
     period: str = Query("monthly", regex="^(daily|weekly|monthly|ytd)$"),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db)
 ):
     today = date.today()
@@ -35,14 +37,23 @@ async def get_dashboard_stats(
         start = end = None
 
     # Revenue
-    revenue_result = await db.execute(
+    revenue_query = (
         select(func.coalesce(func.sum(models.Payment.amount), Decimal("0")))
         .where(models.Payment.matched_at >= start, models.Payment.matched_at <= end)
     )
+    if property_code:
+        revenue_query = (
+            revenue_query
+            .join(models.Resident, models.Payment.resident_id == models.Resident.id)
+            .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
+            .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+            .where(models.Room.property_code == property_code)
+        )
+    revenue_result = await db.execute(revenue_query)
     revenue = revenue_result.scalar() or Decimal("0")
 
     # Dormers (active residents not yet moved out) — always a snapshot
-    dormers_result = await db.execute(
+    dormers_query = (
         select(func.count(models.Resident.id))
         .where(
             models.Resident.status == "active",
@@ -52,17 +63,28 @@ async def get_dashboard_stats(
             )
         )
     )
+    if property_code:
+        dormers_query = (
+            dormers_query
+            .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
+            .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+            .where(models.Room.property_code == property_code)
+        )
+    dormers_result = await db.execute(dormers_query)
     dormers_count = dormers_result.scalar() or 0
 
     # Inquiries
-    inquiries_result = await db.execute(
+    inquiries_query = (
         select(func.count(models.Inquiry.id))
         .where(models.Inquiry.created_at >= start, models.Inquiry.created_at <= end)
     )
+    if property_code:
+        inquiries_query = inquiries_query.where(models.Inquiry.property_code == property_code)
+    inquiries_result = await db.execute(inquiries_query)
     inquiries = inquiries_result.scalar() or 0
 
     # Reservations
-    reservations_result = await db.execute(
+    reservations_query = (
         select(func.count(models.Resident.id))
         .where(
             models.Resident.status == "reserved",
@@ -70,12 +92,20 @@ async def get_dashboard_stats(
             models.Resident.created_at <= end
         )
     )
+    if property_code:
+        reservations_query = (
+            reservations_query
+            .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
+            .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+            .where(models.Room.property_code == property_code)
+        )
+    reservations_result = await db.execute(reservations_query)
     reservations = reservations_result.scalar() or 0
 
     # Pending Bills
     pending_statuses = ["pending_review", "approved", "distributed"]
 
-    pending_result = await db.execute(
+    pending_query = (
         select(
             func.coalesce(func.sum(models.Billing.total_amount), Decimal("0")),
             func.count(models.Billing.id)
@@ -86,12 +116,21 @@ async def get_dashboard_stats(
             models.Billing.created_at <= end
         )
     )
+    if property_code:
+        pending_query = (
+            pending_query
+            .join(models.Resident, models.Billing.resident_id == models.Resident.id)
+            .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
+            .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+            .where(models.Room.property_code == property_code)
+        )
+    pending_result = await db.execute(pending_query)
     pending_row = pending_result.one_or_none()
     pending_amount = pending_row[0] if pending_row else Decimal("0")
     pending_count = pending_row[1] if pending_row else 0
 
     # Scheduled Move-ins
-    moveins_result = await db.execute(
+    moveins_query = (
         select(func.count(models.Resident.id))
         .where(
             models.Resident.status.in_(["reserved", "active"]),
@@ -99,10 +138,18 @@ async def get_dashboard_stats(
             models.Resident.move_in_date <= end
         )
     )
+    if property_code:
+        moveins_query = (
+            moveins_query
+            .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
+            .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+            .where(models.Room.property_code == property_code)
+        )
+    moveins_result = await db.execute(moveins_query)
     moveins = moveins_result.scalar() or 0
 
     # Scheduled Move-outs
-    moveouts_result = await db.execute(
+    moveouts_query = (
         select(func.count(models.MoveOut.id))
         .where(
             models.MoveOut.status != "completed",
@@ -110,6 +157,15 @@ async def get_dashboard_stats(
             models.MoveOut.requested_date <= end
         )
     )
+    if property_code:
+        moveouts_query = (
+            moveouts_query
+            .join(models.Resident, models.MoveOut.resident_id == models.Resident.id)
+            .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
+            .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+            .where(models.Room.property_code == property_code)
+        )
+    moveouts_result = await db.execute(moveouts_query)
     moveouts = moveouts_result.scalar() or 0
 
     return schemas.DashboardStatsOut(
@@ -129,6 +185,7 @@ async def get_dashboard_events(
     type: str = Query(..., regex="^(movein|moveout)$"),
     year: int = Query(...),
     month: int = Query(...),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     start_date = date(year, month, 1)
@@ -140,7 +197,7 @@ async def get_dashboard_events(
     events = []
 
     if type == "movein":
-        result = await db.execute(
+        movein_query = (
             select(models.Resident, models.Bed)
             .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
             .where(
@@ -150,6 +207,13 @@ async def get_dashboard_events(
             )
             .order_by(models.Resident.move_in_date)
         )
+        if property_code:
+            movein_query = (
+                movein_query
+                .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+                .where(models.Room.property_code == property_code)
+            )
+        result = await db.execute(movein_query)
         rows = result.all()
 
         from collections import defaultdict
@@ -171,7 +235,7 @@ async def get_dashboard_events(
             ))
 
     elif type == "moveout":
-        result = await db.execute(
+        moveout_query = (
             select(models.MoveOut, models.Resident, models.Bed)
             .join(models.Resident, models.MoveOut.resident_id == models.Resident.id)
             .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
@@ -182,6 +246,13 @@ async def get_dashboard_events(
             )
             .order_by(models.MoveOut.requested_date)
         )
+        if property_code:
+            moveout_query = (
+                moveout_query
+                .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+                .where(models.Room.property_code == property_code)
+            )
+        result = await db.execute(moveout_query)
         rows = result.all()
 
         from collections import defaultdict

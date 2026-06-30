@@ -2,6 +2,7 @@ import React, { useState, useEffect } from 'react';
 import client from '../api/client';
 import toast from 'react-hot-toast';
 import { activateMoveIn } from '../api/onboarding';
+import { useProperty } from '../contexts/PropertyContext';
 import { Home, Calendar, Search, User, ChevronDown, ChevronUp, GraduationCap, Building2, FileText, Tag, Clock, CheckCircle } from 'lucide-react';
 
 function ResidentDetailCard({ r }) {
@@ -67,6 +68,7 @@ function ResidentDetailCard({ r }) {
 }
 
 export default function MoveInsPage() {
+  const { propertyCode } = useProperty();
   const [period, setPeriod] = useState('current');
   const [residents, setResidents] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -87,7 +89,7 @@ export default function MoveInsPage() {
 
   useEffect(() => {
     fetchMoveIns();
-  }, [period]);
+  }, [period, propertyCode]);
 
   const filtered = residents.filter((r) => {
     if (!search) return true;

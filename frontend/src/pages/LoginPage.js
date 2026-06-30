@@ -16,7 +16,7 @@ export default function LoginPage() {
   const [isLoading, setIsLoading] = useState(false);
 
   React.useEffect(() => {
-    if (isAuthenticated) navigate('/');
+    if (isAuthenticated) navigate('/select-property');
   }, [isAuthenticated, navigate]);
 
   const handleSubmit = async (e) => {
@@ -25,7 +25,7 @@ export default function LoginPage() {
     try {
       await login(email, password, schema);
       toast.success('Welcome back!');
-      navigate('/');
+      navigate('/select-property');
     } catch (err) {
       // Error toast handled by client interceptor
     } finally {
