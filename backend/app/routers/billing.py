@@ -1,5 +1,6 @@
 import io
 import os
+import re
 import calendar
 
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
@@ -75,7 +76,10 @@ def _parse_decimal(val):
 def _normalize_name(name):
     if not name:
         return ""
-    return name.strip().upper().replace("\u00d1", "N").replace("\u00f1", "n")
+    # Strip, uppercase, normalize Ñ, collapse all whitespace (spaces, tabs, NBSP)
+    normalized = name.strip().upper().replace("\u00d1", "N").replace("\u00f1", "n")
+    normalized = re.sub(r'\s+', ' ', normalized)
+    return normalized
 
 
 router = APIRouter()
@@ -685,6 +689,7 @@ async def download_meter_reading_template(
 async def upload_meter_readings(
     file: UploadFile = File(...),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     if not file.filename.endswith((".xlsx", ".xls")):
@@ -708,32 +713,40 @@ async def upload_meter_readings(
     if missing:
         raise HTTPException(status_code=400, detail=f"Missing required columns: {', '.join(missing)}")
 
-    # Pre-load rooms and residents for lookup
-    rooms_result = await db.execute(select(Room))
+    # Pre-load rooms and residents for lookup (scoped to property)
+    room_query = select(Room)
+    if property_code:
+        room_query = room_query.where(Room.property_code == property_code)
+    rooms_result = await db.execute(room_query)
     rooms = rooms_result.scalars().all()
     room_by_number = {r.room_number.strip().upper(): r for r in rooms}
 
-    residents_result = await db.execute(
-        select(Resident, Bed)
+    resident_query = (
+        select(Resident, Bed, Room)
         .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+        .join(Room, Bed.room_id == Room.id, isouter=True)
         .where(Resident.status == "active")
     )
+    if property_code:
+        resident_query = resident_query.where(
+            (Room.property_code == property_code) | (Room.id.is_(None))
+        )
+    residents_result = await db.execute(resident_query)
     residents_rows = residents_result.all()
     resident_lookup = {}
-    for resident, bed in residents_rows:
+    short_bed_lookup = {}
+    for resident, bed, room in residents_rows:
         key = _normalize_name(resident.full_name)
         has_bed = bed is not None and bed.bed_code is not None
-        if key in resident_lookup:
-            # Prefer the resident with a bed assignment over orphans
-            existing_has_bed = resident_lookup[key].get("_has_bed", False)
-            if has_bed and not existing_has_bed:
-                resident_lookup[key] = {"_has_bed": True, "resident": resident}
-            # Don't overwrite a bed-linked resident with an orphan
-        else:
-            resident_lookup[key] = {"_has_bed": has_bed, "resident": resident}
+        if key and key not in resident_lookup:
+            resident_lookup[key] = resident
+        elif key and has_bed:
+            resident_lookup[key] = resident
         if has_bed:
-            resident_lookup[bed.bed_code.upper()] = {"_has_bed": True, "resident": resident}
-    resident_lookup = {k: v["resident"] for k, v in resident_lookup.items()}
+            resident_lookup[bed.bed_code.upper()] = resident
+            if room:
+                short_code = f"{room.room_number.strip().upper()}{bed.bed_code[-1].upper()}"
+                short_bed_lookup[short_code] = resident
 
     imported = 0
     skipped = 0
@@ -767,7 +780,14 @@ async def upload_meter_readings(
 
         resident_id = None
         if resident_name:
-            resident = resident_lookup.get(_normalize_name(resident_name))
+            norm_name = _normalize_name(resident_name)
+            resident = resident_lookup.get(norm_name)
+            # Fallback: try short bed code lookup
+            if not resident and room_number and header_map.get("Bed") is not None:
+                bed_letter = str(row[header_map.get("Bed")]).strip() if row[header_map.get("Bed")] is not None else None
+                if bed_letter:
+                    short_code = f"{room_number.strip().upper()}{bed_letter.strip().upper()}"
+                    resident = short_bed_lookup.get(short_code)
             if resident:
                 resident_id = resident.id
 
@@ -835,6 +855,7 @@ def _parse_header_date(val: str):
 async def upload_daily_meter_sheet(
     file: UploadFile = File(...),
     current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
     """Upload a daily meter reading Excel per dormer (e.g. '05_DORMERS ELEC & WATER - MAY 2026').
@@ -853,35 +874,98 @@ async def upload_daily_meter_sheet(
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {str(e)}")
 
-    # Pre-load rooms and residents for matching
-    rooms_result = await db.execute(select(Room))
+    # Pre-load rooms and residents for matching (scoped to property if available)
+    room_query = select(Room)
+    if property_code:
+        room_query = room_query.where(Room.property_code == property_code)
+    rooms_result = await db.execute(room_query)
     rooms = rooms_result.scalars().all()
     room_by_number = {r.room_number.strip().upper(): r for r in rooms}
 
-    residents_result = await db.execute(
-        select(Resident, Bed)
+    # Load active residents with bed AND room info for property scoping
+    resident_query = (
+        select(Resident, Bed, Room)
         .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+        .join(Room, Bed.room_id == Room.id, isouter=True)
         .where(Resident.status == "active")
     )
+    if property_code:
+        resident_query = resident_query.where(
+            (Room.property_code == property_code) | (Room.id.is_(None))
+        )
+    residents_result = await db.execute(resident_query)
     residents_rows = residents_result.all()
-    resident_lookup = {}
-    for resident, bed in residents_rows:
+
+    resident_lookup = {}       # normalized_name -> resident
+    bed_code_lookup = {}       # uppercase bed_code -> resident
+    short_bed_lookup = {}      # "ROOM_NUMBER+BED_LETTER" -> resident
+
+    for resident, bed, room in residents_rows:
         key = _normalize_name(resident.full_name)
         has_bed = bed is not None and bed.bed_code is not None
-        if key in resident_lookup:
-            # Prefer the resident with a bed assignment over orphans
-            existing_has_bed = resident_lookup[key].get("_has_bed", False)
-            if has_bed and not existing_has_bed:
-                resident_lookup[key] = {"_has_bed": True, "resident": resident}
-            # Don't overwrite a bed-linked resident with an orphan
-        else:
-            resident_lookup[key] = {"_has_bed": has_bed, "resident": resident}
-        # Bed code always maps directly (no ambiguity)
-        if has_bed:
-            resident_lookup[bed.bed_code.upper()] = {"_has_bed": True, "resident": resident}
+        if key and key not in resident_lookup:
+            resident_lookup[key] = resident
+        elif key and has_bed:
+            # Prefer bed-linked resident over orphan for duplicate names
+            resident_lookup[key] = resident
 
-    # Flatten: extract just the resident objects
-    resident_lookup = {k: v["resident"] for k, v in resident_lookup.items()}
+        if has_bed:
+            # Full bed code (e.g. "DT01-401A")
+            bed_code_lookup[bed.bed_code.upper()] = resident
+            # Short bed code: room_number + last char of bed_code (e.g. "401A")
+            if room:
+                short_code = f"{room.room_number.strip().upper()}{bed.bed_code[-1].upper()}"
+                short_bed_lookup[short_code] = resident
+
+    # Build name parts index for fuzzy matching (last_name -> list of residents)
+    name_parts_lookup = {}
+    for norm_name, res in resident_lookup.items():
+        parts = norm_name.split()
+        if parts:
+            last_name = parts[-1]
+            if last_name not in name_parts_lookup:
+                name_parts_lookup[last_name] = []
+            name_parts_lookup[last_name].append(res)
+
+    def find_resident(name: str, room_number: str = None, bed_letter: str = None):
+        """Find a resident by name with bed-code fallback and fuzzy matching."""
+        if not name:
+            return None
+
+        # 1. Exact normalized name match
+        norm = _normalize_name(name)
+        if norm in resident_lookup:
+            return resident_lookup[norm]
+
+        # 2. Bed code match (short format: room_number + bed_letter)
+        if room_number and bed_letter:
+            short_code = f"{room_number.strip().upper()}{bed_letter.strip().upper()}"
+            if short_code in short_bed_lookup:
+                return short_bed_lookup[short_code]
+
+        # 3. Full bed code match (with property prefix)
+        if property_code and room_number and bed_letter:
+            prefixed_code = f"{property_code}-{room_number.strip().upper()}{bed_letter.strip().upper()}"
+            if prefixed_code in bed_code_lookup:
+                return bed_code_lookup[prefixed_code]
+
+        # 4. Fuzzy: match by last name if unique
+        parts = norm.split()
+        if parts:
+            last_name = parts[-1]
+            matches = name_parts_lookup.get(last_name, [])
+            if len(matches) == 1:
+                return matches[0]
+            # If multiple matches, try first+last name match
+            if len(matches) > 1 and len(parts) >= 2:
+                first_name = parts[0]
+                for m in matches:
+                    m_norm = _normalize_name(m.full_name)
+                    m_parts = m_norm.split()
+                    if m_parts and m_parts[0] == first_name:
+                        return m
+
+        return None
 
     total_residents_imported = 0
     total_daily_readings = 0
@@ -1016,11 +1100,8 @@ async def upload_daily_meter_sheet(
             if not resident_name:
                 continue
 
-            # Match resident
-            resident = resident_lookup.get(_normalize_name(resident_name))
-            if not resident and bed_letter and room_number:
-                bed_code = f"{room_number}{bed_letter}".upper()
-                resident = resident_lookup.get(bed_code)
+            # Match resident using multi-strategy lookup
+            resident = find_resident(resident_name, room_number, bed_letter)
 
             if not resident:
                 all_errors.append(f"Sheet '{sheet_name}': Resident '{resident_name}' not found (room {room_number}, bed {bed_letter}).")
