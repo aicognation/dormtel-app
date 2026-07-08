@@ -1,14 +1,27 @@
-from pydantic import BaseModel, EmailStr, Field
+from pydantic import BaseModel, Field, field_validator
 from datetime import date, datetime
 from typing import Optional, List, Literal
 from decimal import Decimal
 from uuid import UUID
+import re
+
+_EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
 
 class ResidentBase(BaseModel):
     full_name: str
-    email: EmailStr
-    phone: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
     monthly_rate: Decimal = Field(..., ge=0)
+
+    @field_validator('email')
+    @classmethod
+    def validate_email(cls, v):
+        if v is None or v == '':
+            return None
+        v = v.strip()
+        if not _EMAIL_RE.match(v):
+            raise ValueError(f'Invalid email format: {v}')
+        return v
 
 class ResidentCreate(ResidentBase):
     id_type: Optional[str] = None
@@ -35,8 +48,6 @@ class ResidentCreate(ResidentBase):
 class ResidentOut(ResidentBase):
     id: UUID
     status: str
-    email: Optional[str] = None
-    phone: Optional[str] = None
     bed_id: Optional[UUID] = None
     id_type: Optional[str] = None
     id_number: Optional[str] = None
