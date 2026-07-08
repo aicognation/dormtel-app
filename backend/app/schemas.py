@@ -35,6 +35,8 @@ class ResidentCreate(ResidentBase):
 class ResidentOut(ResidentBase):
     id: UUID
     status: str
+    email: Optional[str] = None
+    phone: Optional[str] = None
     bed_id: Optional[UUID] = None
     id_type: Optional[str] = None
     id_number: Optional[str] = None
