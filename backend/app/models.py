@@ -34,6 +34,7 @@ class Resident(Base):
     school = Column(String(255))
     course = Column(String(255))
     review_center = Column(String(255))
+    company_name = Column(String(255))
     exam_date = Column(Date)
     is_first_time_dormer = Column(Boolean, default=True)
     source = Column(String(50))

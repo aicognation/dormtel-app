@@ -36,7 +36,7 @@ export default function OnboardingPage() {
   const [form, setForm] = useState({
     inquiry_id: '', full_name: '', email: '', phone: '', monthly_rate: '',
     id_type: '', id_number: '', bed_id: '', move_in_date: '', move_out_date: '',
-    school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
+    school: '', course: '', review_center: '', company_name: '', exam_date: '', is_first_time_dormer: true,
     address: '', deposit_paid: '',
     source: '', location: '', dormer_type: '', board_exam_type: '', lease_term_months: '',
     advance_deposit_amount: '', advance_deposit_pr: '',
@@ -141,7 +141,7 @@ export default function OnboardingPage() {
     if (!inquiryId) {
       setForm((prev) => ({
         ...prev, inquiry_id: '', full_name: '', email: '', phone: '',
-        school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
+        school: '', course: '', review_center: '', company_name: '', exam_date: '', is_first_time_dormer: true,
         source: '',
       }));
       return;
@@ -198,7 +198,7 @@ export default function OnboardingPage() {
       setForm({
         inquiry_id: '', full_name: '', email: '', phone: '', monthly_rate: '',
         id_type: '', id_number: '', bed_id: '', move_in_date: '', move_out_date: '',
-        school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
+        school: '', course: '', review_center: '', company_name: '', exam_date: '', is_first_time_dormer: true,
         address: '', deposit_paid: '',
         source: '', location: '', dormer_type: '', board_exam_type: '', lease_term_months: '',
         advance_deposit_amount: '', advance_deposit_pr: '',
@@ -220,7 +220,7 @@ export default function OnboardingPage() {
     setForm({
       inquiry_id: '', full_name: '', email: '', phone: '', monthly_rate: '',
       id_type: '', id_number: '', bed_id: firstAvailable?.id || '', move_in_date: '', move_out_date: '',
-      school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
+      school: '', course: '', review_center: '', company_name: '', exam_date: '', is_first_time_dormer: true,
       address: '', deposit_paid: '',
       source: '', location: '', dormer_type: '', board_exam_type: '', lease_term_months: '',
       advance_deposit_amount: '', advance_deposit_pr: '',
@@ -241,7 +241,7 @@ export default function OnboardingPage() {
     setForm({
       inquiry_id: '', full_name: '', email: '', phone: '', monthly_rate: '',
       id_type: '', id_number: '', bed_id: '', move_in_date: '', move_out_date: '',
-      school: '', course: '', review_center: '', exam_date: '', is_first_time_dormer: true,
+      school: '', course: '', review_center: '', company_name: '', exam_date: '', is_first_time_dormer: true,
       address: '', deposit_paid: '',
       source: '', location: '', dormer_type: '', board_exam_type: '', lease_term_months: '',
       advance_deposit_amount: '', advance_deposit_pr: '',
@@ -564,6 +564,9 @@ export default function OnboardingPage() {
                   onChange={(e) => setForm({ ...form, course: e.target.value })} />
                 <FormField label="Review Center" name="review_center" value={form.review_center}
                   onChange={(e) => setForm({ ...form, review_center: e.target.value })} />
+                <FormField label="Company Name" name="company_name" value={form.company_name}
+                  onChange={(e) => setForm({ ...form, company_name: e.target.value })}
+                  placeholder="For working professionals" />
                 <FormField label="Exam Date" name="exam_date" type="date" value={form.exam_date}
                   onChange={(e) => setForm({ ...form, exam_date: e.target.value })} />
               </div>

@@ -40,6 +40,7 @@ class ReservationCreateRequest(BaseModel):
     school: Optional[str] = None
     course: Optional[str] = None
     review_center: Optional[str] = None
+    company_name: Optional[str] = None
     exam_date: Optional[date] = None
     is_first_time_dormer: Optional[bool] = True
     address: Optional[str] = None
@@ -152,6 +153,7 @@ async def create_reservation(
     school = payload.school
     course = payload.course
     review_center = payload.review_center
+    company_name = payload.company_name
     exam_date = payload.exam_date
     is_first_time_dormer = payload.is_first_time_dormer
     address = payload.address
@@ -205,6 +207,7 @@ async def create_reservation(
         school=school,
         course=course,
         review_center=review_center,
+        company_name=company_name,
         exam_date=exam_date,
         is_first_time_dormer=is_first_time_dormer,
         address=address,

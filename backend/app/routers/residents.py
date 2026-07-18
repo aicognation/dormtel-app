@@ -70,6 +70,7 @@ async def list_residents(
             school=r.school,
             course=r.course,
             review_center=r.review_center,
+            company_name=r.company_name,
             exam_date=r.exam_date,
             is_first_time_dormer=r.is_first_time_dormer,
             source=r.source,

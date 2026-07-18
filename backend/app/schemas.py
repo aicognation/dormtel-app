@@ -55,6 +55,7 @@ class ResidentOut(ResidentBase):
     school: Optional[str] = None
     course: Optional[str] = None
     review_center: Optional[str] = None
+    company_name: Optional[str] = None
     exam_date: Optional[date] = None
     is_first_time_dormer: Optional[bool] = True
     source: Optional[str] = None

@@ -228,7 +228,7 @@ export default function ResidentsPage() {
                   <th className="px-3 py-3 text-left whitespace-nowrap">ID Number</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Source</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Dormer Type</th>
-                  <th className="px-3 py-3 text-left whitespace-nowrap">School / Review Center</th>
+                  <th className="px-3 py-3 text-left whitespace-nowrap">School / Review Ctr / Company</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Course / Exam</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">1 Mo. Advance</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">PR No.</th>
@@ -256,7 +256,7 @@ export default function ResidentsPage() {
                       <span className="font-medium text-gray-900">{r.room_number || '-'}</span>
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700 capitalize">
-                      {r.bed_type?.replace(/_/g, ' ') || '-'}
+                      {r.room_type?.replace(/_/g, ' ') || '-'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
                       {r.bed_code || '-'}
@@ -297,11 +297,11 @@ export default function ResidentsPage() {
                         <span className="text-gray-500">-</span>
                       )}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-700 max-w-[140px] truncate" title={r.school || r.review_center}>
-                      {r.school || r.review_center || '-'}
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700 max-w-[140px] truncate" title={r.school || r.review_center || r.company_name}>
+                      {r.school || r.review_center || r.company_name || '-'}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-700 max-w-[120px] truncate" title={r.course}>
-                      {r.course || '-'}
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700 max-w-[120px] truncate" title={r.board_exam_type || r.course}>
+                      {r.board_exam_type || r.course || '-'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
                       {advance.amount != null ? formatMoney(advance.amount) : '-'}
