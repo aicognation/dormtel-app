@@ -836,5 +836,43 @@ class MiscellaneousTransactionOut(MiscellaneousTransactionBase):
         from_attributes = True
 
 
+# --- Template Validation Schemas ---
+
+class TemplateValidationIssue(BaseModel):
+    severity: str          # "error" | "warning" | "info"
+    code: str              # machine-readable e.g. "MISSING_REQUIRED_COLUMN"
+    message: str           # human-readable, actionable
+    sheet: Optional[str] = None
+    column: Optional[str] = None
+
+class SheetPreview(BaseModel):
+    name: str
+    header_row_index: Optional[int] = None
+    detected_headers: List[str] = []
+    missing_headers: List[str] = []
+    extra_headers: List[str] = []
+    data_row_count: int = 0
+    sample_rows: List[list] = []
+    date_column_count: Optional[int] = None
+    date_range_start: Optional[str] = None
+    date_range_end: Optional[str] = None
+    detected_month: Optional[str] = None
+    detected_year: Optional[int] = None
+    has_bed_column: Optional[bool] = None
+    format_variant: Optional[str] = None
+    misc_columns: List[str] = []
+    has_total_usage: Optional[bool] = None
+    has_water_bill: Optional[bool] = None
+
+class TemplateValidationResponse(BaseModel):
+    upload_type: str                       # "standard" | "daily_sheet"
+    file_name: str
+    file_size_bytes: int
+    overall_status: str                    # "valid" | "warnings" | "invalid"
+    issues: List[TemplateValidationIssue] = []
+    sheets: List[SheetPreview] = []
+    summary: dict = {}
+
+
 # Resolve forward reference for StaffLoginResponse
 StaffLoginResponse.model_rebuild()

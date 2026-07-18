@@ -11,6 +11,7 @@ import {
   listBillings, submitMeterReading, generateBilling, approveBilling, distributeBilling,
   downloadMeterReadingTemplate, uploadMeterReadings, uploadDailyMeterSheet, listMeterReadings, previewBilling,
   getDailyMeterGrid, bulkUpsertMeterReadings, getBillingImportStatus,
+  validateMeterReadingTemplate, validateDailySheetTemplate,
 } from '../api/billing';
 import { generateStatements, listStatements, downloadStatement, sendStatementEmail } from '../api/statements';
 import { listResidents } from '../api/residents';
@@ -18,6 +19,7 @@ import { listRooms } from '../api/onboarding';
 import { BILLING_STATUSES } from '../utils/constants';
 import { formatCurrency, formatDate, formatDateTime, shortUUID } from '../utils/formatters';
 import { useProperty } from '../contexts/PropertyContext';
+import TemplatePreviewModal from '../components/dashboard/TemplatePreviewModal';
 
 export default function BillingPage() {
   const { propertyCode } = useProperty();
@@ -78,6 +80,13 @@ export default function BillingPage() {
   const [meterForm, setMeterForm] = useState({ building: '', room_id: '', resident_id: '', reading_date: '', electric_reading: '', water_reading: '' });
   const fileInputRef = useRef(null);
   const dailySheetInputRef = useRef(null);
+
+  // Template validation state
+  const [validationResult, setValidationResult] = useState(null);
+  const [validationLoading, setValidationLoading] = useState(false);
+  const [pendingUploadFile, setPendingUploadFile] = useState(null);
+  const [pendingUploadType, setPendingUploadType] = useState(null);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -383,42 +392,75 @@ export default function BillingPage() {
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    e.target.value = '';
+    setValidationLoading(true);
     try {
-      const res = await uploadMeterReadings(file);
-      toast.success(res.message || `Uploaded ${res.imported} readings`);
-      if (res.errors && res.errors.length > 0) {
-        res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
-      }
-      e.target.value = '';
-      if (tab === 'meter-readings') fetchDailyGrid();
+      const result = await validateMeterReadingTemplate(file);
+      setValidationResult(result);
+      setPendingUploadFile(file);
+      setPendingUploadType('standard');
+      setShowPreviewModal(true);
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Failed to upload meter readings';
+      const msg = err.response?.data?.detail || 'Failed to validate file';
       toast.error(msg);
+    } finally {
+      setValidationLoading(false);
     }
   };
 
   const handleDailySheetUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
+    e.target.value = '';
+    setValidationLoading(true);
     try {
-      const res = await uploadDailyMeterSheet(file);
-      toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
-      if (res.errors && res.errors.length > 0) {
-        res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
-      }
-      e.target.value = '';
-      if (tab === 'meter-readings') fetchDailyGrid();
-      // Refresh import status if we're on preview tab
-      if (genForm.billing_period) {
-        const statusRes = await getBillingImportStatus({
-          billing_period: genForm.billing_period,
-          building: genForm.building || undefined,
-        });
-        setImportStatus(statusRes);
-      }
+      const result = await validateDailySheetTemplate(file);
+      setValidationResult(result);
+      setPendingUploadFile(file);
+      setPendingUploadType('daily_sheet');
+      setShowPreviewModal(true);
     } catch (err) {
-      const msg = err.response?.data?.detail || 'Failed to upload daily meter sheet';
+      const msg = err.response?.data?.detail || 'Failed to validate file';
       toast.error(msg);
+    } finally {
+      setValidationLoading(false);
+    }
+  };
+
+  const handleProceedWithUpload = async () => {
+    if (!pendingUploadFile) return;
+    setSubmitting(true);
+    try {
+      if (pendingUploadType === 'standard') {
+        const res = await uploadMeterReadings(pendingUploadFile);
+        toast.success(res.message || `Uploaded ${res.imported} readings`);
+        if (res.errors && res.errors.length > 0) {
+          res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
+        }
+      } else {
+        const res = await uploadDailyMeterSheet(pendingUploadFile);
+        toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
+        if (res.errors && res.errors.length > 0) {
+          res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
+        }
+        // Refresh import status if on preview tab
+        if (genForm.billing_period) {
+          const statusRes = await getBillingImportStatus({
+            billing_period: genForm.billing_period,
+            building: genForm.building || undefined,
+          });
+          setImportStatus(statusRes);
+        }
+      }
+      setShowPreviewModal(false);
+      setPendingUploadFile(null);
+      setValidationResult(null);
+      if (tab === 'meter-readings') fetchDailyGrid();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Upload failed';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -1317,6 +1359,16 @@ export default function BillingPage() {
           </div>
         </form>
       </Modal>
+
+      {/* Template Compatibility Check Modal */}
+      <TemplatePreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => { setShowPreviewModal(false); setPendingUploadFile(null); setValidationResult(null); }}
+        onProceed={handleProceedWithUpload}
+        validationResult={validationResult}
+        uploadType={pendingUploadType}
+        loading={submitting}
+      />
     </div>
   );
 }

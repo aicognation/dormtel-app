@@ -46,6 +46,22 @@ export function uploadDailyMeterSheet(file) {
   });
 }
 
+export function validateMeterReadingTemplate(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return client.post('/billings/meter-readings/validate-template', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
+export function validateDailySheetTemplate(file) {
+  const formData = new FormData();
+  formData.append('file', file);
+  return client.post('/billings/meter-readings/validate-daily-sheet', formData, {
+    headers: { 'Content-Type': 'multipart/form-data' },
+  });
+}
+
 export function listMeterReadings(params = {}) {
   return client.get('/billings/meter-readings', { params });
 }
