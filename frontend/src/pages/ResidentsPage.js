@@ -245,7 +245,12 @@ export default function ResidentsPage() {
                 </tr>
               </thead>
               <tbody className="divide-y divide-gray-100">
-                {filtered.map((r) => (
+                {filtered.map((r) => {
+                  const deps = r.deposits || [];
+                  const advance = deps.find(d => d.deposit_type === 'advance') || {};
+                  const security = deps.find(d => d.deposit_type === 'security') || {};
+                  const utility = deps.find(d => d.deposit_type === 'utility') || {};
+                  return (
                   <tr key={r.id} className="hover:bg-gray-50">
                     <td className="px-3 py-3 whitespace-nowrap">
                       <span className="font-medium text-gray-900">{r.room_number || '-'}</span>
@@ -265,8 +270,8 @@ export default function ResidentsPage() {
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700 max-w-[120px] truncate" title={r.address}>
                       {r.address || '-'}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-500">
-                      -
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700 capitalize">
+                      {r.location || '-'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
                       {r.email || '-'}
@@ -277,14 +282,19 @@ export default function ResidentsPage() {
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
                       {r.id_number || '-'}
                     </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-500">
-                      -
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700 capitalize">
+                      {r.source || '-'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">
-                      {r.is_first_time_dormer ? (
-                        <span className="text-xs bg-green-50 text-green-700 px-2 py-0.5 rounded-full">New</span>
+                      {r.dormer_type ? (
+                        <span className={`text-xs px-2 py-0.5 rounded-full capitalize ${
+                          r.dormer_type === 'student' ? 'bg-blue-50 text-blue-700' :
+                          r.dormer_type === 'reviewee' ? 'bg-purple-50 text-purple-700' :
+                          r.dormer_type === 'working_professional' ? 'bg-green-50 text-green-700' :
+                          'bg-gray-50 text-gray-700'
+                        }`}>{r.dormer_type.replace(/_/g, ' ')}</span>
                       ) : (
-                        <span className="text-xs bg-blue-50 text-blue-700 px-2 py-0.5 rounded-full">Returning</span>
+                        <span className="text-gray-500">-</span>
                       )}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700 max-w-[140px] truncate" title={r.school || r.review_center}>
@@ -294,25 +304,25 @@ export default function ResidentsPage() {
                       {r.course || '-'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
-                      {formatMoney(r.deposit_paid)}
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-500">
-                      -
+                      {advance.amount != null ? formatMoney(advance.amount) : '-'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
-                      {formatMoney(r.deposit_paid)}
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-500">
-                      -
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-500">
-                      -
-                    </td>
-                    <td className="px-3 py-3 whitespace-nowrap text-gray-500">
-                      -
+                      {advance.receipt_number || '-'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
-                      {formatDate(r.contract_end_date)}
+                      {security.amount != null ? formatMoney(security.amount) : '-'}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700">
+                      {security.receipt_number || '-'}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700">
+                      {utility.amount != null ? formatMoney(utility.amount) : '-'}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700">
+                      {utility.receipt_number || '-'}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700">
+                      {r.lease_term_months ? `${r.lease_term_months} mo.` : '-'}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
                       {formatMoney(r.monthly_rate)}
@@ -347,7 +357,8 @@ export default function ResidentsPage() {
                       </div>
                     </td>
                   </tr>
-                ))}
+                  );
+                })}
               </tbody>
             </table>
           </div>

@@ -24,7 +24,10 @@ async def list_residents(
 ):
     query = (
         select(models.Resident)
-        .options(selectinload(models.Resident.bed).selectinload(models.Bed.room))
+        .options(
+            selectinload(models.Resident.bed).selectinload(models.Bed.room),
+            selectinload(models.Resident.deposits),
+        )
         .order_by(models.Resident.created_at.desc())
     )
 
@@ -87,6 +90,10 @@ async def list_residents(
             room_number=r.bed.room.room_number if r.bed and r.bed.room else None,
             building=r.bed.room.building if r.bed and r.bed.room else None,
             room_type=r.bed.room.room_type if r.bed and r.bed.room else None,
+            deposits=[
+                {"deposit_type": d.deposit_type, "amount": d.amount, "receipt_number": d.receipt_number}
+                for d in (r.deposits or [])
+            ],
         ))
     return output
 
