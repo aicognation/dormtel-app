@@ -164,7 +164,10 @@ async def get_resident(
     result = await db.execute(
         select(models.Resident)
         .where(models.Resident.id == resident_id)
-        .options(selectinload(models.Resident.bed).selectinload(models.Bed.room))
+        .options(
+            selectinload(models.Resident.bed).selectinload(models.Bed.room),
+            selectinload(models.Resident.deposits),
+        )
     )
     r = result.scalar_one_or_none()
     if not r:
@@ -184,6 +187,7 @@ async def get_resident(
         school=r.school,
         course=r.course,
         review_center=r.review_center,
+        company_name=r.company_name,
         exam_date=r.exam_date,
         is_first_time_dormer=r.is_first_time_dormer,
         source=r.source,
@@ -204,6 +208,10 @@ async def get_resident(
         room_number=r.bed.room.room_number if r.bed and r.bed.room else None,
         building=r.bed.room.building if r.bed and r.bed.room else None,
         room_type=r.bed.room.room_type if r.bed and r.bed.room else None,
+        deposits=[
+            {"deposit_type": d.deposit_type, "amount": d.amount, "receipt_number": d.receipt_number}
+            for d in (r.deposits or [])
+        ],
     )
 
 
@@ -241,6 +249,8 @@ async def update_resident(
         resident.course = payload.course
     if payload.review_center is not None:
         resident.review_center = payload.review_center
+    if payload.company_name is not None:
+        resident.company_name = payload.company_name
     if payload.exam_date is not None:
         resident.exam_date = payload.exam_date
     if payload.is_first_time_dormer is not None:

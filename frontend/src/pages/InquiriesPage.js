@@ -18,7 +18,7 @@ export default function InquiriesPage() {
   const [loading, setLoading] = useState(true);
   const [filters, setFilters] = useState({ status: '', source: '' });
   const [showCreate, setShowCreate] = useState(false);
-  const [form, setForm] = useState({ source: 'facebook', prospect_name: '', content: '', external_id: '', school: '', course: '', review_center: '' });
+  const [form, setForm] = useState({ source: 'facebook', prospect_name: '', prospect_email: '', prospect_phone: '', content: '', external_id: '', school: '', course: '', review_center: '' });
   const [submitting, setSubmitting] = useState(false);
   const [convertInquiry, setConvertInquiry] = useState(null);
   const [responseModal, setResponseModal] = useState(null);
@@ -49,7 +49,7 @@ export default function InquiriesPage() {
       await createInquiry(form);
       toast.success('Inquiry created successfully');
       setShowCreate(false);
-      setForm({ source: 'facebook', prospect_name: '', content: '', external_id: '', school: '', course: '', review_center: '' });
+      setForm({ source: 'facebook', prospect_name: '', prospect_email: '', prospect_phone: '', content: '', external_id: '', school: '', course: '', review_center: '' });
       await fetchData();
     } catch (err) {
       const msg = err.response?.data?.detail || 'Failed to create inquiry';
@@ -214,6 +214,18 @@ export default function InquiriesPage() {
             value={form.prospect_name} onChange={(e) => setForm({ ...form, prospect_name: e.target.value })}
             placeholder="Prospect name"
           />
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            <FormField
+              label="Email" name="prospect_email" type="text"
+              value={form.prospect_email} onChange={(e) => setForm({ ...form, prospect_email: e.target.value })}
+              placeholder="Prospect email"
+            />
+            <FormField
+              label="Phone" name="prospect_phone" type="text"
+              value={form.prospect_phone} onChange={(e) => setForm({ ...form, prospect_phone: e.target.value })}
+              placeholder="e.g. 09XXXXXXXXX"
+            />
+          </div>
           <FormField
             label="School / Company" name="school" type="text"
             value={form.school} onChange={(e) => setForm({ ...form, school: e.target.value })}

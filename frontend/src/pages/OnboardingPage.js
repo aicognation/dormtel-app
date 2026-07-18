@@ -160,6 +160,7 @@ export default function OnboardingPage() {
       exam_date: inquiry.exam_date || '',
       is_first_time_dormer: inquiry.first_time_dormer ?? true,
       source: inquiry.source || '',
+      move_in_date: inquiry.desired_move_in_date || '',
     }));
   };
 

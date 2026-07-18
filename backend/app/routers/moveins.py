@@ -22,7 +22,10 @@ async def list_moveins(
 
     query = (
         select(models.Resident)
-        .options(selectinload(models.Resident.bed).selectinload(models.Bed.room))
+        .options(
+            selectinload(models.Resident.bed).selectinload(models.Bed.room),
+            selectinload(models.Resident.deposits),
+        )
         .where(models.Resident.move_in_date.isnot(None))
         .order_by(models.Resident.move_in_date.desc())
     )
@@ -67,6 +70,7 @@ async def list_moveins(
             school=r.school,
             course=r.course,
             review_center=r.review_center,
+            company_name=r.company_name,
             exam_date=r.exam_date,
             is_first_time_dormer=r.is_first_time_dormer,
             source=r.source,
@@ -87,5 +91,9 @@ async def list_moveins(
             room_number=r.bed.room.room_number if r.bed and r.bed.room else None,
             building=r.bed.room.building if r.bed and r.bed.room else None,
             room_type=r.bed.room.room_type if r.bed and r.bed.room else None,
+            deposits=[
+                {"deposit_type": d.deposit_type, "amount": d.amount, "receipt_number": d.receipt_number}
+                for d in (r.deposits or [])
+            ],
         ))
     return output

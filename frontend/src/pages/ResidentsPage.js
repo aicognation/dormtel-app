@@ -5,6 +5,7 @@ import client from '../api/client';
 import { Search, Users, Filter, Pencil, Trash2, Eye, Plus, X } from 'lucide-react';
 import toast from 'react-hot-toast';
 import { listRooms } from '../api/onboarding';
+import { ID_TYPES, DORMER_TYPES, LOCATIONS, BOARD_EXAM_TYPES, LEASE_TERMS } from '../utils/constants';
 
 export default function ResidentsPage() {
   const { isAdmin } = useAuth();
@@ -19,8 +20,10 @@ export default function ResidentsPage() {
   const [form, setForm] = useState({
     full_name: '', email: '', phone: '', status: 'active', notes: '',
     id_type: '', id_number: '', address: '', school: '', course: '',
-    review_center: '', monthly_rate: '', move_in_date: '', move_out_date: '',
-    contract_end_date: '', bed_id: '',
+    review_center: '', company_name: '', monthly_rate: '', move_in_date: '', move_out_date: '',
+    contract_end_date: '', bed_id: '', source: '', location: '', dormer_type: '',
+    board_exam_type: '', lease_term_months: '', is_first_time_dormer: true, exam_date: '',
+    deposit_paid: '',
   });
 
   const fetchResidents = async () => {
@@ -72,8 +75,10 @@ export default function ResidentsPage() {
     setForm({
       full_name: '', email: '', phone: '', status: 'active', notes: '',
       id_type: '', id_number: '', address: '', school: '', course: '',
-      review_center: '', monthly_rate: '', move_in_date: '', move_out_date: '',
-      contract_end_date: '', bed_id: '',
+      review_center: '', company_name: '', monthly_rate: '', move_in_date: '', move_out_date: '',
+      contract_end_date: '', bed_id: '', source: '', location: '', dormer_type: '',
+      board_exam_type: '', lease_term_months: '', is_first_time_dormer: true, exam_date: '',
+      deposit_paid: '',
     });
     setModalOpen(true);
   };
@@ -92,11 +97,20 @@ export default function ResidentsPage() {
       school: r.school || '',
       course: r.course || '',
       review_center: r.review_center || '',
+      company_name: r.company_name || '',
       monthly_rate: r.monthly_rate || '',
       move_in_date: r.move_in_date || '',
       move_out_date: r.move_out_date || '',
       contract_end_date: r.contract_end_date || '',
       bed_id: r.bed_id || '',
+      source: r.source || '',
+      location: r.location || '',
+      dormer_type: r.dormer_type || '',
+      board_exam_type: r.board_exam_type || '',
+      lease_term_months: r.lease_term_months || '',
+      is_first_time_dormer: r.is_first_time_dormer ?? true,
+      exam_date: r.exam_date || '',
+      deposit_paid: r.deposit_paid || '',
     });
     setModalOpen(true);
   };
@@ -108,6 +122,12 @@ export default function ResidentsPage() {
         ...form,
         monthly_rate: form.monthly_rate ? Number(form.monthly_rate) : 0,
         bed_id: form.bed_id || undefined,
+        lease_term_months: form.lease_term_months ? Number(form.lease_term_months) : undefined,
+        deposit_paid: form.deposit_paid ? Number(form.deposit_paid) : undefined,
+        source: form.source || undefined,
+        location: form.location || undefined,
+        dormer_type: form.dormer_type || undefined,
+        board_exam_type: form.board_exam_type || undefined,
       };
       if (editing) {
         await client.patch(`/residents/${editing.id}`, payload);
@@ -228,6 +248,7 @@ export default function ResidentsPage() {
                   <th className="px-3 py-3 text-left whitespace-nowrap">ID Number</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Source</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Dormer Type</th>
+                  <th className="px-3 py-3 text-left whitespace-nowrap">1st Time?</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">School / Review Ctr / Company</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Course / Exam</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">1 Mo. Advance</th>
@@ -240,6 +261,7 @@ export default function ResidentsPage() {
                   <th className="px-3 py-3 text-left whitespace-nowrap">Rate</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Move In</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Move Out</th>
+                  <th className="px-3 py-3 text-left whitespace-nowrap">Contract End</th>
                   <th className="px-3 py-3 text-left whitespace-nowrap">Status</th>
                   <th className="px-3 py-3 text-right whitespace-nowrap">Actions</th>
                 </tr>
@@ -297,6 +319,13 @@ export default function ResidentsPage() {
                         <span className="text-gray-500">-</span>
                       )}
                     </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-center">
+                      {r.is_first_time_dormer ? (
+                        <span className="text-xs text-green-600">Yes</span>
+                      ) : (
+                        <span className="text-xs text-gray-500">No</span>
+                      )}
+                    </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700 max-w-[140px] truncate" title={r.school || r.review_center || r.company_name}>
                       {r.school || r.review_center || r.company_name || '-'}
                     </td>
@@ -332,6 +361,9 @@ export default function ResidentsPage() {
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap text-gray-700">
                       {formatDate(r.move_out_date)}
+                    </td>
+                    <td className="px-3 py-3 whitespace-nowrap text-gray-700">
+                      {formatDate(r.contract_end_date)}
                     </td>
                     <td className="px-3 py-3 whitespace-nowrap">
                       {statusBadge(r.status)}
@@ -472,19 +504,136 @@ export default function ResidentsPage() {
                   />
                 </div>
                 <div>
-                  <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
-                  <select
-                    value={form.status}
-                    onChange={(e) => setForm({ ...form, status: e.target.value })}
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Company Name</label>
+                  <input
+                    value={form.company_name}
+                    onChange={(e) => setForm({ ...form, company_name: e.target.value })}
                     className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
-                  >
-                    <option value="prospect">Prospect</option>
-                    <option value="reserved">Reserved</option>
-                    <option value="active">Active</option>
-                    <option value="inactive">Inactive</option>
-                    <option value="moved_out">Moved Out</option>
-                  </select>
+                    placeholder="For working professionals"
+                  />
                 </div>
+                <div>
+                  <label className="block text-sm font-medium text-gray-700 mb-1">Exam Date</label>
+                  <input
+                    type="date"
+                    value={form.exam_date}
+                    onChange={(e) => setForm({ ...form, exam_date: e.target.value })}
+                    className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                  />
+                </div>
+              </div>
+
+              {/* Resident Profile Section */}
+              <div className="border-t border-gray-200 pt-3">
+                <p className="text-xs font-semibold text-gray-500 uppercase tracking-wide mb-3">Resident Profile</p>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Source</label>
+                    <select
+                      value={form.source}
+                      onChange={(e) => setForm({ ...form, source: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="">Select...</option>
+                      <option value="facebook">Facebook</option>
+                      <option value="instagram">Instagram</option>
+                      <option value="tiktok">TikTok</option>
+                      <option value="walkin">Walk-in</option>
+                      <option value="phone">Phone</option>
+                      <option value="referral">Referral</option>
+                      <option value="website">Website</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Location</label>
+                    <select
+                      value={form.location}
+                      onChange={(e) => setForm({ ...form, location: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="">Select...</option>
+                      {LOCATIONS.map((loc) => (
+                        <option key={loc.value} value={loc.value}>{loc.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Dormer Type</label>
+                    <select
+                      value={form.dormer_type}
+                      onChange={(e) => setForm({ ...form, dormer_type: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="">Select...</option>
+                      {DORMER_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Board Exam Type</label>
+                    <select
+                      value={form.board_exam_type}
+                      onChange={(e) => setForm({ ...form, board_exam_type: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="">Select...</option>
+                      {BOARD_EXAM_TYPES.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Lease Term</label>
+                    <select
+                      value={form.lease_term_months}
+                      onChange={(e) => setForm({ ...form, lease_term_months: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="">Select...</option>
+                      {LEASE_TERMS.map((t) => (
+                        <option key={t.value} value={t.value}>{t.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">First Time Dormer?</label>
+                    <select
+                      value={String(form.is_first_time_dormer)}
+                      onChange={(e) => setForm({ ...form, is_first_time_dormer: e.target.value === 'true' })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="true">Yes</option>
+                      <option value="false">No</option>
+                    </select>
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Deposit Paid (₱)</label>
+                    <input
+                      type="number"
+                      value={form.deposit_paid}
+                      onChange={(e) => setForm({ ...form, deposit_paid: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-sm font-medium text-gray-700 mb-1">Status</label>
+                    <select
+                      value={form.status}
+                      onChange={(e) => setForm({ ...form, status: e.target.value })}
+                      className="w-full px-3 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-brand-navy"
+                    >
+                      <option value="prospect">Prospect</option>
+                      <option value="reserved">Reserved</option>
+                      <option value="active">Active</option>
+                      <option value="inactive">Inactive</option>
+                      <option value="moved_out">Moved Out</option>
+                    </select>
+                  </div>
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div className="sm:col-span-2">
                   <label className="block text-sm font-medium text-gray-700 mb-1">Bed / Room</label>
                   <select

@@ -194,6 +194,11 @@ async def complete_moveout(
     moveout.accounting_resolved_at = datetime.utcnow()
     resident.status = "moved_out"
 
+    # Sync move-out date to resident record
+    resident.move_out_date = (
+        moveout.actual_date or moveout.extended_date or moveout.requested_date or date.today()
+    )
+
     # Free the bed and update room status
     if resident.bed_id:
         bed_result = await db.execute(
@@ -292,6 +297,7 @@ async def list_moveouts(
             school=resident.school if resident else None,
             course=resident.course if resident else None,
             review_center=resident.review_center if resident else None,
+            company_name=resident.company_name if resident else None,
             exam_date=resident.exam_date if resident else None,
             source=resident.source if resident else None,
             location=resident.location if resident else None,
@@ -300,6 +306,9 @@ async def list_moveouts(
             lease_term_months=resident.lease_term_months if resident else None,
             monthly_rate=resident.monthly_rate if resident else None,
             deposit_paid=resident.deposit_paid if resident else None,
+            contract_end_date=resident.contract_end_date if resident else None,
+            is_first_time_dormer=resident.is_first_time_dormer if resident else None,
+            notes=resident.notes if resident else None,
             room_number=room.room_number if room else None,
             bed_code=bed.bed_code if bed else None,
             bed_type=bed.bed_type if bed else None,

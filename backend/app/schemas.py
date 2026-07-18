@@ -366,6 +366,7 @@ class MoveOutOut(MoveOutBase):
     school: Optional[str] = None
     course: Optional[str] = None
     review_center: Optional[str] = None
+    company_name: Optional[str] = None
     exam_date: Optional[date] = None
     source: Optional[str] = None
     location: Optional[str] = None
@@ -374,6 +375,9 @@ class MoveOutOut(MoveOutBase):
     lease_term_months: Optional[int] = None
     monthly_rate: Optional[Decimal] = None
     deposit_paid: Optional[Decimal] = None
+    contract_end_date: Optional[date] = None
+    is_first_time_dormer: Optional[bool] = None
+    notes: Optional[str] = None
     room_number: Optional[str] = None
     bed_code: Optional[str] = None
     bed_type: Optional[str] = None
@@ -711,7 +715,7 @@ class ResidentListOut(ResidentOut):
 
 class ResidentUpdate(BaseModel):
     full_name: Optional[str] = None
-    email: Optional[EmailStr] = None
+    email: Optional[str] = None
     phone: Optional[str] = None
     id_type: Optional[str] = None
     id_number: Optional[str] = None
@@ -721,6 +725,7 @@ class ResidentUpdate(BaseModel):
     school: Optional[str] = None
     course: Optional[str] = None
     review_center: Optional[str] = None
+    company_name: Optional[str] = None
     exam_date: Optional[date] = None
     is_first_time_dormer: Optional[bool] = None
     source: Optional[str] = None

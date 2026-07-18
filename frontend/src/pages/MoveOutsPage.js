@@ -24,6 +24,8 @@ function ResidentDetailCard({ r }) {
           <h4 className="font-semibold text-gray-700 flex items-center gap-1.5">
             <FileText className="w-3.5 h-3.5" /> Identification
           </h4>
+          <p className="text-gray-600"><span className="text-gray-400">Email:</span> {r.resident_email || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Phone:</span> {r.resident_phone || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Type:</span> {r.id_type || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Number:</span> {r.id_number || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Address:</span> {r.address || '—'}</p>
@@ -35,6 +37,7 @@ function ResidentDetailCard({ r }) {
           <p className="text-gray-600"><span className="text-gray-400">School:</span> {r.school || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Course:</span> {r.course || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Review Center:</span> {r.review_center || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Company:</span> {r.company_name || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Board Exam:</span> {r.board_exam_type || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Exam Date:</span> {r.exam_date || '—'}</p>
         </div>
@@ -51,6 +54,8 @@ function ResidentDetailCard({ r }) {
           <h4 className="font-semibold text-gray-700 flex items-center gap-1.5">
             <Building2 className="w-3.5 h-3.5" /> Accommodation
           </h4>
+          <p className="text-gray-600"><span className="text-gray-400">Room:</span> {r.room_number || '—'}</p>
+          <p className="text-gray-600"><span className="text-gray-400">Bed:</span> {r.bed_code || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Room Type:</span> {r.room_type || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Bed Type:</span> {r.bed_type || '—'}</p>
           <p className="text-gray-600"><span className="text-gray-400">Monthly Rate:</span> {r.monthly_rate ? `₱${Number(r.monthly_rate).toLocaleString()}` : '—'}</p>
