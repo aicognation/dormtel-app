@@ -56,9 +56,14 @@ def _parse_date(val):
     if isinstance(val, date):
         return val
     if isinstance(val, str):
-        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y", "%d/%m/%Y"):
+        val = val.strip()
+        if not val:
+            return None
+        for fmt in ("%Y-%m-%d", "%Y-%m-%d %H:%M:%S", "%m/%d/%Y", "%d/%m/%Y",
+                     "%b %d, %Y", "%B %d, %Y", "%d-%b-%Y", "%m-%d-%Y",
+                     "%Y/%m/%d", "%d/%m/%y", "%m/%d/%y"):
             try:
-                return datetime.strptime(val.strip(), fmt).date()
+                return datetime.strptime(val, fmt).date()
             except ValueError:
                 continue
     return None
@@ -68,9 +73,28 @@ def _parse_decimal(val):
     if val is None or val == "":
         return None
     try:
-        return Decimal(str(val).replace(",", ""))
+        s = str(val).strip()
+        # Remove peso sign, spaces, commas
+        s = s.replace("₱", "").replace("PHP", "").replace(" ", "").replace(",", "")
+        # Handle parentheses as negative: (1,234) -> -1234
+        if s.startswith("(") and s.endswith(")"):
+            s = "-" + s[1:-1]
+        if not s or s == "-":
+            return None
+        return Decimal(s)
     except Exception:
         return None
+
+
+def _is_floor_marker(val):
+    """Detect floor marker rows like '2nd Floor', '3rd Floor', '4F', etc."""
+    if val is None:
+        return False
+    s = str(val).strip().lower()
+    if not s:
+        return False
+    # Match patterns: "2nd floor", "3rd floor", "4f", "ground floor", "basement", etc.
+    return bool(re.match(r'^(\d+(st|nd|rd|th)\s*floor?|\d+f|ground\s*floor|basement|mezzanine|penthouse)$', s))
 
 
 def _normalize_name(name):
@@ -695,13 +719,41 @@ async def upload_meter_readings(
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are allowed")
 
+    # File size validation (max 10MB)
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"File too large ({len(contents) / 1024 / 1024:.1f}MB). Maximum size is 10MB.")
+    if len(contents) < 100:
+        raise HTTPException(status_code=400, detail="File appears to be empty or corrupted.")
+
     try:
         from openpyxl import load_workbook
-        contents = await file.read()
-        wb = load_workbook(io.BytesIO(contents), data_only=True)
-        ws = wb["Meter Readings"]
+        wb = load_workbook(io.BytesIO(contents), data_only=True, keep_links=False)
+        # Look for "Meter Readings" sheet (case-insensitive)
+        ws = None
+        for name in wb.sheetnames:
+            if name.strip().lower() == "meter readings":
+                ws = wb[name]
+                break
+        if ws is None:
+            available = ", ".join(wb.sheetnames[:5])
+            raise HTTPException(
+                status_code=400,
+                detail=f"Sheet 'Meter Readings' not found. Available sheets: {available}. "
+                       f"Please use the Template button to download the correct format."
+            )
+    except HTTPException:
+        raise
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {str(e)}")
+        error_msg = str(e)
+        if "not a zip file" in error_msg.lower() or "file format" in error_msg.lower():
+            raise HTTPException(
+                status_code=400,
+                detail="File format not recognized. Please save as .xlsx (Excel Workbook) format. "
+                       "If using Google Sheets, use File → Download → Microsoft Excel (.xlsx)."
+            )
+        raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {error_msg}")
 
     # Read headers from first row
     headers = [cell.value for cell in ws[1]]
@@ -867,12 +919,26 @@ async def upload_daily_meter_sheet(
     if not file.filename.endswith((".xlsx", ".xls")):
         raise HTTPException(status_code=400, detail="Only Excel files (.xlsx, .xls) are allowed")
 
+    # File size validation (max 10MB)
+    MAX_FILE_SIZE = 10 * 1024 * 1024
+    contents = await file.read()
+    if len(contents) > MAX_FILE_SIZE:
+        raise HTTPException(status_code=400, detail=f"File too large ({len(contents) / 1024 / 1024:.1f}MB). Maximum size is 10MB.")
+    if len(contents) < 100:
+        raise HTTPException(status_code=400, detail="File appears to be empty or corrupted.")
+
     try:
         from openpyxl import load_workbook
-        contents = await file.read()
-        wb = load_workbook(io.BytesIO(contents), data_only=True)
+        wb = load_workbook(io.BytesIO(contents), data_only=True, keep_links=False)
     except Exception as e:
-        raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {str(e)}")
+        error_msg = str(e)
+        if "not a zip file" in error_msg.lower() or "file format" in error_msg.lower():
+            raise HTTPException(
+                status_code=400,
+                detail="File format not recognized. Please save as .xlsx (Excel Workbook) format. "
+                       "If using Google Sheets, use File → Download → Microsoft Excel (.xlsx)."
+            )
+        raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {error_msg}")
 
     # Pre-load rooms and residents for matching (scoped to property if available)
     room_query = select(Room)
@@ -1082,6 +1148,16 @@ async def upload_daily_meter_sheet(
         for row in ws.iter_rows(min_row=header_row_idx + 1, values_only=True):
             if not row:
                 continue
+
+            # Skip floor marker rows (e.g. "2nd Floor", "3rd Floor", "4F")
+            if _is_floor_marker(row[0]):
+                continue
+
+            # Skip summary/total rows
+            if row[0] is not None and isinstance(row[0], str):
+                r0_lower = row[0].strip().lower()
+                if r0_lower in ("total", "totals", "grand total", "summary", "subtotal", "sub-total"):
+                    continue
 
             # Room number may be on its own row or repeated; forward-fill
             if row[0] is not None:
