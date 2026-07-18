@@ -23,6 +23,7 @@ from app.schemas import (
     BillingOut, BillingWithResidentOut,
     MeterReadingUploadResult, MeterReadingDailySheetResult,
     BillingImportStatusOut,
+    TemplateValidationResponse, TemplateValidationIssue, SheetPreview,
 )
 from app.utils.property_filter import get_property_buildings
 
@@ -702,25 +703,25 @@ def _validate_standard_template(contents: bytes, filename: str):
     sheets_preview = []
 
     if not filename.lower().endswith((".xlsx", ".xls")):
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="INVALID_FILE_TYPE",
             message=f"File '{filename}' is not an Excel file. Please save as .xlsx format."))
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="standard", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
     if len(contents) > 10 * 1024 * 1024:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="FILE_TOO_LARGE",
             message=f"File is {len(contents)/1024/1024:.1f} MB. Maximum allowed is 10 MB."))
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="standard", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
     if len(contents) < 100:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="FILE_EMPTY",
             message="File appears to be empty or corrupted."))
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="standard", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
@@ -729,18 +730,18 @@ def _validate_standard_template(contents: bytes, filename: str):
     except Exception as e:
         error_msg = str(e)
         if "not a zip file" in error_msg.lower():
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="error", code="FILE_NOT_PARSEABLE",
                 message="File format not recognized. If using Google Sheets, use File > Download > Microsoft Excel (.xlsx)."))
         elif "password" in error_msg.lower():
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="error", code="PASSWORD_PROTECTED",
                 message="File is password-protected. Please remove the password before uploading."))
         else:
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="error", code="FILE_NOT_PARSEABLE",
                 message=f"Cannot read this file: {error_msg[:200]}"))
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="standard", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
@@ -751,11 +752,11 @@ def _validate_standard_template(contents: bytes, filename: str):
             break
     if ws is None:
         available = ", ".join(wb.sheetnames[:5])
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="MISSING_SHEET",
             message=f"Sheet 'Meter Readings' not found. Found: [{available}]. Please rename your data sheet or download the template."))
         wb.close()
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="standard", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
@@ -770,12 +771,12 @@ def _validate_standard_template(contents: bytes, filename: str):
     extra = sorted(header_set - REQUIRED_COLS)
 
     for col_name in missing:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="MISSING_REQUIRED_COLUMN",
             message=f"Column '{col_name}' is missing. This column is required.",
             sheet="Meter Readings", column=col_name))
     if extra:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="info", code="EXTRA_COLUMNS",
             message=f"{len(extra)} extra column(s) will be ignored: [{', '.join(extra[:5])}]",
             sheet="Meter Readings"))
@@ -789,15 +790,15 @@ def _validate_standard_template(contents: bytes, filename: str):
                 sample_rows.append([str(v) if v is not None else "" for v in row[:10]])
 
     if data_row_count == 0:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="warning", code="EMPTY_DATA_ROWS",
             message="Sheet has headers but no data rows.", sheet="Meter Readings"))
     elif data_row_count < 3:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="info", code="FEW_DATA_ROWS",
             message=f"Only {data_row_count} data row(s) found.", sheet="Meter Readings"))
 
-    sheets_preview.append(schemas.SheetPreview(
+    sheets_preview.append(SheetPreview(
         name="Meter Readings", header_row_index=1,
         detected_headers=detected, missing_headers=missing, extra_headers=extra,
         data_row_count=data_row_count, sample_rows=sample_rows))
@@ -806,7 +807,7 @@ def _validate_standard_template(contents: bytes, filename: str):
     has_errors = any(i.severity == "error" for i in issues)
     has_warnings = any(i.severity == "warning" for i in issues)
     status = "invalid" if has_errors else ("warnings" if has_warnings else "valid")
-    return schemas.TemplateValidationResponse(
+    return TemplateValidationResponse(
         upload_type="standard", file_name=filename, file_size_bytes=len(contents),
         overall_status=status, issues=issues, sheets=sheets_preview,
         summary={"data_rows": data_row_count, "sheets": 1})
@@ -820,24 +821,24 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
     sheets_preview = []
 
     if not filename.lower().endswith((".xlsx", ".xls")):
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="INVALID_FILE_TYPE",
             message=f"File '{filename}' is not an Excel file. Please save as .xlsx format."))
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="daily_sheet", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
     if len(contents) > 10 * 1024 * 1024:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="FILE_TOO_LARGE",
             message=f"File is {len(contents)/1024/1024:.1f} MB. Maximum allowed is 10 MB."))
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="daily_sheet", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
     if len(contents) < 100:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="FILE_EMPTY",
             message="File appears to be empty or corrupted."))
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="daily_sheet", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
@@ -846,32 +847,32 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
     except Exception as e:
         error_msg = str(e)
         if "not a zip file" in error_msg.lower():
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="error", code="FILE_NOT_PARSEABLE",
                 message="File format not recognized. If using Google Sheets, use File > Download > Microsoft Excel (.xlsx)."))
         elif "password" in error_msg.lower():
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="error", code="PASSWORD_PROTECTED",
                 message="File is password-protected. Please remove the password before uploading."))
         else:
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="error", code="FILE_NOT_PARSEABLE",
                 message=f"Cannot read this file: {error_msg[:200]}"))
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="daily_sheet", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
     if not wb.sheetnames:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="error", code="NO_SHEETS",
             message="Workbook contains no sheets."))
         wb.close()
-        return schemas.TemplateValidationResponse(
+        return TemplateValidationResponse(
             upload_type="daily_sheet", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
     if len(wb.sheetnames) > 1:
-        issues.append(schemas.TemplateValidationIssue(
+        issues.append(TemplateValidationIssue(
             severity="info", code="MULTIPLE_SHEETS_INFO",
             message=f"{len(wb.sheetnames)} building sheet(s) detected: {', '.join(wb.sheetnames[:10])}"))
 
@@ -881,7 +882,7 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
         ws = wb[sheet_name]
         rows = list(ws.iter_rows(min_row=1, max_row=5, values_only=True))
         if not rows:
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="error", code="EMPTY_SHEET",
                 message=f"Sheet '{sheet_name}' is empty.", sheet=sheet_name))
             continue
@@ -897,7 +898,7 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
                 header_row = row_vals
 
         if not header_row or max_dates == 0:
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="error", code="NO_DATE_COLUMNS",
                 message=f"No date columns found in sheet '{sheet_name}'. Daily sheets need date columns in the header row.",
                 sheet=sheet_name))
@@ -957,12 +958,12 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
         total_residents += data_row_count
 
         if data_row_count == 0:
-            issues.append(schemas.TemplateValidationIssue(
+            issues.append(TemplateValidationIssue(
                 severity="warning", code="EMPTY_DATA_ROWS",
                 message=f"Sheet '{sheet_name}' has headers but no data rows.", sheet=sheet_name))
 
         detected_headers = sorted(header_map.keys())
-        sheets_preview.append(schemas.SheetPreview(
+        sheets_preview.append(SheetPreview(
             name=sheet_name, header_row_index=header_row_idx,
             detected_headers=detected_headers,
             data_row_count=data_row_count, sample_rows=sample_rows,
@@ -977,14 +978,14 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
     has_errors = any(i.severity == "error" for i in issues)
     has_warnings = any(i.severity == "warning" for i in issues)
     status = "invalid" if has_errors else ("warnings" if has_warnings else "valid")
-    return schemas.TemplateValidationResponse(
+    return TemplateValidationResponse(
         upload_type="daily_sheet", file_name=filename, file_size_bytes=len(contents),
         overall_status=status, issues=issues, sheets=sheets_preview,
         summary={"sheets": len(all_sheet_names), "total_residents": total_residents,
                  "previewed_sheets": len(sheets_preview)})
 
 
-@router.post("/meter-readings/validate-template", response_model=schemas.TemplateValidationResponse)
+@router.post("/meter-readings/validate-template", response_model=TemplateValidationResponse)
 async def validate_meter_reading_template(
     file: UploadFile = File(...),
     current_staff: models.Staff = Depends(auth.require_staff),
@@ -994,7 +995,7 @@ async def validate_meter_reading_template(
     return _validate_standard_template(contents, file.filename)
 
 
-@router.post("/meter-readings/validate-daily-sheet", response_model=schemas.TemplateValidationResponse)
+@router.post("/meter-readings/validate-daily-sheet", response_model=TemplateValidationResponse)
 async def validate_daily_sheet_template(
     file: UploadFile = File(...),
     current_staff: models.Staff = Depends(auth.require_staff),
