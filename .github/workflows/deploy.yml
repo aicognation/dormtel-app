@@ -74,8 +74,8 @@ jobs:
             docker compose -f docker-compose.prod.yml exec -T db psql -U dormtel -d dormtel -c "ALTER TYPE inquiry_source ADD VALUE IF NOT EXISTS 'email';" || true
             echo "=== Applying QR campaigns migration ==="
             docker compose -f docker-compose.prod.yml exec -T db psql -U dormtel -d dormtel -c "
-            CREATE TABLE IF NOT EXISTS demo.qr_campaigns (id UUID PRIMARY KEY, title VARCHAR(255) NOT NULL, property_code VARCHAR(10) NOT NULL DEFAULT 'DT01', start_date DATE, end_date DATE, notes TEXT, created_by UUID REFERENCES demo.staff(id), created_at TIMESTAMP NOT NULL DEFAULT NOW());
-            CREATE TABLE IF NOT EXISTS pilot.qr_campaigns (id UUID PRIMARY KEY, title VARCHAR(255) NOT NULL, property_code VARCHAR(10) NOT NULL DEFAULT 'DT01', start_date DATE, end_date DATE, notes TEXT, created_by UUID REFERENCES pilot.staff(id), created_at TIMESTAMP NOT NULL DEFAULT NOW());
+            CREATE TABLE IF NOT EXISTS demo.qr_campaigns (id UUID PRIMARY KEY, title VARCHAR(255) NOT NULL, property_code VARCHAR(10) NOT NULL DEFAULT 'DT01', start_date DATE, end_date DATE, notes TEXT, created_by UUID, created_at TIMESTAMP NOT NULL DEFAULT NOW());
+            CREATE TABLE IF NOT EXISTS pilot.qr_campaigns (id UUID PRIMARY KEY, title VARCHAR(255) NOT NULL, property_code VARCHAR(10) NOT NULL DEFAULT 'DT01', start_date DATE, end_date DATE, notes TEXT, created_by UUID, created_at TIMESTAMP NOT NULL DEFAULT NOW());
             ALTER TABLE demo.inquiries ADD COLUMN IF NOT EXISTS campaign_id UUID;
             ALTER TABLE demo.inquiries ADD COLUMN IF NOT EXISTS campaign_title VARCHAR(255);
             ALTER TABLE pilot.inquiries ADD COLUMN IF NOT EXISTS campaign_id UUID;

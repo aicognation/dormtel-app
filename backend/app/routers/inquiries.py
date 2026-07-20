@@ -153,7 +153,7 @@ async def list_inquiries(
         filters.append(
             or_(
                 Inquiry.campaign_id.is_not(None),
-                Inquiry.inquiry_form_data["submitted_via"].astext == "public_qr_form",
+                Inquiry.inquiry_form_data["submitted_via"].as_string() == "public_qr_form",
             )
         )
     if property_code:

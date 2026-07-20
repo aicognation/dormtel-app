@@ -2,6 +2,8 @@
 -- Creates the qr_campaigns table and adds campaign attribution columns to inquiries
 -- in BOTH the demo and pilot schemas. Safe to re-run.
 
+-- NOTE: staff lives only in the public schema (shared), so created_by is a plain
+-- UUID column with no DB-level FK — same pattern as service_requests.assigned_to.
 CREATE TABLE IF NOT EXISTS demo.qr_campaigns (
     id UUID PRIMARY KEY,
     title VARCHAR(255) NOT NULL,
@@ -9,7 +11,7 @@ CREATE TABLE IF NOT EXISTS demo.qr_campaigns (
     start_date DATE,
     end_date DATE,
     notes TEXT,
-    created_by UUID REFERENCES demo.staff(id),
+    created_by UUID,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
@@ -20,7 +22,7 @@ CREATE TABLE IF NOT EXISTS pilot.qr_campaigns (
     start_date DATE,
     end_date DATE,
     notes TEXT,
-    created_by UUID REFERENCES pilot.staff(id),
+    created_by UUID,
     created_at TIMESTAMP NOT NULL DEFAULT NOW()
 );
 
