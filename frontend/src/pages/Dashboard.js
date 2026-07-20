@@ -81,7 +81,7 @@ export default function Dashboard() {
       icon: ClipboardList,
       value: stats ? stats.total_listed_residents : '—',
       color: 'purple',
-      view: 'dormers',
+      view: 'residents',
     },
     {
       label: 'Inquiries',
@@ -216,6 +216,9 @@ export default function Dashboard() {
       )}
       {modal === 'dormers' && (
         <DormersModal isOpen={true} onClose={() => setModal(null)} />
+      )}
+      {modal === 'residents' && (
+        <DormersModal isOpen={true} onClose={() => setModal(null)} mode="all" />
       )}
     </div>
   );

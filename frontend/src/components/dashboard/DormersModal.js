@@ -4,20 +4,24 @@ import DataTable from '../ui/DataTable';
 import client from '../../api/client';
 import StatusBadge from '../ui/StatusBadge';
 
-export default function DormersModal({ isOpen, onClose }) {
+export default function DormersModal({ isOpen, onClose, mode = 'active' }) {
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
+
+  const isAll = mode === 'all';
+  const title = isAll ? 'Listed Residents' : 'Active Dormers';
+  const emptyMessage = isAll ? 'No residents found' : 'No active dormers found';
 
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
-    client.get('/residents?status=active')
+    client.get(isAll ? '/residents' : '/residents?status=active')
       .then((res) => {
         setData(res || []);
       })
       .catch(() => setData([]))
       .finally(() => setLoading(false));
-  }, [isOpen]);
+  }, [isOpen, isAll]);
 
   const columns = [
     { key: 'full_name', label: 'Name' },
@@ -31,8 +35,8 @@ export default function DormersModal({ isOpen, onClose }) {
   ];
 
   return (
-    <Modal isOpen={isOpen} onClose={onClose} title="Active Dormers" size="xl">
-      <DataTable columns={columns} data={data} loading={loading} emptyMessage="No active dormers found" />
+    <Modal isOpen={isOpen} onClose={onClose} title={title} size="xl">
+      <DataTable columns={columns} data={data} loading={loading} emptyMessage={emptyMessage} />
     </Modal>
   );
 }
