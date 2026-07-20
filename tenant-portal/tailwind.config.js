@@ -11,6 +11,10 @@ module.exports = {
           'gold-light': '#FFF3B0',
         },
       },
+      fontFamily: {
+        display: ['"Space Grotesk"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+        body: ['"IBM Plex Sans"', 'ui-sans-serif', 'system-ui', 'sans-serif'],
+      },
     },
   },
   plugins: [],

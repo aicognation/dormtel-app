@@ -11,6 +11,7 @@ import ServiceRequestsPage from './pages/ServiceRequestsPage';
 import MoveOutPage from './pages/MoveOutPage';
 import InquiryPage from './pages/InquiryPage';
 import ProfilePage from './pages/ProfilePage';
+import PublicInquiryPage from './pages/PublicInquiryPage';
 
 function ProtectedRoute({ children }) {
   const { tenant } = useTenant();
@@ -21,6 +22,7 @@ function ProtectedRoute({ children }) {
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/inquiry" element={<PublicInquiryPage />} />
       <Route path="/tenant/login" element={<LoginPage />} />
       <Route path="/tenant" element={
         <ProtectedRoute>

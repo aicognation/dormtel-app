@@ -6,6 +6,9 @@ import FormField from '../components/ui/FormField';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
 import { createInquiry } from '../api/inquiries';
+import { useProperty } from '../contexts/PropertyContext';
+
+const TENANT_PORTAL_URL = process.env.REACT_APP_TENANT_PORTAL_URL || 'https://dormtel.bayanaihan.net';
 
 const PROPERTIES = [
   { value: 'DT01', label: 'Recto Branch' },
@@ -59,11 +62,13 @@ const INITIAL_FORM = {
 };
 
 export default function QrInquiryPage() {
-  const [form, setForm] = useState({ ...INITIAL_FORM });
+  const { propertyCode } = useProperty();
+  const activeProperty = propertyCode || 'DT01';
+  const [form, setForm] = useState({ ...INITIAL_FORM, property_code: activeProperty });
   const [submitting, setSubmitting] = useState(false);
   const [showQrModal, setShowQrModal] = useState(false);
   const [qrForm, setQrForm] = useState({
-    branch: 'DT01',
+    branch: activeProperty,
     startDate: '',
     endDate: '',
   });
@@ -104,11 +109,12 @@ export default function QrInquiryPage() {
     }
   };
 
-  const handleReset = () => setForm({ ...INITIAL_FORM });
+  const handleReset = () => setForm({ ...INITIAL_FORM, property_code: activeProperty });
 
   const handleGenerateQr = () => {
     const branchLabel = PROPERTIES.find((p) => p.value === qrForm.branch)?.label || qrForm.branch;
-    const qrData = `dormtel://inquiry?branch=${encodeURIComponent(qrForm.branch)}&start=${qrForm.startDate}&end=${qrForm.endDate}&label=${encodeURIComponent(branchLabel)}`;
+    const schema = localStorage.getItem('dt_schema') || 'demo';
+    const qrData = `${TENANT_PORTAL_URL}/inquiry?branch=${encodeURIComponent(qrForm.branch)}&start=${qrForm.startDate}&end=${qrForm.endDate}&label=${encodeURIComponent(branchLabel)}&schema=${encodeURIComponent(schema)}`;
     const qrImageUrl = `https://api.qrserver.com/v1/create-qr-code/?size=300x300&data=${encodeURIComponent(qrData)}`;
 
     setGeneratedQr({
@@ -143,7 +149,7 @@ export default function QrInquiryPage() {
   const handleCloseModal = () => {
     setShowQrModal(false);
     setGeneratedQr(null);
-    setQrForm({ branch: 'DT01', startDate: '', endDate: '' });
+    setQrForm({ branch: activeProperty, startDate: '', endDate: '' });
   };
 
   return (
@@ -350,6 +356,10 @@ export default function QrInquiryPage() {
                   <p className="text-xs text-gray-500">
                     Valid: {qrForm.startDate} to {qrForm.endDate}
                   </p>
+                </div>
+                <div className="w-full rounded-lg bg-gray-50 border border-gray-200 px-3 py-2">
+                  <p className="text-[10px] font-semibold uppercase tracking-wide text-gray-400 mb-0.5">QR links to</p>
+                  <p className="text-[11px] text-gray-600 break-all leading-relaxed">{generatedQr.data}</p>
                 </div>
               </div>
               <div className="flex justify-end gap-3 pt-2">

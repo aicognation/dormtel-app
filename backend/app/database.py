@@ -30,6 +30,11 @@ def _extract_schema_from_request(request: Request = None) -> str:
                 return schema
         except Exception:
             pass
+    # Unauthenticated callers (public QR inquiry form, tenant portal) declare
+    # their schema via header; JWT above always wins when present.
+    header_schema = request.headers.get("X-Tenant-Schema", "")
+    if header_schema in ALLOWED_SCHEMAS:
+        return header_schema
     return DEFAULT_SCHEMA
 
 
