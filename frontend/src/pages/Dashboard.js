@@ -12,6 +12,7 @@ import {
   BarChart3,
   HelpCircle,
   Users,
+  ClipboardList,
 } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import Button from '../components/ui/Button';
@@ -69,10 +70,17 @@ export default function Dashboard() {
       color: 'green',
     },
     {
-      label: 'Total Dormers',
+      label: 'Total Active Dormers',
       icon: Users,
       value: stats ? stats.dormers : '—',
       color: 'blue',
+      view: 'dormers',
+    },
+    {
+      label: 'Total Listed Residents',
+      icon: ClipboardList,
+      value: stats ? stats.total_listed_residents : '—',
+      color: 'purple',
       view: 'dormers',
     },
     {

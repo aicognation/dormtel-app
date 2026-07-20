@@ -73,6 +73,18 @@ async def get_dashboard_stats(
     dormers_result = await db.execute(dormers_query)
     dormers_count = dormers_result.scalar() or 0
 
+    # Total Listed Residents (all residents for property, matching Residents List page)
+    listed_query = select(func.count(models.Resident.id))
+    if property_code:
+        listed_query = (
+            listed_query
+            .join(models.Bed, models.Resident.bed_id == models.Bed.id, isouter=True)
+            .join(models.Room, models.Bed.room_id == models.Room.id, isouter=True)
+            .where(models.Room.property_code == property_code)
+        )
+    listed_result = await db.execute(listed_query)
+    total_listed_residents = listed_result.scalar() or 0
+
     # Inquiries
     inquiries_query = (
         select(func.count(models.Inquiry.id))
@@ -171,6 +183,7 @@ async def get_dashboard_stats(
     return schemas.DashboardStatsOut(
         revenue=revenue,
         dormers=dormers_count,
+        total_listed_residents=total_listed_residents,
         inquiries=inquiries,
         reservations=reservations,
         pending_bills=pending_amount,

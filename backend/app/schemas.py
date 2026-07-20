@@ -437,6 +437,7 @@ class RoomWithBedsOut(RoomOut):
 class DashboardStatsOut(BaseModel):
     revenue: Decimal
     dormers: int
+    total_listed_residents: int = 0
     inquiries: int
     reservations: int
     pending_bills: Decimal
