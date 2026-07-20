@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException, status, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, or_
 from sqlalchemy.orm import selectinload
-from datetime import datetime
+from datetime import datetime, date
 from uuid import UUID
 import uuid
 from typing import Optional
@@ -18,6 +18,7 @@ async def list_residents(
     search: Optional[str] = Query(None),
     status: Optional[str] = Query(None),
     branch: Optional[str] = Query(None),
+    current_only: bool = Query(False),
     current_staff: models.Staff = Depends(auth.require_staff),
     property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
@@ -39,6 +40,15 @@ async def list_residents(
 
     if status:
         query = query.where(models.Resident.status == status)
+
+    # Same rule as dashboard "Total Active Dormers": not yet moved out
+    if current_only:
+        query = query.where(
+            or_(
+                models.Resident.move_out_date.is_(None),
+                models.Resident.move_out_date >= date.today()
+            )
+        )
 
     result = await db.execute(query)
     residents = result.scalars().all()

@@ -15,7 +15,7 @@ export default function DormersModal({ isOpen, onClose, mode = 'active' }) {
   useEffect(() => {
     if (!isOpen) return;
     setLoading(true);
-    client.get(isAll ? '/residents' : '/residents?status=active')
+    client.get(isAll ? '/residents' : '/residents?status=active&current_only=true')
       .then((res) => {
         setData(res || []);
       })
