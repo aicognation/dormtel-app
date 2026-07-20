@@ -100,7 +100,7 @@ class Bed(Base):
 class Inquiry(Base):
     __tablename__ = "inquiries"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
-    source = Column(Enum("facebook", "instagram", "tiktok", "walkin", "phone", "referral", "website", name="inquiry_source"), nullable=False)
+    source = Column(Enum("facebook", "instagram", "tiktok", "walkin", "phone", "referral", "website", "email", name="inquiry_source"), nullable=False)
     external_id = Column(String(255))
     content = Column(Text)
     inquiry_type = Column(String(50), nullable=True)
