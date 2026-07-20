@@ -206,7 +206,7 @@ class Payment(Base):
     resident_id = Column(UUID(as_uuid=True), ForeignKey("residents.id"), nullable=False)
     billing_id = Column(UUID(as_uuid=True), ForeignKey("billings.id"))
     amount = Column(Numeric(10, 2), nullable=False)
-    method = Column(Enum("gcash", "maya", "bank_transfer", "cash", name="payment_method"), nullable=False)
+    method = Column(Enum("gcash", "maya", "bank_transfer", "cash", "salary_deduction", name="payment_method"), nullable=False)
     gateway_ref = Column(String(255))
     status = Column(Enum("pending", "verified", "matched", "unreconciled", "refunded", name="payment_status"), nullable=False, default="pending")
     matched_at = Column(DateTime)

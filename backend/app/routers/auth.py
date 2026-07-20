@@ -232,6 +232,9 @@ async def create_staff(
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email already registered")
 
+    # staff.id is client-generated (uuid4), so the verification code row can
+    # be added in the SAME transaction -- a failure rolls back both instead of
+    # leaving a staff row with no password and no verification code.
     staff = models.Staff(
         id=uuid.uuid4(),
         full_name=payload.full_name,
@@ -243,10 +246,7 @@ async def create_staff(
         created_at=datetime.utcnow(),
     )
     db.add(staff)
-    await db.commit()
-    await db.refresh(staff)
 
-    # Notify the new staff's verification code should be sent to super admin
     if not staff.password_hash:
         code = str(auth.generate_verification_code())
         vc = models.VerificationCode(
@@ -257,10 +257,9 @@ async def create_staff(
             expires_at=datetime.utcnow() + timedelta(hours=24),
         )
         db.add(vc)
-        await db.commit()
-        # Return code in response for demo
-        return schemas.StaffOut.model_validate(staff)
 
+    await db.commit()
+    await db.refresh(staff)
     return schemas.StaffOut.model_validate(staff)
 
 

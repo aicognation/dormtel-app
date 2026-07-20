@@ -194,7 +194,7 @@ class BillingWithResidentOut(BillingOut):
 
 class PaymentBase(BaseModel):
     amount: Decimal = Field(..., ge=0)
-    method: str
+    method: Literal["gcash", "maya", "bank_transfer", "cash", "salary_deduction"]
 
 class PaymentCreate(PaymentBase):
     resident_id: UUID
@@ -627,7 +627,7 @@ class MonitoringReportResponse(BaseModel):
 class TenantPayRequest(BaseModel):
     billing_id: Optional[UUID] = None
     amount: Decimal = Field(..., ge=0)
-    method: str
+    method: Literal["gcash", "maya", "bank_transfer", "cash", "salary_deduction"]
     gateway_ref: Optional[str] = None
     proof_of_payment: Optional[str] = None
 

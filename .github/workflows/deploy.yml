@@ -89,6 +89,8 @@ jobs:
             CREATE INDEX IF NOT EXISTS ix_pilot_deposits_resident_id ON pilot.deposits(resident_id);
             DO \$\$ BEGIN IF EXISTS (SELECT 1 FROM pg_constraint c JOIN pg_namespace n ON n.oid = c.connamespace WHERE c.conname = 'deposits_resident_id_fkey' AND n.nspname = 'public') THEN ALTER TABLE public.deposits DROP CONSTRAINT deposits_resident_id_fkey; END IF; END \$\$;
             " || true
+            echo "=== Ensuring payment_method enum has salary_deduction ==="
+            docker compose -f docker-compose.prod.yml exec -T db psql -U dormtel -d dormtel -c "ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'salary_deduction';" || true
 
       - name: Health check
         uses: appleboy/ssh-action@v1.0.3

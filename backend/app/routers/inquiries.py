@@ -279,15 +279,15 @@ async def escalate_inquiry(
     sentiment_low = inquiry.sentiment_score is not None and float(inquiry.sentiment_score) < 0.3
 
     if has_discount:
-        checkpoint_id = f"CP-01-{inquiry_id}"
+        checkpoint_id = f"CP-01-{str(inquiry_id)[:8]}"
         stage = "Admin Review"
         reason = "discount/negotiate request"
     elif has_angry or sentiment_low:
-        checkpoint_id = f"CP-02-{inquiry_id}"
+        checkpoint_id = f"CP-02-{str(inquiry_id)[:8]}"
         stage = "Manager Review"
         reason = "angry sentiment"
     else:
-        checkpoint_id = f"CP-01-{inquiry_id}"
+        checkpoint_id = f"CP-01-{str(inquiry_id)[:8]}"
         stage = "Admin Review"
         reason = "general escalation"
 

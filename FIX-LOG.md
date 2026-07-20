@@ -403,4 +403,135 @@ The `deposits` table existed only in the `public` schema, and its DB-level const
 
 ---
 
+## FIX-003: `payment_method` Enum Drift — `salary_deduction` Rejected + Unvalidated `method` Input
+
+**Date:** 2026-07-20
+**Milestone:** Pre-UAT Production Hardening (Alibaba Cloud ECS)
+**Triggered By:** Pre-UAT sweep — cross-audit of model `Enum()` vs PG `pg_enum` vs frontend constants
+**Status:** Resolved (verified end-to-end on production)
+
+---
+
+### FIX-003-01: UI/API Could Submit `salary_deduction`, DB Enum Rejected It
+
+**Severity:** Medium (latent — the admin `PAYMENT_METHODS` constant offering it is currently unimported dead code and the tenant portal offers only the four valid methods, but the API accepted arbitrary `method` strings, so any API consumer or future UI hitting it got a 500)
+**Category:** Data Model / Enum Drift + Input Validation
+
+**What was broken:**
+`frontend/src/utils/constants.js` `PAYMENT_METHODS` includes `salary_deduction`, but the PG `payment_method` enum and the model `Enum` only had `{gcash, maya, bank_transfer, cash}`. Worse, `schemas.py` declared `method: str` with no validation on both `PaymentBase` and `TenantPayRequest`, so *any* string (e.g. `bitcoin`) passed pydantic and died at the DB layer as `invalid input value for enum payment_method` → HTTP 500 instead of a clean 422.
+
+**What was changed:**
+- **Production PG** — `ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'salary_deduction';` applied standalone (idempotent; PG enum types live in the shared `public` schema).
+- **`backend/migrations/003_payment_method_salary_deduction.sql`** (new) — records the same statement for fresh environments.
+- **`.github/workflows/deploy.yml`** — added the same standalone `ALTER TYPE` step (mirrors the existing `inquiry_source` email pattern) so CI/CD deploys self-migrate.
+- **`backend/app/models.py`** — `Payment.method` Enum extended with `salary_deduction` (kept in lockstep with PG, per project convention).
+- **`backend/app/schemas.py`** — `PaymentBase.method` and `TenantPayRequest.method` changed from `str` to `Literal["gcash", "maya", "bank_transfer", "cash", "salary_deduction"]`, so invalid values now fail fast as 422 validation errors.
+
+**Verification:**
+- `pg_enum` now reads `gcash,maya,bank_transfer,cash,salary_deduction`.
+- Tenant pay with `method=salary_deduction` → `200`, row persisted and returned by the payments list.
+- Tenant pay with `method=bitcoin` → `422` with a clear `literal_error` (previously 500).
+
+**Files modified:**
+- `backend/app/models.py`, `backend/app/schemas.py`
+- `backend/migrations/003_payment_method_salary_deduction.sql` (new)
+- `.github/workflows/deploy.yml`
+
+---
+
+## FIX-004: Inquiry Escalation 500 — `checkpoint_id` Overflows `VARCHAR(20)`
+
+**Date:** 2026-07-20
+**Milestone:** Pre-UAT Production Hardening (Alibaba Cloud ECS)
+**Triggered By:** Pre-UAT write-flow test — `POST /inquiries/{id}/escalate` returned 500
+**Status:** Resolved (verified end-to-end on production)
+
+---
+
+### FIX-004-01: Escalate Wrote a 42-Char Checkpoint ID Into a 20-Char Column
+
+**Severity:** High (100% reproduction — every escalation from the Inquiries page failed with a 500)
+**Category:** Data Model / Column Length
+
+**What was broken:**
+`escalate_inquiry` built `checkpoint_id = f"CP-01-{inquiry_id}"` (or `CP-02-…`) with the full 36-char UUID — 42 characters — but `checkpoints.checkpoint_id` is `VARCHAR(20)` in every schema (and `String(20)` in the model). Every escalate INSERT died with `StringDataRightTruncationError: value too long for type character varying(20)`. The move-out flow already used the fitting house pattern `CP-11-{uuid[:8]}` (14 chars); inquiries was the outlier.
+
+**What was changed:**
+- **`backend/app/routers/inquiries.py`** — checkpoint IDs now truncate the UUID to 8 chars (`CP-01-{str(inquiry_id)[:8]}` / `CP-02-…`), matching `moveouts.py`. 14 chars fit the column; the `CP-01`/`CP-02` prefixes asserted by the backend tests are preserved; the existing duplicate-checkpoint guard turns the astronomically rare 8-char collision into a clean 409. No migration needed.
+
+**Verification:**
+- Escalate → `200` with `checkpoint_id=CP-01-11335bcc` (14 chars), inquiry status `escalated`.
+- Re-escalate same inquiry → `409 Checkpoint already exists` (duplicate guard intact).
+- All probe rows (incl. the checkpoint) cleaned after the test.
+
+**Files modified:**
+- `backend/app/routers/inquiries.py`
+
+---
+
+## FIX-005: `create_staff` Split Commit — Staff Row Could Persist Without a Login Path
+
+**Date:** 2026-07-20
+**Milestone:** Pre-UAT Production Hardening (Alibaba Cloud ECS)
+**Triggered By:** Pre-UAT atomicity audit (multi-commit endpoint scan)
+**Status:** Resolved (deployed; behavior structurally identical on the happy path)
+
+---
+
+### FIX-005-01: Verification Code Committed Separately From the Staff Row
+
+**Severity:** Low (only on second-commit failure — but then a staff row existed with no password and no verification code, and retries returned 409 "Email already registered" with no recovery path)
+**Category:** Transaction Atomicity
+
+**What was broken:**
+`create_staff` committed the staff row, then — only when no password was supplied — created and committed a verification code in a second transaction. A failure between the two commits left an unusable staff row.
+
+**What was changed:**
+- **`backend/app/routers/auth.py`** — `staff.id` is client-generated (`uuid4`), so the verification-code row is now added in the same transaction and both commit once: all-or-nothing.
+
+**Files modified:**
+- `backend/app/routers/auth.py`
+
+---
+
+## FIX-006: Statement Batch 500 — One Bad Resident Aborted the Whole Billing Run
+
+**Date:** 2026-07-20
+**Milestone:** Pre-UAT Production Hardening (Alibaba Cloud ECS)
+**Triggered By:** Pre-UAT atomicity audit (multi-commit endpoint scan)
+**Status:** Resolved (happy path verified end-to-end on production)
+
+---
+
+### FIX-006-01: No Per-Resident Error Containment in `generate_statements`
+
+**Severity:** Medium (a single resident's PDF/ledger/commit failure 500'd the entire batch while earlier residents were already committed — staff saw a scary error and no report of what succeeded)
+**Category:** Transaction Atomicity / Batch Error Handling
+
+**What was broken:**
+The per-resident loop in `generate_statements` had no try/except: any exception (PDF render, ledger entry, commit) propagated out as a 500. Earlier iterations' commits stood, but the response carried no error report, and retries relied entirely on the existing-statement skip path.
+
+**What was changed:**
+- **`backend/app/routers/statements.py`** — each resident's work is wrapped in try/except: intentional `HTTPException`s re-raise; any other failure rolls back that resident's pending rows, appends a precise per-resident message to the existing `errors` list, and stops the batch cleanly. Earlier residents stay committed; a re-run skips them and resumes at the failed resident. (Continuing on a rolled-back async session is unsafe — expired ORM rows trigger lazy loads — so the loop breaks rather than risks corrupting later financial records. The post-email status commit was left as-is: the email side effect must not roll back generated statements.)
+
+**Verification:**
+- Single-resident generation on production → `200` with `generated=1, skipped=0, errors=[]`.
+- Syntax-verified; error path is pure containment around unchanged logic.
+
+**Files modified:**
+- `backend/app/routers/statements.py`
+
+---
+
+### Pre-UAT Hardening Sweep — Summary of Coverage (2026-07-20)
+
+- **Model-vs-DB column audit** across all 24 models in both `demo` and `pilot`: zero drift.
+- **FK + shadowing audit** of every `public` table: `deposits` (FIX-002) was the only defect.
+- **Enum audit** (model ↔ `pg_enum` ↔ frontend constants, all 24 enums): one finding (FIX-003).
+- **Full-route smoke test**: all 48 GET routes from the live OpenAPI spec (85 paths) — 34 OK, 14 correctly-handled 404/422 with probe params, **0 server errors**.
+- **Write-flow tests** on every critical path (reservation ± deposits, payment link, move-in activation, service-request lifecycle, statement generation, tenant payments incl. invalid-method handling, full move-out flow, inquiry lifecycle, FAQ CRUD, misc-transaction CRUD, QR campaigns): all passing after FIX-004; all probe data cleaned and verified (`residents_left=0`, beds restored).
+- By-design behaviors confirmed (not bugs): move-in activation requires ID documents + cleared payment (clean 400s); misc-transaction delete requires the `manager` role tier (clean 403 for `admin` role).
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*

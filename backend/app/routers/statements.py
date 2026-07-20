@@ -269,150 +269,164 @@ async def generate_statements(
     for resident, bed, room in rows:
         rid = str(resident.id)
         resident_name = resident.full_name or "Unknown Resident"
-        charges = _compute_billing_for_resident(
-            resident, data.billing_period, resident_electric, resident_water, resident_other, fallback_other, previous_balances
-        )
-
-        # Check for existing billing record and statement
-        existing_billing_query = select(Billing).where(
-            Billing.resident_id == resident.id,
-            Billing.billing_period == data.billing_period,
-        )
-        existing_billing_result = await db.execute(existing_billing_query)
-        existing_billing = existing_billing_result.scalar_one_or_none()
-
-        existing_statement_query = select(BillingStatement).where(
-            BillingStatement.resident_id == resident.id,
-            BillingStatement.billing_period == data.billing_period,
-        )
-        existing_statement_result = await db.execute(existing_statement_query)
-        existing_statement = existing_statement_result.scalar_one_or_none()
-
-        if existing_statement and not data.regenerate:
-            skipped += 1
-            errors.append(f"Statement already exists for {resident_name}; use regenerate to overwrite")
-            continue
-
-        # Upsert Billing record
-        if existing_billing:
-            existing_billing.rent_amount = charges["rent_amount"]
-            existing_billing.electric_charge = charges["electric_charge"]
-            existing_billing.water_charge = charges["water_charge"]
-            existing_billing.other_charges = charges["other_charges"]
-            existing_billing.previous_balance = charges.get("previous_balance", Decimal("0"))
-            existing_billing.total_amount = charges["total_amount"]
-            # Preserve existing workflow status (do not regress approved/distributed/paid billings)
-            if existing_billing.status not in ("approved", "distributed", "paid"):
-                existing_billing.status = "draft"
-            billing_record = existing_billing
-        else:
-            billing_record = Billing(
-                resident_id=resident.id,
-                billing_period=data.billing_period,
-                rent_amount=charges["rent_amount"],
-                electric_charge=charges["electric_charge"],
-                water_charge=charges["water_charge"],
-                other_charges=charges["other_charges"],
-                previous_balance=charges.get("previous_balance", Decimal("0")),
-                total_amount=charges["total_amount"],
-                status="draft",
+        try:
+            charges = _compute_billing_for_resident(
+                resident, data.billing_period, resident_electric, resident_water, resident_other, fallback_other, previous_balances
             )
-            db.add(billing_record)
 
-        # Generate PDF
-        scope_target = data.scope_target
-        if data.scope_type == "resident":
-            scope_target = resident_name
-        pdf_buffer = _generate_pdf_statement(resident, bed, room, data.billing_period, charges, data.scope_type, scope_target)
-        pdf_bytes = pdf_buffer.getvalue()
+            # Check for existing billing record and statement
+            existing_billing_query = select(Billing).where(
+                Billing.resident_id == resident.id,
+                Billing.billing_period == data.billing_period,
+            )
+            existing_billing_result = await db.execute(existing_billing_query)
+            existing_billing = existing_billing_result.scalar_one_or_none()
 
-        file_name = f"statement_{_safe_filename(data.billing_period)}_{_safe_filename(resident_name)}_{rid[:8]}.pdf"
-        file_path = os.path.join(folder, file_name)
-        with open(file_path, "wb") as f:
-            f.write(pdf_bytes)
+            existing_statement_query = select(BillingStatement).where(
+                BillingStatement.resident_id == resident.id,
+                BillingStatement.billing_period == data.billing_period,
+            )
+            existing_statement_result = await db.execute(existing_statement_query)
+            existing_statement = existing_statement_result.scalar_one_or_none()
 
-        metadata = {
-            "resident_id": rid,
-            "resident_name": resident_name,
-            "billing_period": data.billing_period,
-            "scope_type": data.scope_type,
-            "scope_target": data.scope_target,
-            "charges": {k: str(v) for k, v in charges.items()},
-            "room_number": room.room_number if room else None,
-            "bed_code": bed.bed_code if bed else None,
-            "generated_at": datetime.utcnow().isoformat(),
-        }
-        with open(file_path + ".meta.json", "w") as f:
-            json.dump(metadata, f, indent=2)
+            if existing_statement and not data.regenerate:
+                skipped += 1
+                errors.append(f"Statement already exists for {resident_name}; use regenerate to overwrite")
+                continue
 
-        # Upsert BillingStatement record (existing_statement already queried above)
-        if existing_statement and data.regenerate:
-            existing_statement.file_path = file_path
-            existing_statement.file_name = file_name
-            existing_statement.file_size = len(pdf_bytes)
-            existing_statement.metadata_json = metadata
-            existing_statement.status = "generated"
-            existing_statement.scope_type = data.scope_type
-            existing_statement.scope_target = data.scope_target
-            statement_record = existing_statement
-        elif not existing_statement:
-            statement_record = BillingStatement(
+            # Upsert Billing record
+            if existing_billing:
+                existing_billing.rent_amount = charges["rent_amount"]
+                existing_billing.electric_charge = charges["electric_charge"]
+                existing_billing.water_charge = charges["water_charge"]
+                existing_billing.other_charges = charges["other_charges"]
+                existing_billing.previous_balance = charges.get("previous_balance", Decimal("0"))
+                existing_billing.total_amount = charges["total_amount"]
+                # Preserve existing workflow status (do not regress approved/distributed/paid billings)
+                if existing_billing.status not in ("approved", "distributed", "paid"):
+                    existing_billing.status = "draft"
+                billing_record = existing_billing
+            else:
+                billing_record = Billing(
+                    resident_id=resident.id,
+                    billing_period=data.billing_period,
+                    rent_amount=charges["rent_amount"],
+                    electric_charge=charges["electric_charge"],
+                    water_charge=charges["water_charge"],
+                    other_charges=charges["other_charges"],
+                    previous_balance=charges.get("previous_balance", Decimal("0")),
+                    total_amount=charges["total_amount"],
+                    status="draft",
+                )
+                db.add(billing_record)
+
+            # Generate PDF
+            scope_target = data.scope_target
+            if data.scope_type == "resident":
+                scope_target = resident_name
+            pdf_buffer = _generate_pdf_statement(resident, bed, room, data.billing_period, charges, data.scope_type, scope_target)
+            pdf_bytes = pdf_buffer.getvalue()
+
+            file_name = f"statement_{_safe_filename(data.billing_period)}_{_safe_filename(resident_name)}_{rid[:8]}.pdf"
+            file_path = os.path.join(folder, file_name)
+            with open(file_path, "wb") as f:
+                f.write(pdf_bytes)
+
+            metadata = {
+                "resident_id": rid,
+                "resident_name": resident_name,
+                "billing_period": data.billing_period,
+                "scope_type": data.scope_type,
+                "scope_target": data.scope_target,
+                "charges": {k: str(v) for k, v in charges.items()},
+                "room_number": room.room_number if room else None,
+                "bed_code": bed.bed_code if bed else None,
+                "generated_at": datetime.utcnow().isoformat(),
+            }
+            with open(file_path + ".meta.json", "w") as f:
+                json.dump(metadata, f, indent=2)
+
+            # Upsert BillingStatement record (existing_statement already queried above)
+            if existing_statement and data.regenerate:
+                existing_statement.file_path = file_path
+                existing_statement.file_name = file_name
+                existing_statement.file_size = len(pdf_bytes)
+                existing_statement.metadata_json = metadata
+                existing_statement.status = "generated"
+                existing_statement.scope_type = data.scope_type
+                existing_statement.scope_target = data.scope_target
+                statement_record = existing_statement
+            elif not existing_statement:
+                statement_record = BillingStatement(
+                    resident_id=resident.id,
+                    billing_period=data.billing_period,
+                    scope_type=data.scope_type,
+                    scope_target=data.scope_target,
+                    file_path=file_path,
+                    file_name=file_name,
+                    file_size=len(pdf_bytes),
+                    metadata_json=metadata,
+                    status="generated",
+                )
+                db.add(statement_record)
+
+            # Create debit ledger entry for new billing records
+            if not existing_billing:
+                await db.flush()  # ensure billing_record.id is available
+                await billing_router._create_debit_ledger_entry(
+                    db,
+                    resident_id=billing_record.resident_id,
+                    amount=billing_record.total_amount,
+                    description=f"Billing for {billing_record.billing_period}",
+                    reference_id=billing_record.id,
+                )
+
+            await db.commit()
+            await db.refresh(statement_record)
+            await db.refresh(billing_record)
+
+            # Optional auto-send email
+            email_status = None
+            if data.auto_send_email:
+                email_status = await _send_statement_email(resident, statement_record, data.email_subject, data.email_body)
+                statement_record.email_status = email_status
+                if email_status.startswith("sent_"):
+                    statement_record.status = "sent"
+                    statement_record.sent_at = datetime.utcnow()
+                    statement_record.sent_to = resident.email
+                await db.commit()
+
+            generated += 1
+            statements_out.append(BillingStatementRow(
+                statement_id=statement_record.id,
                 resident_id=resident.id,
+                resident_name=resident_name,
                 billing_period=data.billing_period,
                 scope_type=data.scope_type,
                 scope_target=data.scope_target,
-                file_path=file_path,
                 file_name=file_name,
+                file_path=file_path,
                 file_size=len(pdf_bytes),
-                metadata_json=metadata,
-                status="generated",
-            )
-            db.add(statement_record)
-
-        # Create debit ledger entry for new billing records
-        if not existing_billing:
-            await db.flush()  # ensure billing_record.id is available
-            await billing_router._create_debit_ledger_entry(
-                db,
-                resident_id=billing_record.resident_id,
-                amount=billing_record.total_amount,
-                description=f"Billing for {billing_record.billing_period}",
-                reference_id=billing_record.id,
-            )
-
-        await db.commit()
-        await db.refresh(statement_record)
-        await db.refresh(billing_record)
-
-        # Optional auto-send email
-        email_status = None
-        if data.auto_send_email:
-            email_status = await _send_statement_email(resident, statement_record, data.email_subject, data.email_body)
-            statement_record.email_status = email_status
-            if email_status.startswith("sent_"):
-                statement_record.status = "sent"
-                statement_record.sent_at = datetime.utcnow()
-                statement_record.sent_to = resident.email
-            await db.commit()
-
-        generated += 1
-        statements_out.append(BillingStatementRow(
-            statement_id=statement_record.id,
-            resident_id=resident.id,
-            resident_name=resident_name,
-            billing_period=data.billing_period,
-            scope_type=data.scope_type,
-            scope_target=data.scope_target,
-            file_name=file_name,
-            file_path=file_path,
-            file_size=len(pdf_bytes),
-            status=statement_record.status,
-            sent_to=statement_record.sent_to,
-            sent_at=statement_record.sent_at,
-            email_status=email_status or statement_record.email_status,
-            created_at=statement_record.created_at,
-            total_amount=charges["total_amount"],
-        ))
+                status=statement_record.status,
+                sent_to=statement_record.sent_to,
+                sent_at=statement_record.sent_at,
+                email_status=email_status or statement_record.email_status,
+                created_at=statement_record.created_at,
+                total_amount=charges["total_amount"],
+            ))
+        except HTTPException:
+            raise
+        except Exception as exc:
+            # Contain the failure to this resident instead of 500-ing the whole
+            # billing batch: roll back their pending rows, report the precise
+            # error, and stop cleanly. Earlier residents are already committed
+            # and stay committed; a re-run skips them (existing-statement
+            # check) and resumes from the failed resident. Continuing on a
+            # rolled-back session is unsafe (expired ORM rows + async lazy
+            # loads), so we break rather than risk corrupting later records.
+            await db.rollback()
+            errors.append(f"{resident_name}: statement generation failed - {exc}")
+            break
 
     # Write batch manifest
     manifest_path = os.path.join(folder, "manifest.json")
