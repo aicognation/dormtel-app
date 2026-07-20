@@ -10,6 +10,7 @@ import PropertySelectPage from './pages/PropertySelectPage';
 import Dashboard from './pages/Dashboard';
 import InquiriesPage from './pages/InquiriesPage';
 import QrInquiryPage from './pages/QrInquiryPage';
+import QrLeadsPage from './pages/QrLeadsPage';
 import OnboardingPage from './pages/OnboardingPage';
 import BillingPage from './pages/BillingPage';
 import PaymentsPage from './pages/PaymentsPage';
@@ -53,6 +54,7 @@ function AppRoutes() {
         <Route path="/" element={<Dashboard />} />
         <Route path="/inquiries" element={<InquiriesPage />} />
         <Route path="/qr-inquiry" element={<QrInquiryPage />} />
+        <Route path="/qr-leads" element={<QrLeadsPage />} />
         <Route path="/onboarding" element={<OnboardingPage />} />
         <Route path="/residents" element={<ResidentsPage />} />
         <Route path="/moveins" element={<MoveInsPage />} />

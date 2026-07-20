@@ -92,6 +92,7 @@ class InquiryCreate(InquiryBase):
     inquiry_type: Optional[str] = None
     external_id: Optional[str] = None
     property_code: Optional[str] = None
+    campaign_id: Optional[UUID] = None
     prospect_name: Optional[str] = None
     prospect_phone: Optional[str] = None
     prospect_email: Optional[str] = None
@@ -124,7 +125,43 @@ class InquiryOut(InquiryBase):
     sentiment_score: Optional[Decimal] = None
     lead_score: Optional[int] = None
     response: Optional[str] = None
+    inquiry_form_data: Optional[dict] = None
+    campaign_id: Optional[UUID] = None
+    campaign_title: Optional[str] = None
     created_at: datetime
+    class Config:
+        from_attributes = True
+
+class QrCampaignCreate(BaseModel):
+    title: str = Field(..., min_length=2, max_length=255)
+    property_code: Optional[str] = None
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    notes: Optional[str] = None
+
+class QrCampaignOut(BaseModel):
+    id: UUID
+    title: str
+    property_code: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
+    notes: Optional[str] = None
+    created_by: Optional[UUID] = None
+    created_by_name: Optional[str] = None
+    created_at: datetime
+    leads_count: int = 0
+    new_count: int = 0
+    converted_count: int = 0
+    last_lead_at: Optional[datetime] = None
+    class Config:
+        from_attributes = True
+
+class QrCampaignPublic(BaseModel):
+    id: UUID
+    title: str
+    property_code: str
+    start_date: Optional[date] = None
+    end_date: Optional[date] = None
     class Config:
         from_attributes = True
 

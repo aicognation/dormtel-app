@@ -1,3 +1,21 @@
 @tailwind base;
 @tailwind components;
 @tailwind utilities;
+
+/* Drawer + notification micro-animations */
+@keyframes dt-slide-in-right {
+  from { transform: translateX(100%); }
+  to { transform: translateX(0); }
+}
+@keyframes dt-fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+@keyframes dt-pop {
+  0% { transform: scale(0.6); opacity: 0; }
+  70% { transform: scale(1.12); }
+  100% { transform: scale(1); opacity: 1; }
+}
+.dt-drawer-panel { animation: dt-slide-in-right 0.28s cubic-bezier(0.22, 1, 0.36, 1) both; }
+.dt-fade { animation: dt-fade-in 0.2s ease-out both; }
+.dt-pop { animation: dt-pop 0.3s cubic-bezier(0.22, 1, 0.36, 1) both; }

@@ -1,13 +1,15 @@
-import React, { useState, useMemo } from 'react';
+import React, { useState, useMemo, useEffect } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import axios from 'axios';
 import toast from 'react-hot-toast';
 import {
   CalendarDays, Clock, Send, User, GraduationCap, Home,
-  ChevronDown, Loader2, MapPin, ShieldCheck,
+  ChevronDown, Loader2, MapPin, ShieldCheck, Megaphone,
 } from 'lucide-react';
 
 const API_URL = process.env.REACT_APP_API_URL || '';
+
+const BRANCH_LABELS = { DT01: 'Recto Branch', DT02: 'Sta. Mesa Branch' };
 
 const STATUS_OPTIONS = [
   { value: 'student', label: 'Student' },
@@ -102,11 +104,30 @@ function SectionTitle({ icon: Icon, children }) {
 
 export default function PublicInquiryPage() {
   const [params] = useSearchParams();
-  const branch = params.get('branch') || 'DT01';
-  const label = params.get('label') || (branch === 'DT02' ? 'Sta. Mesa Branch' : 'Recto Branch');
-  const start = params.get('start') || '';
-  const end = params.get('end') || '';
+  const cid = params.get('cid') || '';
   const schema = params.get('schema') || '';
+
+  const [campaign, setCampaign] = useState(null);
+  const [campaignLoading, setCampaignLoading] = useState(Boolean(cid));
+  const [campaignError, setCampaignError] = useState(false);
+
+  useEffect(() => {
+    if (!cid) return;
+    const headers = {};
+    if (schema === 'demo' || schema === 'pilot') headers['X-Tenant-Schema'] = schema;
+    axios
+      .get(`${API_URL}/api/v1/qr-campaigns/public/${cid}`, { headers })
+      .then((res) => setCampaign(res.data))
+      .catch(() => setCampaignError(true))
+      .finally(() => setCampaignLoading(false));
+  }, [cid, schema]);
+
+  // Campaign QRs resolve everything from the campaign record; legacy QRs pass params directly
+  const branch = campaign ? campaign.property_code : (params.get('branch') || 'DT01');
+  const branchLabel = BRANCH_LABELS[branch] || branch;
+  const heading = campaign ? campaign.title : (params.get('label') || branchLabel);
+  const start = campaign ? (campaign.start_date || '') : (params.get('start') || '');
+  const end = campaign ? (campaign.end_date || '') : (params.get('end') || '');
 
   const [form, setForm] = useState({ ...INITIAL });
   const [submitting, setSubmitting] = useState(false);
@@ -139,12 +160,14 @@ export default function PublicInquiryPage() {
         desired_move_in_date: form.desired_move_in_date || null,
         length_of_stay: form.length_of_stay || null,
         source: form.source,
-        content: form.content.trim() || `Inquiry from ${form.prospect_name.trim()} via ${label} QR form`,
+        content: form.content.trim() || `Inquiry from ${form.prospect_name.trim()} via ${heading} QR form`,
         property_code: branch,
+        campaign_id: cid || null,
         inquiry_form_data: {
           status_detail: form.status_detail,
           submitted_via: 'public_qr_form',
-          qr_label: label,
+          qr_label: heading,
+          qr_campaign_id: cid || null,
           qr_start: start,
           qr_end: end,
         },
@@ -182,10 +205,15 @@ export default function PublicInquiryPage() {
 
           <div className="mt-8">
             <p className="flex items-center gap-1.5 text-[12px] font-semibold uppercase tracking-[0.18em] text-brand-gold">
-              <MapPin size={13} /> {branch}
+              <MapPin size={13} /> {branchLabel} &middot; {branch}
             </p>
+            {campaign && (
+              <span className="mt-2.5 inline-flex items-center gap-1.5 rounded-full border border-white/20 bg-white/10 px-3 py-1 text-[11px] font-semibold text-white/85">
+                <Megaphone size={12} className="text-brand-gold" /> Official Campaign
+              </span>
+            )}
             <h1 className="font-display mt-1.5 text-[32px] font-bold leading-tight tracking-tight">
-              {label}
+              {heading}
             </h1>
             <p className="mt-2 max-w-sm text-[14px] leading-relaxed text-white/75">
               Kuha ka na ng slot! Fill out this quick form and our team will reach out with rates, room options, and tour schedules.
@@ -202,7 +230,26 @@ export default function PublicInquiryPage() {
 
       {/* ---- Body ---- */}
       <main className="relative z-10 mx-auto -mt-9 max-w-xl px-5 pb-16">
-        {validity === 'expired' && (
+        {campaignLoading && (
+          <div className="pi-rise rounded-2xl border border-slate-200 bg-white p-8 text-center shadow-lg shadow-slate-900/5">
+            <Loader2 size={28} className="mx-auto animate-spin text-brand-navy" />
+            <p className="mt-3 text-sm font-semibold text-slate-700">Loading campaign details...</p>
+          </div>
+        )}
+
+        {!campaignLoading && campaignError && (
+          <div className="pi-rise rounded-2xl border border-red-200 bg-white p-7 text-center shadow-lg shadow-slate-900/5">
+            <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-red-100 text-red-600">
+              <Clock size={26} />
+            </span>
+            <h2 className="font-display mt-4 text-xl font-bold text-slate-900">This QR code isn&rsquo;t recognized</h2>
+            <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
+              The campaign linked to this code may have been removed. Please scan the latest QR code at our branch or message us on Facebook to inquire.
+            </p>
+          </div>
+        )}
+
+        {!campaignLoading && !campaignError && validity === 'expired' && (
           <div className="pi-rise rounded-2xl border border-amber-200 bg-white p-7 text-center shadow-lg shadow-slate-900/5">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-amber-100 text-amber-600">
               <Clock size={26} />
@@ -214,7 +261,7 @@ export default function PublicInquiryPage() {
           </div>
         )}
 
-        {validity === 'upcoming' && (
+        {!campaignLoading && !campaignError && validity === 'upcoming' && (
           <div className="pi-rise rounded-2xl border border-sky-200 bg-white p-7 text-center shadow-lg shadow-slate-900/5">
             <span className="mx-auto flex h-14 w-14 items-center justify-center rounded-full bg-sky-100 text-sky-600">
               <CalendarDays size={26} />
@@ -226,7 +273,7 @@ export default function PublicInquiryPage() {
           </div>
         )}
 
-        {validity === 'open' && done && (
+        {!campaignLoading && !campaignError && validity === 'open' && done && (
           <div className="pi-rise rounded-2xl border border-emerald-200 bg-white p-8 text-center shadow-lg shadow-slate-900/5">
             <svg viewBox="0 0 52 52" className="mx-auto h-20 w-20">
               <circle cx="26" cy="26" r="24" fill="none" stroke="#10b981" strokeWidth="2.5" className="pi-check-circle" />
@@ -236,7 +283,7 @@ export default function PublicInquiryPage() {
               Salamat, {form.prospect_name.trim().split(' ')[0]}!
             </h2>
             <p className="mx-auto mt-2 max-w-xs text-sm leading-relaxed text-slate-500">
-              Your inquiry for <span className="font-semibold text-slate-700">{label}</span> has been received. Our team will contact you at <span className="font-semibold text-slate-700">{form.prospect_phone.trim()}</span> shortly.
+              Your inquiry for <span className="font-semibold text-slate-700">{heading}</span> has been received. Our team will contact you at <span className="font-semibold text-slate-700">{form.prospect_phone.trim()}</span> shortly.
             </p>
             <div className="mx-auto mt-6 max-w-xs rounded-xl bg-slate-50 p-4 text-left text-[13px] text-slate-600">
               <p className="font-semibold text-slate-800">What happens next?</p>
@@ -245,7 +292,7 @@ export default function PublicInquiryPage() {
           </div>
         )}
 
-        {validity === 'open' && !done && (
+        {!campaignLoading && !campaignError && validity === 'open' && !done && (
           <form onSubmit={handleSubmit} className="space-y-5">
             {/* Section: Your Information */}
             <section className="pi-rise rounded-2xl border border-slate-200 bg-white p-5 shadow-lg shadow-slate-900/5" style={{ animationDelay: '60ms' }}>
@@ -324,7 +371,7 @@ export default function PublicInquiryPage() {
               )}
             </button>
             <p className="pi-rise text-center text-[11.5px] leading-relaxed text-slate-400" style={{ animationDelay: '340ms' }}>
-              By submitting, you agree to be contacted by DormTel {label} regarding your inquiry.
+              By submitting, you agree to be contacted by DormTel {branchLabel} regarding your inquiry.
             </p>
           </form>
         )}

@@ -4,12 +4,12 @@ from typing import Optional, List
 from decimal import Decimal
 
 from fastapi import APIRouter, Depends, HTTPException, Query
-from sqlalchemy import select, and_
+from sqlalchemy import select, and_, or_
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.database import get_db
 from app import models, auth
-from app.models import Inquiry, Checkpoint
+from app.models import Inquiry, Checkpoint, QrCampaign
 from app.schemas import InquiryCreate, InquiryOut, InquiryAdminResponse
 
 router = APIRouter()
@@ -84,12 +84,31 @@ async def create_inquiry(
 
     sentiment = _calculate_sentiment(payload.content)
     lead = _calculate_lead_score(payload.content, source)
+
+    # Attribute the lead to the QR campaign encoded in the scanned code (if any)
+    campaign_id = None
+    campaign_title = None
+    if payload.campaign_id:
+        camp_result = await db.execute(
+            select(QrCampaign).where(QrCampaign.id == payload.campaign_id)
+        )
+        campaign = camp_result.scalar_one_or_none()
+        if not campaign:
+            raise HTTPException(
+                status_code=422,
+                detail=f"Campaign '{payload.campaign_id}' not found",
+            )
+        campaign_id = campaign.id
+        campaign_title = campaign.title
+
     inquiry = Inquiry(
         source=source,
         external_id=_clean_optional(payload.external_id),
         content=payload.content,
         # QR kiosk sends it explicitly; portal relies on the JWT property
         property_code=payload.property_code or property_code or "DT01",
+        campaign_id=campaign_id,
+        campaign_title=campaign_title,
         prospect_name=payload.prospect_name,
         prospect_phone=_clean_optional(payload.prospect_phone),
         prospect_email=_clean_optional(payload.prospect_email),
@@ -116,6 +135,8 @@ async def create_inquiry(
 async def list_inquiries(
     status: Optional[str] = Query(None),
     source: Optional[str] = Query(None),
+    campaign_id: Optional[uuid.UUID] = Query(None),
+    via_qr: bool = Query(False),
     db: AsyncSession = Depends(get_db),
     current_staff: models.Staff = Depends(auth.require_staff),
     property_code: Optional[str] = Depends(auth.get_current_property),
@@ -126,6 +147,15 @@ async def list_inquiries(
         filters.append(Inquiry.status == status)
     if source:
         filters.append(Inquiry.source == source)
+    if campaign_id:
+        filters.append(Inquiry.campaign_id == campaign_id)
+    if via_qr:
+        filters.append(
+            or_(
+                Inquiry.campaign_id.is_not(None),
+                Inquiry.inquiry_form_data["submitted_via"].astext == "public_qr_form",
+            )
+        )
     if property_code:
         filters.append(Inquiry.property_code == property_code)
     if filters:

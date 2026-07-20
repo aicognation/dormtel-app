@@ -123,8 +123,25 @@ class Inquiry(Base):
     length_of_stay = Column(String(50))
     inquiry_form_data = Column(JSON)
     response = Column(Text, nullable=True)
+    campaign_id = Column(UUID(as_uuid=True), ForeignKey("qr_campaigns.id"), nullable=True)
+    campaign_title = Column(String(255), nullable=True)
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     resident = relationship("Resident", back_populates="inquiries")
+    campaign = relationship("QrCampaign", back_populates="inquiries")
+
+
+class QrCampaign(Base):
+    __tablename__ = "qr_campaigns"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    title = Column(String(255), nullable=False)
+    property_code = Column(String(10), nullable=False, default="DT01")
+    start_date = Column(Date, nullable=True)
+    end_date = Column(Date, nullable=True)
+    notes = Column(Text, nullable=True)
+    created_by = Column(UUID(as_uuid=True), ForeignKey("staff.id"), nullable=True)
+    created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    inquiries = relationship("Inquiry", back_populates="campaign")
+    creator = relationship("Staff")
 
 class MeterReading(Base):
     __tablename__ = "meter_readings"

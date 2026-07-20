@@ -17,12 +17,14 @@ import {
   Home,
   MoreHorizontal,
   Wrench,
+  Megaphone,
 } from 'lucide-react';
 
 const allNavItems = [
   { to: '/', icon: LayoutDashboard, label: 'Dashboard' },
   { to: '/inquiries', icon: MessageSquareText, label: 'Inquiries' },
   { to: '/qr-inquiry', icon: QrCode, label: 'QR Inquiry' },
+  { to: '/qr-leads', icon: Megaphone, label: 'QR Leads' },
   { to: '/onboarding', icon: UserPlus, label: 'Onboarding' },
   { to: '/residents', icon: Users, label: 'Residents' },
   { to: '/moveins', icon: Home, label: 'Move-ins' },

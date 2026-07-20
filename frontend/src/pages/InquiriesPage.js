@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Send, AlertTriangle, RefreshCw, BedSingle } from 'lucide-react';
+import { Plus, Send, AlertTriangle, RefreshCw, BedSingle, Megaphone } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
@@ -8,6 +8,7 @@ import Modal from '../components/ui/Modal';
 import FormField from '../components/ui/FormField';
 import StatusBadge from '../components/ui/StatusBadge';
 import { listInquiries, createInquiry, respondToInquiry, respondToInquiryManual, escalateInquiry } from '../api/inquiries';
+import { listCampaigns } from '../api/qrCampaigns';
 import { INQUIRY_SOURCES, INQUIRY_STATUSES } from '../utils/constants';
 import { formatDateTime, truncate } from '../utils/formatters';
 import { useProperty } from '../contexts/PropertyContext';
@@ -16,7 +17,8 @@ export default function InquiriesPage() {
   const { propertyCode } = useProperty();
   const [data, setData] = useState([]);
   const [loading, setLoading] = useState(true);
-  const [filters, setFilters] = useState({ status: '', source: '' });
+  const [filters, setFilters] = useState({ status: '', source: '', campaign: '' });
+  const [campaigns, setCampaigns] = useState([]);
   const [showCreate, setShowCreate] = useState(false);
   const [form, setForm] = useState({ source: 'facebook', prospect_name: '', prospect_email: '', prospect_phone: '', content: '', external_id: '', school: '', course: '', review_center: '' });
   const [submitting, setSubmitting] = useState(false);
@@ -30,6 +32,7 @@ export default function InquiriesPage() {
       const params = {};
       if (filters.status) params.status = filters.status;
       if (filters.source) params.source = filters.source;
+      if (filters.campaign) params.campaign_id = filters.campaign;
       const result = await listInquiries(params);
       setData(Array.isArray(result) ? result : []);
     } catch (err) {
@@ -41,6 +44,12 @@ export default function InquiriesPage() {
   }, [filters, propertyCode]);
 
   useEffect(() => { fetchData(); }, [fetchData]);
+
+  useEffect(() => {
+    listCampaigns()
+      .then((result) => setCampaigns(Array.isArray(result) ? result : []))
+      .catch(() => setCampaigns([]));
+  }, [propertyCode]);
 
   const handleCreate = async (e) => {
     e.preventDefault();
@@ -114,6 +123,11 @@ export default function InquiriesPage() {
 
   const columns = [
     { key: 'source', label: 'Source', render: (row) => <span className="capitalize font-medium">{row.source}</span> },
+    { key: 'campaign_title', label: 'Campaign', render: (row) => (
+      row.campaign_title
+        ? <span className="inline-flex items-center gap-1 rounded-full bg-brand-gold/20 px-2 py-0.5 text-[11px] font-bold text-brand-navy" title="Came in via this QR campaign"><Megaphone className="w-3 h-3" /> {row.campaign_title}</span>
+        : <span className="text-gray-300">—</span>
+    ) },
     { key: 'prospect_name', label: 'Name', render: (row) => <span className="font-medium">{row.prospect_name || '—'}</span> },
     { key: 'school', label: 'School / Company', render: (row) => <span className="text-gray-700">{row.school || '—'}</span> },
     { key: 'course', label: 'Course', render: (row) => <span className="text-gray-700">{row.course || '—'}</span> },
@@ -199,6 +213,14 @@ export default function InquiriesPage() {
         >
           <option value="">All Sources</option>
           {INQUIRY_SOURCES.map((s) => <option key={s.value} value={s.value}>{s.label}</option>)}
+        </select>
+        <select
+          value={filters.campaign}
+          onChange={(e) => setFilters((f) => ({ ...f, campaign: e.target.value }))}
+          className="rounded-md border border-gray-300 px-3 py-2 text-sm"
+        >
+          <option value="">All Campaigns</option>
+          {campaigns.map((c) => <option key={c.id} value={c.id}>{c.title}</option>)}
         </select>
         <Button variant="ghost" onClick={fetchData}><RefreshCw className="w-4 h-4" /></Button>
       </div>

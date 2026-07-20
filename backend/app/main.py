@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import inquiries, onboarding, billing, payments, moveouts, tenant, faq, monitoring, dashboard, auth, residents, moveins, miscellaneous, service_requests, statements
+from app.routers import inquiries, onboarding, billing, payments, moveouts, tenant, faq, monitoring, dashboard, auth, residents, moveins, miscellaneous, service_requests, statements, qr_campaigns
 import os
 
 app = FastAPI(
@@ -20,6 +20,7 @@ app.add_middleware(
 )
 
 app.include_router(inquiries.router, prefix="/api/v1/inquiries", tags=["inquiries"])
+app.include_router(qr_campaigns.router, prefix="/api/v1/qr-campaigns", tags=["qr-campaigns"])
 app.include_router(onboarding.router, prefix="/api/v1/onboarding", tags=["onboarding"])
 app.include_router(billing.router, prefix="/api/v1/billings", tags=["billings"])
 app.include_router(payments.router, prefix="/api/v1/payments", tags=["payments"])
