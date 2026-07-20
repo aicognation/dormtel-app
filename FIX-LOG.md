@@ -534,4 +534,42 @@ The per-resident loop in `generate_statements` had no try/except: any exception 
 
 ---
 
+## FIX-007: Residents Page "Email or phone already exists" — Broken Duplicate Check
+
+**Date:** 2026-07-20
+**Milestone:** Pre-UAT Production Hardening (Alibaba Cloud ECS)
+**Triggered By:** Staff bug report — "cannot add new residents" on the Residents page (toast: *Failed to create resident / Email or phone already exists*)
+**Status:** Resolved (verified end-to-end on production)
+
+---
+
+### FIX-007-01: Duplicate Check Matched Blank Fields and Gave No Clue Which Resident Matched
+
+**Severity:** High (blocked resident creation; two independent failure modes)
+**Category:** Input Normalization / Data Visibility
+
+**What was broken:**
+Two compounding problems in `POST /residents`:
+
+1. **Blank-field matching.** The create form sends `''` (not `null`) for empty email/phone, and the duplicate check ran `WHERE email = :e OR phone = :p` unconditionally. `phone = ''` matches *every* resident stored with a blank phone, so once a single blank-phone row exists, **every** subsequent create with a blank phone returns 409. The same create endpoint also *stored* the `''` it received (as did `PATCH /residents`), so any edit could re-plant the landmine. Reproduced on production: first blank-phone create → 201 (and the row stored `phone=''`), second blank-phone create → 409.
+2. **Invisible duplicates.** The check matched residents across all statuses and bed assignments, but the Residents list filters by property via an outer join on `beds`/`rooms` followed by `WHERE rooms.property_code = :pc` — which silently drops residents with **no bed** (or a bed at another property). A data survey found exactly this in pilot: 1 inactive resident with no bed (invisible in the DT02 list) plus 2 legacy duplicate emails. Staff hitting that email/phone got a generic 409 with no way to find the blocking record — a dead end. (The email comparison was also case-sensitive, while the data already contained case-variant duplicates.)
+
+**What was changed:**
+- **`backend/app/routers/residents.py` (`create_resident`)** — email/phone are normalized (`strip()`, blank → `NULL`) before checking and storing; the duplicate check runs only on provided values, email case-insensitively (`lower(email)` both sides); and the 409 now names the matched resident with location and status, e.g. `Email already registered to Juan Dela Cruz (Room 503 / DT02-503A, status: active)` or `… (no bed assigned, status: inactive)` — so staff can immediately find, reactivate, or delete the blocking record. The frontend already toasts `detail` verbatim, so no UI change was needed.
+- **`backend/app/routers/residents.py` (`update_resident`)** — same blank → `NULL` normalization on email/phone so edits never re-introduce empty-string rows. (No duplicate check was added to update: legacy data contains pre-existing duplicates, and blocking unrelated edits on them ahead of UAT would do more harm than good.)
+
+**Verification (production):**
+- Two consecutive blank-phone creates → both `201` (previously the second 409'd); stored as `null`, not `''`.
+- Duplicate email submitted in **uppercase** → `409 Email already registered to <name> (no bed assigned, status: active)` (case-insensitive match, actionable message).
+- Duplicate phone → `409 Phone number already registered to <name> (…)`.
+- `PATCH` with blank phone → `200`, value stored as `null`.
+- All probe rows cleaned after the tests.
+
+**Note for staff:** if the original resident they were trying to add still fails, the new message now tells them exactly which existing record holds that email/phone (the pilot data survey showed one inactive, bed-less resident invisible in the list — likely the original blocker). That record can be reactivated or deleted from the Residents page, then the new resident added.
+
+**Files modified:**
+- `backend/app/routers/residents.py`
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*

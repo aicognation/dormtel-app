@@ -115,13 +115,49 @@ async def create_resident(
     current_staff: models.Staff = Depends(auth.require_admin),
     db: AsyncSession = Depends(get_db),
 ):
-    existing = await db.execute(
-        select(models.Resident).where(
-            or_(models.Resident.email == payload.email, models.Resident.phone == payload.phone)
+    # Normalize blank strings to NULL: the form sends '' for empty fields, and
+    # a duplicate check like WHERE phone = '' matches every other resident
+    # with a blank phone -- once ONE blank-phone row exists, every subsequent
+    # blank-phone create 409s. Store None instead.
+    email = (payload.email or "").strip() or None
+    phone = (payload.phone or "").strip() or None
+
+    def _describe(match: models.Resident) -> str:
+        # The property-filtered list hides bed-less residents, so a generic
+        # "already exists" 409 was a dead end -- name the matched resident
+        # (with location + status) so staff can find or clean them up.
+        if match.bed and match.bed.room:
+            loc = f"Room {match.bed.room.room_number} / {match.bed.bed_code}"
+        elif match.bed:
+            loc = match.bed.bed_code or "bed assigned"
+        else:
+            loc = "no bed assigned"
+        return f"{match.full_name} ({loc}, status: {match.status})"
+
+    if email:
+        em = await db.execute(
+            select(models.Resident)
+            .options(selectinload(models.Resident.bed).selectinload(models.Bed.room))
+            .where(func.lower(models.Resident.email) == email.lower())
         )
-    )
-    if existing.first():
-        raise HTTPException(status_code=status.HTTP_409_CONFLICT, detail="Email or phone already exists")
+        matched = em.scalars().first()
+        if matched:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Email already registered to {_describe(matched)}",
+            )
+    if phone:
+        ph = await db.execute(
+            select(models.Resident)
+            .options(selectinload(models.Resident.bed).selectinload(models.Bed.room))
+            .where(models.Resident.phone == phone)
+        )
+        matched = ph.scalars().first()
+        if matched:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail=f"Phone number already registered to {_describe(matched)}",
+            )
 
     if payload.bed_id:
         bed_result = await db.execute(select(models.Bed).where(models.Bed.id == payload.bed_id))
@@ -132,8 +168,8 @@ async def create_resident(
     resident = models.Resident(
         id=uuid.uuid4(),
         full_name=payload.full_name,
-        email=payload.email,
-        phone=payload.phone,
+        email=email,
+        phone=phone,
         id_type=payload.id_type,
         id_number=payload.id_number,
         status=payload.status or "prospect",
@@ -240,9 +276,11 @@ async def update_resident(
     if payload.full_name is not None:
         resident.full_name = payload.full_name
     if payload.email is not None:
-        resident.email = payload.email
+        # Normalize blank -> NULL (same rule as create) so edits never
+        # re-introduce empty-string rows.
+        resident.email = (payload.email or "").strip() or None
     if payload.phone is not None:
-        resident.phone = payload.phone
+        resident.phone = (payload.phone or "").strip() or None
     if payload.id_type is not None:
         resident.id_type = payload.id_type
     if payload.id_number is not None:
