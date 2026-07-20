@@ -365,4 +365,42 @@ dormtel-redis-1      (internal)       Redis 7
 
 ---
 
+## FIX-002: Onboarding "Create Reservation" 500 — Deposits Cross-Schema FK
+
+**Date:** 2026-07-20
+**Milestone:** Pre-UAT Production Hardening (Alibaba Cloud ECS)
+**Triggered By:** Staff bug report — Create Reservation failing with "Request failed with status code 500" whenever deposits were entered
+**Status:** Resolved (verified end-to-end on production)
+
+---
+
+### FIX-002-01: `deposits` Table Lived Only in `public` With an Unsatisfiable FK
+
+**Severity:** Critical (blocked all reservations with deposits — the standard booking flow)
+**Category:** Data Model / Multi-Schema Architecture
+
+**What was broken:**
+The `deposits` table existed only in the `public` schema, and its DB-level constraint `deposits_resident_id_fkey` referenced `public.residents`. Tenant residents, however, live in `demo.residents` / `pilot.residents` (resolved at runtime via `SET search_path TO <schema>, public`). Every deposit INSERT therefore failed with `ForeignKeyViolationError: Key (resident_id)=… is not present in table "residents"` and surfaced as a 500. Reservations *without* deposits succeeded, which is why the bug only fired in the normal flow where advance/security/utility deposits are recorded.
+
+**Why it needed to be fixed:**
+- Staff could not book any resident with the standard deposit entries (advance, security, utility + PR numbers), blocking the core onboarding workflow ahead of final UAT.
+- The legacy `public` copies of entity tables (residents, beds, billings…) are all shadowed by tenant-schema copies and never receive runtime writes — `deposits` was the only tenant-entity table missing its tenant copies, so it silently fell through to the broken public one. A full FK audit confirmed no other table has this defect.
+
+**What was changed:**
+- **`backend/migrations/002_deposits_tenant_tables.sql`** (new, idempotent) — creates `demo.deposits` and `pilot.deposits` with FKs to their own schema's `residents(id)` `ON DELETE CASCADE` (matching the model's `ondelete="CASCADE"`), indexes on `resident_id`, and drops the unsatisfiable `deposits_resident_id_fkey` from the legacy `public.deposits` (0 rows; now permanently shadowed).
+- **`.github/workflows/deploy.yml`** — added the same migration block so CI/CD deploys self-migrate.
+- **`backend/app/routers/onboarding.py`** — `create_reservation` now commits once (resident + deposits + inquiry conversion in a single transaction). Previously it committed the resident first, so a deposit failure left an orphaned "reserved" resident holding a locked bed that staff could not reassign.
+
+**Verification:**
+- Reservation with 3 deposits → `201`; rows landed in `pilot.deposits` (`advance 4300`, `security 4300`, `utility 1000`, all `paid`, receipt numbers intact); `public.deposits` stayed at 0 rows.
+- Full model-vs-DB column audit across both schemas: no remaining drift; all other public-only tables (`staff`, `faqs`, `announcements`, `audit_logs`, `password_resets`, `verification_codes`) are legitimately shared with valid FKs.
+- All test rows cleaned; affected bed restored to `available`.
+
+**Files modified:**
+- `backend/migrations/002_deposits_tenant_tables.sql` (new)
+- `backend/app/routers/onboarding.py` (single-transaction commit)
+- `.github/workflows/deploy.yml` (deposits migration block)
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*

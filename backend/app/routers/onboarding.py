@@ -220,10 +220,10 @@ async def create_reservation(
         updated_at=datetime.utcnow(),
     )
     db.add(resident)
-    await db.commit()
-    await db.refresh(resident)
 
-    # Create deposit records if provided
+    # Create deposit records if provided — kept in the SAME transaction as the
+    # resident so a deposit failure rolls back the resident and bed status
+    # changes instead of leaving an orphaned reserved bed.
     if payload.deposits:
         for dep in payload.deposits:
             deposit = models.Deposit(
@@ -237,13 +237,15 @@ async def create_reservation(
                 created_at=datetime.utcnow(),
             )
             db.add(deposit)
-        await db.commit()
 
     # Link inquiry to resident and mark as converted
+    # (resident.id is client-generated, so this can happen before the commit)
     if inquiry:
         inquiry.resident_id = resident.id
         inquiry.status = "converted"
-        await db.commit()
+
+    await db.commit()
+    await db.refresh(resident)
 
     # Attach duplicate warnings to resident for frontend
     if warnings:
