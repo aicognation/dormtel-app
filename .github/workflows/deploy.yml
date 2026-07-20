@@ -70,6 +70,8 @@ jobs:
             ALTER TABLE pilot.inquiries ADD COLUMN IF NOT EXISTS response TEXT;
             ALTER TABLE pilot.service_requests ADD COLUMN IF NOT EXISTS assigned_to UUID;
             " || true
+            echo "=== Ensuring inquiry_source enum has email ==="
+            docker compose -f docker-compose.prod.yml exec -T db psql -U dormtel -d dormtel -c "ALTER TYPE inquiry_source ADD VALUE IF NOT EXISTS 'email';" || true
 
       - name: Health check
         uses: appleboy/ssh-action@v1.0.3

@@ -91,7 +91,7 @@ class InquiryCreate(InquiryBase):
     resident_id: Optional[UUID] = None
     inquiry_type: Optional[str] = None
     external_id: Optional[str] = None
-    property_code: Optional[str] = "DT01"
+    property_code: Optional[str] = None
     prospect_name: Optional[str] = None
     prospect_phone: Optional[str] = None
     prospect_email: Optional[str] = None

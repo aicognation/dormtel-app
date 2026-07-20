@@ -23,6 +23,20 @@ NEGATIVE_KEYWORDS = [
     "hate", "bad", "worst", "disappointed", "upset"
 ]
 
+# Must match the inquiry_source PostgreSQL enum (lowercase)
+ALLOWED_SOURCES = {
+    "facebook", "instagram", "tiktok", "walkin",
+    "phone", "referral", "website", "email",
+}
+
+
+def _clean_optional(value: Optional[str]) -> Optional[str]:
+    """Trim whitespace and store NULL instead of empty strings."""
+    if value is None:
+        return None
+    value = value.strip()
+    return value or None
+
 
 def _calculate_sentiment(content: Optional[str]) -> float:
     if not content:
@@ -52,17 +66,33 @@ def _calculate_lead_score(content: Optional[str], source: str) -> int:
 
 
 @router.post("/", response_model=InquiryOut, status_code=201)
-async def create_inquiry(payload: InquiryCreate, db: AsyncSession = Depends(get_db)):
+async def create_inquiry(
+    payload: InquiryCreate,
+    property_code: Optional[str] = Depends(auth.get_current_property),
+    db: AsyncSession = Depends(get_db),
+):
+    # DB enum is lowercase — normalize casing so stale/legacy clients don't 500
+    source = (payload.source or "").strip().lower()
+    if source not in ALLOWED_SOURCES:
+        raise HTTPException(
+            status_code=422,
+            detail=(
+                f"Invalid inquiry source '{payload.source}'. "
+                f"Allowed values: {', '.join(sorted(ALLOWED_SOURCES))}"
+            ),
+        )
+
     sentiment = _calculate_sentiment(payload.content)
-    lead = _calculate_lead_score(payload.content, payload.source)
+    lead = _calculate_lead_score(payload.content, source)
     inquiry = Inquiry(
-        source=payload.source,
-        external_id=payload.external_id,
+        source=source,
+        external_id=_clean_optional(payload.external_id),
         content=payload.content,
-        property_code=payload.property_code or "DT01",
+        # QR kiosk sends it explicitly; portal relies on the JWT property
+        property_code=payload.property_code or property_code or "DT01",
         prospect_name=payload.prospect_name,
-        prospect_phone=payload.prospect_phone,
-        prospect_email=payload.prospect_email,
+        prospect_phone=_clean_optional(payload.prospect_phone),
+        prospect_email=_clean_optional(payload.prospect_email),
         school=payload.school,
         course=payload.course,
         review_center=payload.review_center,
@@ -78,11 +108,6 @@ async def create_inquiry(payload: InquiryCreate, db: AsyncSession = Depends(get_
     )
     db.add(inquiry)
     await db.commit()
-    # DEBUG: log search_path before refresh
-    from sqlalchemy import text
-    result = await db.execute(text("SHOW search_path"))
-    search_path = result.scalar()
-    print(f"[DEBUG Inquiry] search_path before refresh: {search_path}")
     await db.refresh(inquiry)
     return inquiry
 

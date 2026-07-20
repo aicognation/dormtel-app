@@ -46,7 +46,11 @@ export default function InquiriesPage() {
     e.preventDefault();
     setSubmitting(true);
     try {
-      await createInquiry(form);
+      await createInquiry({
+        ...form,
+        source: (form.source || '').toLowerCase(),
+        property_code: propertyCode,
+      });
       toast.success('Inquiry created successfully');
       setShowCreate(false);
       setForm({ source: 'facebook', prospect_name: '', prospect_email: '', prospect_phone: '', content: '', external_id: '', school: '', course: '', review_center: '' });
