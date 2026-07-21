@@ -781,4 +781,54 @@ Additionally, the `dormer_type` and `source` enum fields were passed directly to
 
 ---
 
+## FIX-012: Comprehensive Input Parsing Audit — Dates, Enums, Empty Strings, Decimals
+
+**Date:** 2026-07-21
+**Milestone:** UAT Round — Production (Alibaba Cloud ECS)
+**Triggered By:** Proactive audit after FIX-011 — "find potential issues similar to the bug found... minimize back and forth with users for a successful UAT"
+**Status:** Resolved (verified end-to-end on production with empirical testing)
+
+---
+
+### FIX-012-01: Systemic Input Parsing Vulnerabilities Across All Input Models
+
+**Severity:** High (multiple endpoints would 422/500 on normal frontend input during UAT)
+**Category:** Input Validation / Robustness / Pre-UAT Hardening
+
+**Why this audit was needed:**
+FIX-011 fixed the onboarding reservation date/enum bug, but that was one instance of a systemic pattern. A three-pronged audit (date fields, PostgreSQL enums, other parsing risks) found **51 parsing vulnerabilities** across the input models — the same class of bug repeated everywhere. Without this sweep, UAT testers would have hit these one by one.
+
+**What was broken (the recurring patterns):**
+1. **Date format mismatch** — 18 date fields across 9 models used Pydantic's default `date` type (ISO-only), but frontend date pickers send MM/DD/YYYY → 422 "input is too short".
+2. **Empty-string for Optional fields** — JavaScript forms send `""` (not `null`) for cleared fields. Pydantic v2 rejects `""` for `Optional[UUID]`, `Optional[int]`, `Optional[dict]`, `Optional[list]` → 422. Affected 15 UUID fields, 3 int fields, plus dict/list fields.
+3. **Currency strings for Decimals** — 21 Decimal fields would reject `"₱6,000"` or `"6,000"` (commas/currency symbols) → 422.
+4. **Capitalized enum values** — `dormer_type`, `resident_status`, `staff_role`, `deposit_type` had no lowercase normalization on several endpoints → 500 on PostgreSQL enum violation (frontend currently sends lowercase, but no server-side guard).
+5. **Boolean coercion** — `is_first_time_dormer`/`first_time_dormer` could receive `"Yes"/"No"` from dropdowns.
+
+**What was changed:**
+- **`backend/app/utils/validators.py`** (new) — shared, reusable validator functions: `parse_date_flexible` (ISO + MM/DD/YYYY), `empty_string_to_none`, `normalize_enum_string`, `parse_decimal` (currency/comma handling), `parse_bool` (Yes/No, true/false, 1/0). Plus a `SanitizedModel` mixin for global empty-string handling.
+- **`backend/app/schemas.py`** — applied validators to: `ResidentBase` (monthly_rate), `ResidentCreate`, `ResidentUpdate`, `InquiryCreate`, `MeterReadingBase`, `MoveOutBase`, `MoveOutExtendRequest`, `MiscellaneousTransactionBase/Create/Update`, `QrCampaignCreate`, `TenantPayRequest`, `BillingStatementGenerateRequest`, `StaffCreate`, `StaffUpdate`.
+- **`backend/app/routers/billing.py`** — `BillingGenerateRequest` decimal validators.
+- **`backend/app/routers/payments.py`** — `WebhookPayload` (amount), `MatchRequest` (billing_id), `ReconcileRequest` (payment_ids).
+- **`backend/app/routers/onboarding.py`** — `deposit_type` now normalized to lowercase and validated against `{advance, security, utility}` with a clear 422 on invalid values.
+
+**Verification (production, empirical testing — 14/14 checks passed):**
+- Resident create with `"6,000"` rate + `"Reviewee"`/`"Reserved"` enums + `"Yes"` boolean + `""` bed_id + MM/DD/YYYY dates → 201, all normalized correctly ✓
+- Resident update with MM/DD/YYYY + empty int/UUID → 200 ✓
+- Inquiry create with `""` resident_id/campaign_id/inquiry_form_data + MM/DD/YYYY + `"No"` boolean → 201 ✓
+- QR campaign create with MM/DD/YYYY start/end → 201 ✓
+- Misc transaction with `"1,500"` + MM/DD/YYYY + `""` UUIDs → 201 ✓
+- Onboarding reservation with capitalized `"Advance"`/`"Security"` deposit_type → 201 (normalized) ✓
+- Onboarding reservation with invalid `"bogus"` deposit_type → 422 with clear message ✓
+
+**Files modified:**
+- `backend/app/utils/validators.py` (new)
+- `backend/app/utils/__init__.py`
+- `backend/app/schemas.py`
+- `backend/app/routers/billing.py`
+- `backend/app/routers/payments.py`
+- `backend/app/routers/onboarding.py`
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*
