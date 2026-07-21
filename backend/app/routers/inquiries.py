@@ -88,6 +88,7 @@ async def create_inquiry(
     # Attribute the lead to the QR campaign encoded in the scanned code (if any)
     campaign_id = None
     campaign_title = None
+    campaign_property = None
     if payload.campaign_id:
         camp_result = await db.execute(
             select(QrCampaign).where(QrCampaign.id == payload.campaign_id)
@@ -100,13 +101,35 @@ async def create_inquiry(
             )
         campaign_id = campaign.id
         campaign_title = campaign.title
+        campaign_property = campaign.property_code  # authoritative source for QR inquiries
+
+        # Validate: if payload.property_code is explicitly provided, it must match campaign
+        if payload.property_code and payload.property_code != campaign_property:
+            raise HTTPException(
+                status_code=422,
+                detail=(
+                    f"Property mismatch: inquiry property_code '{payload.property_code}' "
+                    f"does not match campaign property_code '{campaign_property}'"
+                ),
+            )
+
+    # Property code resolution priority:
+    # 1. Campaign's property_code (if campaign_id provided — authoritative for QR inquiries)
+    # 2. Payload's property_code (if explicitly sent by admin portal or kiosk)
+    # 3. JWT's property_code (if authenticated staff creating inquiry)
+    # 4. Hardcoded fallback "DT01"
+    final_property_code = (
+        campaign_property
+        or payload.property_code
+        or property_code
+        or "DT01"
+    )
 
     inquiry = Inquiry(
         source=source,
         external_id=_clean_optional(payload.external_id),
         content=payload.content,
-        # QR kiosk sends it explicitly; portal relies on the JWT property
-        property_code=payload.property_code or property_code or "DT01",
+        property_code=final_property_code,
         campaign_id=campaign_id,
         campaign_title=campaign_title,
         prospect_name=payload.prospect_name,

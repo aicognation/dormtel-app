@@ -97,6 +97,17 @@ jobs:
             ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS campaign_title VARCHAR(255);
             ALTER TABLE public.residents ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);
             " || true
+            echo "=== Applying QR inquiry property validation triggers (005 / FIX-009) ==="
+            docker compose -f docker-compose.prod.yml exec -T db psql -U dormtel -d dormtel -c "
+            DROP TRIGGER IF EXISTS trg_validate_inquiry_property ON pilot.inquiries;
+            DROP TRIGGER IF EXISTS trg_validate_inquiry_property ON demo.inquiries;
+            DROP FUNCTION IF EXISTS pilot.validate_inquiry_property();
+            DROP FUNCTION IF EXISTS demo.validate_inquiry_property();
+            CREATE OR REPLACE FUNCTION pilot.validate_inquiry_property() RETURNS TRIGGER AS \$\$ BEGIN IF NEW.campaign_id IS NOT NULL THEN DECLARE campaign_prop VARCHAR(10); BEGIN SELECT property_code INTO campaign_prop FROM pilot.qr_campaigns WHERE id = NEW.campaign_id; IF campaign_prop IS NOT NULL AND NEW.property_code != campaign_prop THEN RAISE EXCEPTION 'Property mismatch: inquiry property_code (%) does not match campaign property_code (%)', NEW.property_code, campaign_prop; END IF; END; END IF; RETURN NEW; END; \$\$ LANGUAGE plpgsql;
+            CREATE OR REPLACE FUNCTION demo.validate_inquiry_property() RETURNS TRIGGER AS \$\$ BEGIN IF NEW.campaign_id IS NOT NULL THEN DECLARE campaign_prop VARCHAR(10); BEGIN SELECT property_code INTO campaign_prop FROM demo.qr_campaigns WHERE id = NEW.campaign_id; IF campaign_prop IS NOT NULL AND NEW.property_code != campaign_prop THEN RAISE EXCEPTION 'Property mismatch: inquiry property_code (%) does not match campaign property_code (%)', NEW.property_code, campaign_prop; END IF; END; END IF; RETURN NEW; END; \$\$ LANGUAGE plpgsql;
+            CREATE TRIGGER trg_validate_inquiry_property BEFORE INSERT OR UPDATE ON pilot.inquiries FOR EACH ROW EXECUTE FUNCTION pilot.validate_inquiry_property();
+            CREATE TRIGGER trg_validate_inquiry_property BEFORE INSERT OR UPDATE ON demo.inquiries FOR EACH ROW EXECUTE FUNCTION demo.validate_inquiry_property();
+            " || true
 
       - name: Health check
         uses: appleboy/ssh-action@v1.0.3

@@ -611,4 +611,62 @@ The July 16 fix (FIX-004) resolved a *different* 500 on the Inquiries page — t
 
 ---
 
+## FIX-009: QR Inquiry Property Routing — Public Form Defaulted to DT01 Regardless of Campaign Property
+
+**Date:** 2026-07-21
+**Milestone:** UAT Round — Production (Alibaba Cloud ECS)
+**Triggered By:** Architectural review — user asked "which tenant table does DT01 use?" → revealed property-level isolation bug in QR inquiry creation
+**Status:** Resolved (verified end-to-end on production with empirical testing)
+
+---
+
+### FIX-009-01: Public QR Inquiries Filed Under Wrong Property (DT01 Instead of Campaign's Property)
+
+**Severity:** Critical (property-level data leak + broken isolation between DT01 and DT02)
+**Category:** Multi-tenancy / Property Isolation / QR Campaigns
+
+**Why earlier fixes didn't catch it:**
+Previous inquiry fixes (FIX-004 escalate checkpoint overflow, FIX-008 connection-swap race) addressed *different* code paths. This bug was latent since the QR campaigns feature was added — it only manifests when a public QR form is submitted (no auth), which hadn't been tested empirically until now.
+
+**What was broken:**
+When a QR campaign was created for DT02 and a prospect scanned the QR code and submitted the public inquiry form (no authentication, only `X-Tenant-Schema: pilot` header), the `create_inquiry` endpoint used this fallback chain:
+
+```python
+property_code=payload.property_code or property_code or "DT01"
+```
+
+- `payload.property_code` — `None` (QR forms don't send it)
+- `property_code` (from JWT) — `None` (public form, no auth)
+- Hardcoded fallback — `"DT01"`
+
+The endpoint fetched the campaign to validate it exists and extract `campaign_id`/`campaign_title`, but **never extracted `campaign.property_code`**. So the inquiry was stored with `property_code='DT01'` regardless of which property the campaign belonged to.
+
+**Production impact (verified empirically):**
+- DT02 QR campaign created → public inquiry submitted → stored as `property_code='DT01'`
+- DT01 staff viewing Inquiries page → **could see DT02's QR leads** (data leak)
+- DT02 staff viewing Inquiries page → **could NOT see their own QR leads** (broken isolation)
+
+This is a property-level isolation bug: both DT01 and DT02 share the same `pilot.inquiries` table, isolated by `WHERE property_code = :pc` filtering. When the filtering is wrong, you get cross-property data exposure.
+
+**What was changed:**
+- **`backend/app/routers/inquiries.py` (`create_inquiry`)** — when `campaign_id` is provided, the campaign's `property_code` is now extracted and used as the **authoritative source** for the inquiry's `property_code`. The fallback chain is now: `campaign.property_code` → `payload.property_code` → `JWT property_code` → `"DT01"`. Also added validation: if `payload.property_code` is explicitly provided alongside `campaign_id`, they must match (else 422 with clear error message).
+- **`backend/migrations/005_qr_inquiry_property_validation.sql`** (new) — defense-in-depth: created database triggers on `pilot.inquiries` and `demo.inquiries` that validate `inquiry.property_code` matches `campaign.property_code` when `campaign_id` is not NULL. Even if the application code has a bug, the DB will reject mismatched inserts with `ERROR: Property mismatch: inquiry property_code (%) does not match campaign property_code (%)`. Applied to production and verified via direct SQL insert attempts.
+- **`.github/workflows/deploy.yml`** — added the trigger creation as an idempotent deploy step (drops existing triggers/functions before recreating, so it's safe to run on every deploy).
+
+**Verification (production, empirical testing):**
+- **Public QR form (no auth)**: created DT02 campaign → submitted inquiry with `campaign_id` but no `property_code` in payload → stored as `property_code='DT02'` ✓ (was `'DT01'` before fix)
+- **Authenticated QR submission (DT02 staff)**: inquiry stored as `property_code='DT02'` ✓
+- **Property mismatch validation**: submitted inquiry with `campaign_id=DT02 campaign` and explicit `property_code='DT01'` → `422` with message `"Property mismatch: inquiry property_code 'DT01' does not match campaign property_code 'DT02'"` ✓
+- **Authenticated non-QR inquiry (admin portal, no campaign)**: inquiry stored as `property_code='DT02'` (from JWT) ✓
+- **DB trigger blocks mismatched inserts**: direct SQL `INSERT INTO pilot.inquiries (..., property_code='DT01', campaign_id=<DT02 campaign>)` → `ERROR: Property mismatch` ✓
+- **DB trigger allows correct inserts**: direct SQL `INSERT INTO pilot.inquiries (..., property_code='DT02', campaign_id=<DT02 campaign>)` → succeeded ✓
+- **Visibility isolation verified**: DT01 staff cannot see DT02's QR inquiries; DT02 staff can see their own QR inquiries ✓
+
+**Files modified:**
+- `backend/app/routers/inquiries.py`
+- `backend/migrations/005_qr_inquiry_property_validation.sql` (new)
+- `.github/workflows/deploy.yml`
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*
