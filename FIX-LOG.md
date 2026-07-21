@@ -740,4 +740,45 @@ No remaining property_code routing bugs in inquiry creation.
 
 ---
 
+## FIX-011: Onboarding Reservation Creation — Date Format Mismatch + Enum Case Validation
+
+**Date:** 2026-07-21
+**Milestone:** UAT Round — Production (Alibaba Cloud ECS)
+**Triggered By:** UAT feedback — "Cannot create reservations, states should be valid date or datetime, input is too short" on the Onboarding page
+**Status:** Resolved (verified end-to-end on production with empirical testing)
+
+---
+
+### FIX-011-01: Pydantic Rejected MM/DD/YYYY Dates and Capitalized Enum Values
+
+**Severity:** High (blocked reservation creation, a core onboarding workflow)
+**Category:** Input Validation / Date Parsing / Enum Normalization
+
+**What was broken:**
+The onboarding reservation endpoint used Pydantic's default `date` type for `move_in_date`, `move_out_date`, and `exam_date` fields. Pydantic expects ISO format (YYYY-MM-DD) by default, but the frontend date picker sends MM/DD/YYYY format (e.g., "07/21/2026"). This caused a 422 validation error with the misleading message "Input should be a valid date or datetime, input is too short" — the issue wasn't length, it was format mismatch.
+
+Additionally, the `dormer_type` and `source` enum fields were passed directly to PostgreSQL without case normalization. The frontend sends capitalized values like "Reviewee", but the database enum expects lowercase ("reviewee"), causing a 500 error even when the date format was correct.
+
+**Production impact (verified empirically):**
+- Reservation creation with "07/21/2026" → 422 error "input is too short"
+- Reservation creation with "2026-07-21" (ISO) → 500 error "invalid input value for enum dormer_type: 'Reviewee'"
+- Staff could not create any reservations via the Onboarding page
+
+**What was changed:**
+- **`backend/app/routers/onboarding.py`** — added two Pydantic field validators to `ReservationCreateRequest`:
+  1. `@field_validator("move_in_date", "move_out_date", "exam_date", mode="before")` — accepts both ISO (YYYY-MM-DD) and MM/DD/YYYY formats via a flexible date parser helper function
+  2. `@field_validator("dormer_type", "source", mode="before")` — normalizes enum strings to lowercase before validation, matching the PostgreSQL enum definition
+
+**Verification (production, empirical testing):**
+- **Before fix**: "07/21/2026" → 422 error; "2026-07-21" with "Reviewee" → 500 error
+- **After fix**: "07/21/2026" + "Reviewee" → 201 Created, dates parsed to ISO format, enum normalized to lowercase ✓
+- Tested with exact screenshot data: move_in_date="07/21/2026", move_out_date="01/31/2027", dormer_type="Reviewee", lease_term_months=6 → reservation created successfully ✓
+- Dates stored correctly: move_in_date="2026-07-21", move_out_date="2027-01-31" ✓
+- Enum stored correctly: dormer_type="reviewee" ✓
+
+**Files modified:**
+- `backend/app/routers/onboarding.py`
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*
