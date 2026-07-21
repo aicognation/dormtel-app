@@ -9,13 +9,31 @@ from typing import Optional
 import uuid
 import logging
 
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, field_validator
 
 from app.database import get_db
 from app import models, schemas, auth
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
+
+
+def parse_date_flexible(value):
+    """Parse date from ISO format (YYYY-MM-DD) or MM/DD/YYYY format."""
+    if isinstance(value, date):
+        return value
+    if isinstance(value, str):
+        # Try ISO format first (YYYY-MM-DD)
+        try:
+            return datetime.strptime(value, "%Y-%m-%d").date()
+        except ValueError:
+            pass
+        # Try MM/DD/YYYY format
+        try:
+            return datetime.strptime(value, "%m/%d/%Y").date()
+        except ValueError:
+            pass
+    raise ValueError(f"Invalid date format: {value}. Expected YYYY-MM-DD or MM/DD/YYYY")
 
 
 class DepositInput(BaseModel):
@@ -51,6 +69,24 @@ class ReservationCreateRequest(BaseModel):
     board_exam_type: Optional[str] = None
     lease_term_months: Optional[int] = None
     deposits: Optional[list] = None
+
+    @field_validator("move_in_date", "move_out_date", "exam_date", mode="before")
+    @classmethod
+    def parse_dates(cls, v):
+        """Accept both ISO (YYYY-MM-DD) and MM/DD/YYYY date formats."""
+        if v is None:
+            return v
+        return parse_date_flexible(v)
+
+    @field_validator("dormer_type", "source", mode="before")
+    @classmethod
+    def normalize_enum_strings(cls, v):
+        """Normalize enum strings to lowercase for PostgreSQL enum compatibility."""
+        if v is None:
+            return v
+        if isinstance(v, str):
+            return v.strip().lower()
+        return v
 
 
 @router.post("/reservations", response_model=schemas.ResidentOut, status_code=status.HTTP_201_CREATED)
