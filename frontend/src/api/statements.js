@@ -5,7 +5,7 @@ export function generateStatements(data) {
 }
 
 export function listStatements(params = {}) {
-  return client.get('/statements', { params });
+  return client.get('/statements/', { params });
 }
 
 export function downloadStatement(statementId) {

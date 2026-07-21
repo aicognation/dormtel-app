@@ -1,7 +1,7 @@
 import client from './client';
 
 export async function listFaqs(params = {}) {
-  return client.get('/faqs', { params });
+  return client.get('/faqs/', { params });
 }
 
 export async function listFaqCategories() {
@@ -9,5 +9,5 @@ export async function listFaqCategories() {
 }
 
 export async function createFaq(payload) {
-  return client.post('/faqs', payload);
+  return client.post('/faqs/', payload);
 }

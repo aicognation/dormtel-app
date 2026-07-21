@@ -13,5 +13,5 @@ export function assignServiceRequest(id, data) {
 }
 
 export function createServiceRequest(data) {
-  return client.post('/service-requests', data);
+  return client.post('/service-requests/', data);
 }

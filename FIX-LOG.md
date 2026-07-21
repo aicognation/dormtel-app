@@ -831,4 +831,69 @@ FIX-011 fixed the onboarding reservation date/enum bug, but that was one instanc
 
 ---
 
+## FIX-013: Trailing-Slash 307 Redirect — Service Request "Network Error"
+
+**Date:** 2026-07-22
+**Milestone:** Pre-UAT Hardening (Alibaba Cloud ECS)
+**Triggered By:** UAT tester report — "Cannot add service request, Failed to create service request, Network Error" (same class as July 16 miscellaneous finding)
+**Status:** Resolved + Verified (browser UAT 14/14 PASS)
+
+---
+
+### Root Cause
+
+FastAPI routes defined with a trailing slash (`@router.post("/")`) register a canonical path like `/api/v1/service-requests/`. When the frontend calls the path **without** the trailing slash (`client.post('/service-requests', data)`), FastAPI issues a **307 Temporary Redirect** to the canonical URL. Because the backend is unaware of the HTTPS proxy (nginx terminates TLS), the `Location` header in the 307 response points to `http://dormtel-admin.bayanaihan.net/api/v1/service-requests/` (plain HTTP). The browser **blocks the HTTPS→HTTP downgrade** as a mixed-content violation, and axios surfaces this as a generic "Network Error" — no HTTP status code reaches the application layer.
+
+This is the same bug class as the previously-fixed `/miscellaneous/` issue, but it was never systematically scanned across all endpoints.
+
+### Empirical Reproduction
+
+```
+POST /api/v1/service-requests  (no slash) → 307 → Location: http://... (blocked by browser)
+POST /api/v1/service-requests/ (with slash) → 201 Created ✓
+```
+
+### Systematic Scan
+
+Compared all frontend API client calls against the live OpenAPI spec. Found **4 mismatches**:
+
+| Frontend Call | Backend Canonical | Fix |
+|---|---|---|
+| `client.post('/service-requests', data)` | `/service-requests/` | Add trailing slash |
+| `client.get('/faqs', { params })` | `/faqs/` | Add trailing slash |
+| `client.post('/faqs', payload)` | `/faqs/` | Add trailing slash |
+| `client.get('/statements', { params })` | `/statements/` | Add trailing slash |
+
+Tenant-portal was also audited — all routes use path parameters (`/service-requests/${id}`) or match exactly (`/announcements`), so no fixes needed there.
+
+### Fix Applied
+
+**Files modified:**
+- `frontend/src/api/serviceRequests.js` — line 16: `'/service-requests'` → `'/service-requests/'`
+- `frontend/src/api/faq.js` — line 4: `'/faqs'` → `'/faqs/'`; line 12: `'/faqs'` → `'/faqs/'`
+- `frontend/src/api/statements.js` — line 8: `'/statements'` → `'/statements/'`
+
+**Deployment:** Frontend container rebuilt (`docker compose up -d --build frontend`). Bundle verified to contain the corrected paths.
+
+### Verification
+
+**API-level (via nginx HTTPS, as browser hits it):**
+- `POST https://dormtel-admin.bayanaihan.net/api/v1/service-requests/` → **201 Created** ✓
+- `GET /api/v1/faqs/` → **200** ✓
+- `GET /api/v1/statements/` → **200** ✓
+
+**Browser-level (Playwright headless Chrome, full UI flow):**
+- Service request created for JANELLA AMIRIL JALAL (Plumbing/Urgent) — green "Service request created" toast visible ✓
+- FAQ page loads without Network Error ✓
+- Billing/Statements page loads without Network Error ✓
+- Full UAT suite: **14/14 PASS** (login, property select, dashboard, service requests list+create, inquiries, onboarding, FAQ, billing, residents, payments, miscellaneous, monitoring)
+
+**Data cleanup:** All test records deleted from production DB post-verification.
+
+### Prevention
+
+The `dormtel-uat-verification` skill has been created to run this full browser-based UAT suite before every UAT handoff, catching any regression of this bug class (or any other) before testers encounter it.
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*
