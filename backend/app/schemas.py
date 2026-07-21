@@ -5,6 +5,14 @@ from decimal import Decimal
 from uuid import UUID
 import re
 
+from app.utils.validators import (
+    parse_date_flexible,
+    empty_string_to_none,
+    normalize_enum_string,
+    parse_decimal,
+    parse_bool,
+)
+
 _EMAIL_RE = re.compile(r'^[a-zA-Z0-9._%+\-]+@[a-zA-Z0-9.\-]+\.[a-zA-Z]{2,}$')
 
 class ResidentBase(BaseModel):
@@ -22,6 +30,11 @@ class ResidentBase(BaseModel):
         if not _EMAIL_RE.match(v):
             raise ValueError(f'Invalid email format: {v}')
         return v
+
+    @field_validator('monthly_rate', mode='before')
+    @classmethod
+    def parse_monthly_rate(cls, v):
+        return parse_decimal(v)
 
 class ResidentCreate(ResidentBase):
     id_type: Optional[str] = None
@@ -44,6 +57,36 @@ class ResidentCreate(ResidentBase):
     move_out_date: Optional[date] = None
     contract_end_date: Optional[date] = None
     notes: Optional[str] = None
+
+    @field_validator('exam_date', 'move_in_date', 'move_out_date', 'contract_end_date', mode='before')
+    @classmethod
+    def parse_dates(cls, v):
+        return parse_date_flexible(v)
+
+    @field_validator('bed_id', mode='before')
+    @classmethod
+    def parse_bed_id(cls, v):
+        return empty_string_to_none(v)
+
+    @field_validator('is_first_time_dormer', mode='before')
+    @classmethod
+    def parse_bool(cls, v):
+        return parse_bool(v)
+
+    @field_validator('dormer_type', 'status', mode='before')
+    @classmethod
+    def normalize_enums(cls, v):
+        return normalize_enum_string(v)
+
+    @field_validator('lease_term_months', mode='before')
+    @classmethod
+    def parse_lease_term(cls, v):
+        return empty_string_to_none(v)
+
+    @field_validator('previous_stays', mode='before')
+    @classmethod
+    def parse_previous_stays(cls, v):
+        return empty_string_to_none(v)
 
 class ResidentOut(ResidentBase):
     id: UUID
@@ -106,6 +149,26 @@ class InquiryCreate(InquiryBase):
     length_of_stay: Optional[str] = None
     inquiry_form_data: Optional[dict] = None
 
+    @field_validator('exam_date', 'desired_move_in_date', mode='before')
+    @classmethod
+    def parse_dates(cls, v):
+        return parse_date_flexible(v)
+
+    @field_validator('resident_id', 'campaign_id', mode='before')
+    @classmethod
+    def parse_optional_uuids(cls, v):
+        return empty_string_to_none(v)
+
+    @field_validator('first_time_dormer', mode='before')
+    @classmethod
+    def parse_bool(cls, v):
+        return parse_bool(v)
+
+    @field_validator('inquiry_form_data', mode='before')
+    @classmethod
+    def parse_form_data(cls, v):
+        return empty_string_to_none(v)
+
 class InquiryOut(InquiryBase):
     id: UUID
     status: str
@@ -138,6 +201,11 @@ class QrCampaignCreate(BaseModel):
     start_date: Optional[date] = None
     end_date: Optional[date] = None
     notes: Optional[str] = None
+
+    @field_validator('start_date', 'end_date', mode='before')
+    @classmethod
+    def parse_dates(cls, v):
+        return parse_date_flexible(v)
 
 class QrCampaignOut(BaseModel):
     id: UUID
@@ -281,6 +349,21 @@ class MeterReadingBase(BaseModel):
     electric_reading: Optional[Decimal] = None
     water_reading: Optional[Decimal] = None
 
+    @field_validator('reading_date', mode='before')
+    @classmethod
+    def parse_reading_date(cls, v):
+        return parse_date_flexible(v)
+
+    @field_validator('room_id', 'resident_id', mode='before')
+    @classmethod
+    def parse_optional_uuids(cls, v):
+        return empty_string_to_none(v)
+
+    @field_validator('electric_reading', 'water_reading', mode='before')
+    @classmethod
+    def parse_optional_decimals(cls, v):
+        return empty_string_to_none(v)
+
 class MeterReadingCreate(MeterReadingBase):
     pass
 
@@ -386,6 +469,11 @@ class MoveOutBase(BaseModel):
     extended_date: Optional[date] = None
     extension_reason: Optional[str] = None
     reason: Optional[str] = None
+
+    @field_validator('requested_date', 'actual_date', 'extended_date', mode='before')
+    @classmethod
+    def parse_dates(cls, v):
+        return parse_date_flexible(v)
     forwarding_contact: Optional[str] = None
 
 class MoveOutCreate(MoveOutBase):
@@ -431,6 +519,11 @@ class MoveOutOut(MoveOutBase):
 class MoveOutExtendRequest(BaseModel):
     extended_date: date
     extension_reason: Optional[str] = None
+
+    @field_validator('extended_date', mode='before')
+    @classmethod
+    def parse_extended_date(cls, v):
+        return parse_date_flexible(v)
 
 
 # --- Bed & Room Schemas ---
@@ -631,6 +724,16 @@ class TenantPayRequest(BaseModel):
     gateway_ref: Optional[str] = None
     proof_of_payment: Optional[str] = None
 
+    @field_validator('billing_id', mode='before')
+    @classmethod
+    def parse_billing_id(cls, v):
+        return empty_string_to_none(v)
+
+    @field_validator('amount', mode='before')
+    @classmethod
+    def parse_amount(cls, v):
+        return parse_decimal(v)
+
 class TenantProfileResponse(BaseModel):
     id: UUID
     full_name: str
@@ -691,6 +794,11 @@ class StaffCreate(BaseModel):
     managed_branch: Optional[str] = None
     password: Optional[str] = None
 
+    @field_validator('role', mode='before')
+    @classmethod
+    def normalize_role(cls, v):
+        return normalize_enum_string(v)
+
 class StaffOut(BaseModel):
     id: UUID
     full_name: str
@@ -711,6 +819,11 @@ class StaffUpdate(BaseModel):
     role: Optional[str] = None
     managed_branch: Optional[str] = None
     is_active: Optional[bool] = None
+
+    @field_validator('role', mode='before')
+    @classmethod
+    def normalize_role(cls, v):
+        return normalize_enum_string(v)
 
 class PasswordResetRequest(BaseModel):
     email: EmailStr
@@ -777,6 +890,36 @@ class ResidentUpdate(BaseModel):
     contract_end_date: Optional[date] = None
     monthly_rate: Optional[Decimal] = None
 
+    @field_validator('exam_date', 'move_in_date', 'move_out_date', 'contract_end_date', mode='before')
+    @classmethod
+    def parse_dates(cls, v):
+        return parse_date_flexible(v)
+
+    @field_validator('bed_id', mode='before')
+    @classmethod
+    def parse_bed_id(cls, v):
+        return empty_string_to_none(v)
+
+    @field_validator('is_first_time_dormer', mode='before')
+    @classmethod
+    def parse_bool(cls, v):
+        return parse_bool(v)
+
+    @field_validator('dormer_type', 'status', mode='before')
+    @classmethod
+    def normalize_enums(cls, v):
+        return normalize_enum_string(v)
+
+    @field_validator('monthly_rate', mode='before')
+    @classmethod
+    def parse_monthly_rate(cls, v):
+        return empty_string_to_none(v)
+
+    @field_validator('lease_term_months', mode='before')
+    @classmethod
+    def parse_lease_term(cls, v):
+        return empty_string_to_none(v)
+
 
 # --- Deposit Schemas ---
 
@@ -813,6 +956,13 @@ class BillingStatementGenerateRequest(BaseModel):
     email_subject: Optional[str] = None
     email_body: Optional[str] = None
 
+    @field_validator('total_water_bill', 'other_charges', mode='before')
+    @classmethod
+    def parse_decimals(cls, v):
+        if v is None or v == "":
+            return Decimal("0")
+        return parse_decimal(v)
+
 
 class BillingStatementRow(BaseModel):
     statement_id: UUID
@@ -848,10 +998,25 @@ class MiscellaneousTransactionBase(BaseModel):
     transaction_date: date
     status: str = "pending"
 
+    @field_validator('transaction_date', mode='before')
+    @classmethod
+    def parse_transaction_date(cls, v):
+        return parse_date_flexible(v)
+
+    @field_validator('amount', mode='before')
+    @classmethod
+    def parse_amount(cls, v):
+        return parse_decimal(v)
+
 class MiscellaneousTransactionCreate(MiscellaneousTransactionBase):
     resident_id: Optional[UUID] = None
     branch: Optional[str] = None
     room_id: Optional[UUID] = None
+
+    @field_validator('resident_id', 'room_id', mode='before')
+    @classmethod
+    def parse_optional_uuids(cls, v):
+        return empty_string_to_none(v)
 
 class MiscellaneousTransactionUpdate(BaseModel):
     description: Optional[str] = None
@@ -862,6 +1027,21 @@ class MiscellaneousTransactionUpdate(BaseModel):
     resident_id: Optional[UUID] = None
     branch: Optional[str] = None
     room_id: Optional[UUID] = None
+
+    @field_validator('transaction_date', mode='before')
+    @classmethod
+    def parse_transaction_date(cls, v):
+        return parse_date_flexible(v)
+
+    @field_validator('amount', mode='before')
+    @classmethod
+    def parse_amount(cls, v):
+        return empty_string_to_none(v)
+
+    @field_validator('resident_id', 'room_id', mode='before')
+    @classmethod
+    def parse_optional_uuids(cls, v):
+        return empty_string_to_none(v)
 
 class MiscellaneousTransactionOut(MiscellaneousTransactionBase):
     id: UUID

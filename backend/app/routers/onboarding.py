@@ -261,11 +261,19 @@ async def create_reservation(
     # resident so a deposit failure rolls back the resident and bed status
     # changes instead of leaving an orphaned reserved bed.
     if payload.deposits:
+        allowed_deposit_types = {"advance", "security", "utility"}
         for dep in payload.deposits:
+            raw_type = dep.get("deposit_type")
+            deposit_type = (raw_type or "").strip().lower() if isinstance(raw_type, str) else raw_type
+            if deposit_type and deposit_type not in allowed_deposit_types:
+                raise HTTPException(
+                    status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+                    detail=f"Invalid deposit_type '{raw_type}'. Allowed: {', '.join(sorted(allowed_deposit_types))}",
+                )
             deposit = models.Deposit(
                 id=uuid.uuid4(),
                 resident_id=resident.id,
-                deposit_type=dep.get("deposit_type"),
+                deposit_type=deposit_type,
                 amount=Decimal(str(dep.get("amount", 0))),
                 receipt_number=dep.get("receipt_number"),
                 payment_date=dep.get("payment_date") or date.today(),

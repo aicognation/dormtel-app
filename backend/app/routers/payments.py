@@ -15,7 +15,9 @@ from app.schemas import (
     PaymentOut, DormerLedgerOut, DormerLedgerSummaryOut,
     LedgerBillingRow, LedgerPaymentRow,
 )
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
+
+from app.utils.validators import parse_decimal, empty_string_to_none
 
 router = APIRouter()
 
@@ -27,14 +29,29 @@ class WebhookPayload(BaseModel):
     gateway_ref: Optional[str] = None
     signature: Optional[str] = None
 
+    @field_validator('amount', mode='before')
+    @classmethod
+    def parse_amount(cls, v):
+        return parse_decimal(v)
+
 
 class MatchRequest(BaseModel):
     resident_id: UUID
     billing_id: Optional[UUID] = None
 
+    @field_validator('billing_id', mode='before')
+    @classmethod
+    def parse_billing_id(cls, v):
+        return empty_string_to_none(v)
+
 
 class ReconcileRequest(BaseModel):
     payment_ids: Optional[List[UUID]] = None
+
+    @field_validator('payment_ids', mode='before')
+    @classmethod
+    def parse_payment_ids(cls, v):
+        return empty_string_to_none(v)
 
 
 class DSRReport(BaseModel):

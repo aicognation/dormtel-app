@@ -11,11 +11,12 @@ from typing import Optional, List
 from decimal import Decimal
 from uuid import UUID
 from datetime import datetime, date
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from app.database import get_db
 from app import models, auth
 from app.models import MeterReading, MeterReadingImport, Billing, Resident, Room, Bed, Payment, LedgerEntry
+from app.utils.validators import parse_decimal, empty_string_to_none
 from app.schemas import (
     MeterReadingCreate, MeterReadingOut, MeterReadingDailyGridOut,
     MeterReadingDailyRow, MeterReadingDailyCell,
@@ -115,6 +116,11 @@ class BillingGenerateRequest(BaseModel):
     building: Optional[str] = None
     other_charges: Optional[Decimal] = Field(default=None, ge=0)
     total_water_bill: Optional[Decimal] = Field(default=None, ge=0)
+
+    @field_validator('other_charges', 'total_water_bill', mode='before')
+    @classmethod
+    def parse_decimals(cls, v):
+        return empty_string_to_none(v)
 
 
 async def _get_active_residents_with_rooms(
