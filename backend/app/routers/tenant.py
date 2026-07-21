@@ -1,6 +1,7 @@
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_
+from sqlalchemy.orm import selectinload
 from datetime import datetime, date
 from decimal import Decimal
 from uuid import UUID
@@ -535,17 +536,30 @@ async def create_tenant_inquiry(
     body: InquiryCreate,
     db: AsyncSession = Depends(get_db),
 ):
-    result = await db.execute(select(Resident).where(Resident.id == resident_id))
+    # Load resident with bed and room to get the authoritative property_code
+    result = await db.execute(
+        select(Resident)
+        .options(selectinload(Resident.bed).selectinload(Bed.room))
+        .where(Resident.id == resident_id)
+    )
     resident = result.scalar_one_or_none()
     if not resident:
         raise HTTPException(status_code=404, detail="Resident not found")
+
+    # Derive property_code from resident's physical location (bed -> room -> property)
+    # Fallback chain: resident's room property -> body.property_code -> "DT01"
+    resident_property = None
+    if resident.bed and resident.bed.room:
+        resident_property = resident.bed.room.property_code
+
+    property_code = resident_property or body.property_code or "DT01"
 
     inquiry = Inquiry(
         source="website",
         content=body.content,
         inquiry_type=body.inquiry_type,
         resident_id=resident_id,
-        property_code=body.property_code or "DT01",
+        property_code=property_code,
         prospect_name=resident.full_name,
         prospect_phone=resident.phone,
         prospect_email=resident.email,
