@@ -572,4 +572,43 @@ Two compounding problems in `POST /residents`:
 
 ---
 
+## FIX-008: Inquiry Creation 500 — "column inquiries.campaign_id does not exist" (Recurrence of Inquiries-page 500s)
+
+**Date:** 2026-07-21
+**Milestone:** UAT Round — Production (Alibaba Cloud ECS)
+**Triggered By:** UAT feedback — "Cannot create new inquiry, request failed with status code 500" on the Inquiries page (payload: Sofia Soriano / Facebook / UNCIANO / DENTISTRY / CPAR / content "NA"); reported as a recurrence of the July 16 finding
+**Status:** Resolved (verified end-to-end on production, including a 30-way concurrency hammer)
+
+---
+
+### FIX-008-01: Post-commit Statements Could Run on a Pooled Connection With the Wrong `search_path`
+
+**Severity:** Critical (intermittent 500 on a core UAT flow; latent wrong-schema hazard on every write endpoint)
+**Category:** Multi-tenancy / Connection Pooling / Schema Drift
+
+**Why the earlier fix didn't stop it:**
+The July 16 fix (FIX-004) resolved a *different* 500 on the Inquiries page — the escalate endpoint overflowing `checkpoints.checkpoint_id` (VARCHAR(20)). This recurrence had a separate root cause, latent since the multi-schema design. It is inherently intermittent: it only fires when the connection pool is churning under concurrent use, which is why single-threaded smoke and write-flow passes never caught it.
+
+**What was broken:**
+`get_db` ran `SET search_path TO {schema}, public` on the session's **first** pooled connection. But a SQLAlchemy async session returns its connection to the pool on every `commit()` and may acquire a **different** connection for the next statement. In `create_inquiry`, the sequence is `INSERT → commit → db.refresh()`; under concurrent UAT load the refresh SELECT could land on a connection still carrying another request's `search_path`, or a fresh connection whose default is `"$user", public`. Unqualified `inquiries` then resolved to the **legacy `public.inquiries`** table, which lacked the QR-campaign columns — production DB log proof: the INSERT succeeded, and 5 ms later the refresh SELECT failed on the same backend with `ERROR: column inquiries.campaign_id does not exist` (10:49:14 and 10:49:20 UTC on 2026-07-20; a retry at 10:51:46 won the pool lottery and returned 201, which is why it looked random). The same race could silently read another tenant's rows on any post-commit statement — not just 500.
+
+**What was changed:**
+- **`backend/app/database.py` (`get_db`)** — each request is now pinned to ONE dedicated connection for its entire lifetime: `engine.connect()` → `SET search_path TO {schema}, public` → `commit()` (ends the SET's transaction; a plain SET is session-scoped and persists) → `AsyncSession(bind=conn)`. Every statement in the request, before *or* after commit, now runs on the connection that carries the correct `search_path`. The connection-swap roulette is structurally impossible.
+- **`backend/migrations/004_sync_public_schema_columns.sql`** (new) — defense-in-depth: re-synced the legacy `public` tables with the three model columns that had only been added to `demo`/`pilot` (`public.inquiries.campaign_id`, `public.inquiries.campaign_title`, `public.residents.company_name`), so even a stray statement resolving to `public` can no longer 500 on a missing column. Applied to production and verified via `information_schema`.
+- **`.github/workflows/deploy.yml`** — added the same three `ALTER TABLE ... ADD COLUMN IF NOT EXISTS` statements as an idempotent deploy step, so future deploys keep the public tables in sync.
+
+**Verification (production):**
+- Exact UAT payload from the screenshot (Sofia Soriano / Facebook / UNCIANO / DENTISTRY / CPAR / "NA", blank email/phone/external id) → `201`, all fields stored correctly, `property_code=DT02`.
+- **Concurrency hammer: 30 parallel creates → 30 × `201`, zero 500s** (2.7 s). This is the pattern that produced the intermittent 500s before the fix.
+- Regression: escalate → `CP-01-…` checkpoint created; re-escalate → `409` duplicate guard; respond → auto-response; QR campaign create + campaign-attributed inquiry (`campaign_id`/`campaign_title` stored); `status=new`, `via_qr`, and `convertible` lists all `200`.
+- Post-deploy API logs: zero `UndefinedColumnError` / "does not exist" entries; admin portal, tenant portal, and `/health` all `200`.
+- All 32 probe inquiries, the probe checkpoint, and the probe campaign deleted; verified `0` rows remaining.
+
+**Files modified:**
+- `backend/app/database.py`
+- `backend/migrations/004_sync_public_schema_columns.sql` (new)
+- `.github/workflows/deploy.yml`
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*

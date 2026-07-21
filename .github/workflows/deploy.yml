@@ -91,6 +91,12 @@ jobs:
             " || true
             echo "=== Ensuring payment_method enum has salary_deduction ==="
             docker compose -f docker-compose.prod.yml exec -T db psql -U dormtel -d dormtel -c "ALTER TYPE payment_method ADD VALUE IF NOT EXISTS 'salary_deduction';" || true
+            echo "=== Syncing legacy public schema columns (004 / FIX-008) ==="
+            docker compose -f docker-compose.prod.yml exec -T db psql -U dormtel -d dormtel -c "
+            ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS campaign_id UUID;
+            ALTER TABLE public.inquiries ADD COLUMN IF NOT EXISTS campaign_title VARCHAR(255);
+            ALTER TABLE public.residents ADD COLUMN IF NOT EXISTS company_name VARCHAR(255);
+            " || true
 
       - name: Health check
         uses: appleboy/ssh-action@v1.0.3

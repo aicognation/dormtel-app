@@ -56,10 +56,29 @@ def _extract_property_from_request(request: Request = None) -> Optional[str]:
 
 async def get_db(request: Request = None):
     schema = _extract_schema_from_request(request)
-    async with AsyncSessionLocal() as session:
-        try:
-            if schema in ALLOWED_SCHEMAS:
-                await session.execute(text(f"SET search_path TO {schema}, public"))
+    if schema not in ALLOWED_SCHEMAS:
+        schema = DEFAULT_SCHEMA
+    # Pin the entire request to ONE dedicated connection.
+    #
+    # SET search_path is a per-connection (backend) setting. The previous
+    # implementation ran it on the session's first connection, but a
+    # SQLAlchemy async session returns its connection to the pool on every
+    # commit() and may acquire a DIFFERENT connection for the next statement.
+    # Under concurrent load, post-commit statements (e.g. db.refresh() right
+    # after an INSERT) could execute on a connection still carrying another
+    # tenant's search_path - or a fresh connection's default of "$user",
+    # public - silently resolving unqualified tables to the wrong schema.
+    # In production this surfaced as inquiry creation 500-ing with
+    # 'column inquiries.campaign_id does not exist' because the refresh
+    # SELECT landed on the legacy public.inquiries table.
+    #
+    # Binding the session to a single connection guarantees every statement
+    # in the request - before OR after commit - uses the correct search_path.
+    async with engine.connect() as conn:
+        await conn.execute(text(f"SET search_path TO {schema}, public"))
+        # End the transaction opened by the SET so the session manages its
+        # own transactions on this connection. A plain SET is session-scoped
+        # and survives this commit.
+        await conn.commit()
+        async with AsyncSession(bind=conn, expire_on_commit=False) as session:
             yield session
-        finally:
-            await session.close()
