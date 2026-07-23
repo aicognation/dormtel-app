@@ -7,7 +7,27 @@ import os
 
 DATABASE_URL = os.getenv("DATABASE_URL", "postgresql+asyncpg://postgres:postgres@localhost:5432/dormtel")
 
-engine = create_async_engine(DATABASE_URL, echo=False, future=True)
+engine = create_async_engine(
+    DATABASE_URL,
+    echo=False,
+    future=True,
+    # --- Connection pool hardening (FIX-014) ---
+    # pool_pre_ping: emit a lightweight "SELECT 1" before handing a connection
+    # to the application. If the connection is dead (killed by PG idle timeout,
+    # network blip, container restart), it is silently discarded and replaced
+    # instead of surfacing "Failed to connect to database" to the user.
+    pool_pre_ping=True,
+    # pool_recycle: proactively recycle connections after 5 minutes.
+    # PostgreSQL's default tcp_keepalives_idle can kill idle connections;
+    # recycling before that threshold avoids ever hitting a dead socket.
+    pool_recycle=300,
+    # pool_size / max_overflow: sized for moderate concurrent admin + tenant
+    # traffic on a single ECS instance. 10 persistent + 20 burst = 30 max.
+    pool_size=10,
+    max_overflow=20,
+    # pool_timeout: wait up to 30s for a free connection before raising.
+    pool_timeout=30,
+)
 AsyncSessionLocal = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
 Base = declarative_base()

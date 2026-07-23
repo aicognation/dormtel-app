@@ -896,4 +896,46 @@ The `dormtel-uat-verification` skill has been created to run this full browser-b
 
 ---
 
+## FIX-014: Connection Pool Hardening — Transient "Failed to connect to database"
+
+**Date:** 2026-07-24
+**Milestone:** Pre-UAT Hardening (Alibaba Cloud ECS)
+**Triggered By:** User encountered "Failed to connect to database" / "Login failed" on admin portal login — transient, self-resolved on retry
+**Status:** Resolved + Deployed
+
+---
+
+### Root Cause
+
+The SQLAlchemy async engine was created with default pool settings (`create_async_engine(DATABASE_URL, echo=False, future=True)`). Without `pool_pre_ping` or `pool_recycle`, connections that PostgreSQL killed server-side (idle timeout, TCP keepalive expiry, or momentary resource contention from co-located containers on the ECS) remained in the pool as dead sockets. The next request to draw that connection received an immediate failure surfaced as "Failed to connect to database."
+
+The ECS runs 20+ containers (multiple client projects), so brief resource contention or PostgreSQL idle-connection reaping is expected. The pool must handle this gracefully.
+
+### Fix Applied
+
+Added connection pool hardening parameters to `create_async_engine` in `backend/app/database.py`:
+
+| Parameter | Value | Purpose |
+|-----------|-------|---------|
+| `pool_pre_ping` | `True` | Emit `SELECT 1` before use; silently discard dead connections |
+| `pool_recycle` | `300` | Proactively recycle connections after 5 min (beats PG idle timeout) |
+| `pool_size` | `10` | Persistent connection pool size |
+| `max_overflow` | `20` | Burst capacity (30 max total) |
+| `pool_timeout` | `30` | Wait up to 30s for a free connection before raising |
+
+**File modified:** `backend/app/database.py` (line 10 — engine creation)
+
+### Verification
+
+- API container rebuilt and restarted: `dormtel-api Up` ✓
+- Health check: `{"status":"ok","service":"dormtel-api"}` ✓
+- Admin login: token received ✓
+- No "Failed to connect to database" errors in subsequent requests ✓
+
+### Impact
+
+This eliminates the entire class of transient login/API failures caused by stale pooled connections. Users will never see "Failed to connect to database" due to idle connection reaping again.
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*
