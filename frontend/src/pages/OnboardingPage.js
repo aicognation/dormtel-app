@@ -14,6 +14,31 @@ import { formatCurrency } from '../utils/formatters';
 import ViewTenantsModal from '../components/onboarding/ViewTenantsModal';
 import { useProperty } from '../contexts/PropertyContext';
 
+// Normalize a date value from any common format to ISO YYYY-MM-DD.
+// Native <input type="date"> only displays/submits correctly when its value is
+// a valid ISO string; pre-filled values from inquiries (which may be stored as
+// MM/DD/YYYY or MM-DD-YYYY) would otherwise render blank or be submitted in a
+// format the backend rejects. Converting everything to ISO on the way in and
+// out guarantees the backend always receives a clean, parseable date.
+const toISODate = (value) => {
+  if (!value) return '';
+  const s = String(value).trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(s)) return s; // already ISO
+  let m = s.match(/^(\d{1,2})\/(\d{1,2})\/(\d{4})$/); // MM/DD/YYYY
+  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+  m = s.match(/^(\d{1,2})-(\d{1,2})-(\d{4})$/); // MM-DD-YYYY (US order, dashes)
+  if (m) return `${m[3]}-${m[1].padStart(2, '0')}-${m[2].padStart(2, '0')}`;
+  m = s.match(/^(\d{4})\/(\d{1,2})\/(\d{1,2})$/); // YYYY/MM/DD
+  if (m) return `${m[1]}-${m[2].padStart(2, '0')}-${m[3].padStart(2, '0')}`;
+  m = s.match(/^(\d{4}-\d{2}-\d{2})T/); // ISO datetime
+  if (m) return m[1];
+  const d = new Date(s); // fallback: native parse
+  if (!isNaN(d.getTime())) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+  }
+  return s;
+};
+
 export default function OnboardingPage() {
   const { propertyCode } = useProperty();
   const [rooms, setRooms] = useState([]);
@@ -157,10 +182,10 @@ export default function OnboardingPage() {
       school: inquiry.school || '',
       course: inquiry.course || '',
       review_center: inquiry.review_center || '',
-      exam_date: inquiry.exam_date || '',
+      exam_date: toISODate(inquiry.exam_date),
       is_first_time_dormer: inquiry.first_time_dormer ?? true,
       source: inquiry.source || '',
-      move_in_date: inquiry.desired_move_in_date || '',
+      move_in_date: toISODate(inquiry.desired_move_in_date),
     }));
   };
 
@@ -186,6 +211,9 @@ export default function OnboardingPage() {
         inquiry_id: form.inquiry_id || undefined,
         lease_term_months: form.lease_term_months ? Number(form.lease_term_months) : undefined,
         deposits: deposits.length > 0 ? deposits : undefined,
+        move_in_date: toISODate(form.move_in_date),
+        move_out_date: toISODate(form.move_out_date),
+        exam_date: form.exam_date ? toISODate(form.exam_date) : undefined,
       };
       const result = await createReservation(payload);
       const bed = selectedRoom?.beds?.find((b) => b.id === form.bed_id);

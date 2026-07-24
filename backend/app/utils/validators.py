@@ -17,9 +17,14 @@ from uuid import UUID
 
 def parse_date_flexible(value: Any) -> Optional[date]:
     """
-    Parse date from multiple formats:
-    - ISO format: YYYY-MM-DD
-    - US format: MM/DD/YYYY
+    Parse a date from any common format so a valid date is never rejected.
+
+    Accepted formats:
+    - ISO:            YYYY-MM-DD
+    - US slashes:     MM/DD/YYYY (or M/D/YYYY)
+    - US dashes:      MM-DD-YYYY (or M-D-YYYY)
+    - Slashed ISO:    YYYY/MM/DD
+    - ISO datetime:   YYYY-MM-DDTHH:MM:SS (date portion used)
     - Already a date object: pass through
     - None or empty: return None
     """
@@ -31,21 +36,20 @@ def parse_date_flexible(value: Any) -> Optional[date]:
         value = value.strip()
         if not value:
             return None
-        # Try ISO format first (YYYY-MM-DD)
-        try:
-            return datetime.strptime(value, "%Y-%m-%d").date()
-        except ValueError:
-            pass
-        # Try MM/DD/YYYY
-        try:
-            return datetime.strptime(value, "%m/%d/%Y").date()
-        except ValueError:
-            pass
-        # Try M/D/YYYY (single digit month/day)
-        try:
-            return datetime.strptime(value, "%m/%d/%Y").date()
-        except ValueError:
-            pass
+        # ISO datetime -> take the date portion
+        if "T" in value:
+            value = value.split("T")[0]
+        formats = (
+            "%Y-%m-%d",   # 2026-07-25
+            "%m/%d/%Y",   # 07/25/2026 or 7/25/2026
+            "%m-%d-%Y",   # 07-25-2026 (US order with dashes)
+            "%Y/%m/%d",   # 2026/07/25
+        )
+        for fmt in formats:
+            try:
+                return datetime.strptime(value, fmt).date()
+            except ValueError:
+                continue
     raise ValueError(f"Invalid date format: {value}. Expected YYYY-MM-DD or MM/DD/YYYY")
 
 

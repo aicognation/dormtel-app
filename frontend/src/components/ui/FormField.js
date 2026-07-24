@@ -15,6 +15,10 @@ export default function FormField({
 }) {
   const inputClass =
     'w-full rounded-md border border-gray-300 px-3 py-2 text-sm focus:border-brand-navy focus:ring-1 focus:ring-brand-navy outline-none transition';
+  // Native date inputs need extra vertical room so the date segments and the
+  // browser's calendar-picker indicator render fully. With the base py-2 the
+  // control appears vertically clipped ("cut off") on Windows Chrome.
+  const dateClass = type === 'date' ? ' min-h-[42px] py-2.5 leading-normal' : '';
 
   return (
     <div className={className}>
@@ -59,7 +63,7 @@ export default function FormField({
           onChange={onChange}
           placeholder={placeholder}
           required={required}
-          className={inputClass}
+          className={inputClass + dateClass}
         />
       )}
       {error && <p className="mt-1 text-xs text-red-600">{error}</p>}

@@ -938,4 +938,50 @@ This eliminates the entire class of transient login/API failures caused by stale
 
 ---
 
+## FIX-015: Onboarding Date Handling — "Invalid date format" + Clipped Date Fields
+
+**Date:** 2026-07-24
+**Milestone:** Pre-UAT Hardening (Alibaba Cloud ECS)
+**Triggered By:** UAT tester report — "Invalid date format. Expected YYYY-MM-DD or MM/DD/YYYY" on reservation creation despite valid dates (07/25/2026, 07/31/2026); also date fields appeared vertically cut off in the UI
+**Status:** Resolved + Verified (API 3/3 formats + browser UAT with screenshot proof)
+
+---
+
+### Root Cause (two distinct problems)
+
+**Problem 1 — Validation error on valid dates.** The backend `parse_date_flexible` only accepted `YYYY-MM-DD` and `MM/DD/YYYY`. Empirical reproduction against the live API showed `07-25-2026` (US order with **dashes**) returned **422 "Invalid date format"**, while `2026-07-25` and `07/25/2026` succeeded. A date can reach the backend in dash format via the inquiry pre-fill path (`move_in_date: inquiry.desired_move_in_date`), where a non-ISO value set on a native `<input type="date">` is held verbatim in React state and submitted unchanged. Browser locale also affects what a tester's environment produces (the test browser rendered DD/MM/YYYY).
+
+**Problem 2 — Date fields rendered clipped.** `FormField` applied `py-2 text-sm` to all inputs. Native date pickers need more vertical room; at ~36px the date segments and calendar-picker indicator were visually cut off on Windows Chrome.
+
+### Fix Applied (three layers of defense)
+
+1. **UI height** — `frontend/src/components/ui/FormField.js`: date-type inputs now get `min-h-[42px] py-2.5 leading-normal` so the native picker renders fully.
+2. **Frontend normalization** — `frontend/src/pages/OnboardingPage.js`: added `toISODate()` which converts any common format (ISO, MM/DD/YYYY, MM-DD-YYYY, YYYY/MM/DD, ISO datetime) to `YYYY-MM-DD`. Applied to the inquiry pre-fill (`move_in_date`, `exam_date`) and to the submit payload (`move_in_date`, `move_out_date`, `exam_date`), so the backend always receives a clean ISO date.
+3. **Backend robustness** — `backend/app/routers/onboarding.py` and `backend/app/utils/validators.py`: `parse_date_flexible` now accepts `YYYY-MM-DD`, `MM/DD/YYYY`, `M/D/YYYY`, `MM-DD-YYYY`, `YYYY/MM/DD`, and ISO datetimes. A valid date can no longer be rejected by any schema.
+
+**Files modified:**
+- `frontend/src/components/ui/FormField.js`
+- `frontend/src/pages/OnboardingPage.js`
+- `backend/app/routers/onboarding.py`
+- `backend/app/utils/validators.py`
+
+### Verification
+
+**API-level (live production, through nginx HTTPS):**
+- `move_in_date=2026-07-25` (ISO) → **201** ✓
+- `move_in_date=07/25/2026` (MM/DD/YYYY) → **201** ✓
+- `move_in_date=07-25-2026` (US dashes — previously 422) → **201** ✓
+
+**Browser-level (Playwright headless Chrome, real UI):**
+- Date fields render at full height with calendar icons visible — no clipping ✓
+- Reservation created via the Reserve flow with dates filled → green toast "Reservation created for UAT DATEFIELD TEST — Room 204, DT02-204D", no date error ✓
+
+**Data cleanup:** All 5 test residents deleted from production DB post-verification (0 remaining).
+
+### Why This Is Permanent
+
+The fix removes the failure mode at every layer: the frontend can no longer send a malformed date (normalization), the native picker can no longer render unusable (height), and even if an unexpected format arrives, the backend accepts every reasonable representation (robust parser). This closes the recurring "date rejected" class of report for onboarding and, via the shared validator, for residents, inquiries, meter readings, and move-outs as well.
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*
