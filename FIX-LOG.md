@@ -984,4 +984,67 @@ The fix removes the failure mode at every layer: the frontend can no longer send
 
 ---
 
+## FIX-016: Meter Reading Upload — Wrong-Type Confusion + Brittle Template Matching
+
+**Date:** 2026-07-24
+**Milestone:** Pre-UAT Hardening (Alibaba Cloud ECS)
+**Triggered By:** UAT tester report — "Template Incompatible" with 8 "missing column" errors when uploading the monthly `DORMERS ELEC & WATER` meter readings file, despite using the format provided during development
+**Status:** Resolved + Verified (API 6/6 paths + upload consistency + browser UAT with screenshot proof)
+
+---
+
+### Root Cause
+
+DormTel has **two distinct meter-reading upload formats** served by two buttons:
+
+- **Standard Template** — a single `Meter Readings` sheet, one row per reading, Title-Case columns (`Branch Code`, `Reading Date (YYYY-MM-DD)`, `Electric Reading (kWh)`, …).
+- **Daily Sheet** — one sheet **per building** (DT01, DT02), one row per resident, one column **per day** of the month, with `BED`/`NAME`/`MOVE IN`/`MOVE OUT` columns. This is the format of the operational `DORMERS ELEC & WATER - [MONTH] [YEAR].xlsx` workbook.
+
+The tester's file was a **Daily Sheet**, but they clicked the generic **"Upload"** button (Standard). The Standard validator then reported all 8 required columns as "missing" — technically correct but completely unhelpful, because the file was never meant for that path.
+
+Two aggravating defects made this worse:
+
+1. **Ambiguous button labels** — "Upload" vs "Daily Sheet" gave no hint that "Upload" meant *standard template only*.
+2. **Brittle Standard matching** — the validator read headers only from **row 1** and compared them **case-sensitively** (`REQUIRED_COLS - header_set`). A correct file with `BED` vs `Bed`, or a title row above the header, would be rejected. The Daily validator was already tolerant (auto-detects the header row, case-insensitive) — the Standard path was not.
+
+Empirical confirmation with the tester's actual file: Standard validate → `invalid`; Daily validate → `valid` (436 residents parsed across DT01/DT02).
+
+### Fix Applied (idiot-proof, three layers)
+
+1. **Wrong-type detection + guidance (backend)** — `billing.py`:
+   - `_looks_like_daily_sheet()` detects the daily-sheet signature (a header row with 2+ date columns). The Standard validator and upload endpoint now return a single clear message: *"This file looks like a DAILY METER SHEET… please use the 'Daily Sheet Upload' button."* (code `WRONG_UPLOAD_TYPE`) instead of 8 missing-column errors.
+   - `_looks_like_standard_template()` provides the symmetric guard: a standard file sent to the Daily path is steered back to Standard Upload.
+2. **Robust Standard matching (backend)** — `_find_standard_header()` auto-detects the header row (scans rows 1–5, tolerates a title row) and matches columns **case/whitespace-insensitively** (`_norm_header`). Applied identically to both the validate and upload endpoints so a file that passes validation always uploads.
+3. **Clear UI + "?" help (frontend)** — `BillingPage.js`:
+   - Buttons relabeled: "Upload" → **"Standard Upload"**, "Daily Sheet" → **"Daily Sheet Upload"**.
+   - New **"?" help button** opens a modal comparing the two formats side-by-side, with example filenames, a "Not sure?" decision rule, and a Download Template shortcut.
+
+**Files modified:**
+- `backend/app/routers/billing.py`
+- `frontend/src/pages/BillingPage.js`
+
+### Verification
+
+**API-level (live production):**
+- Daily sheet → Standard validate → `invalid` + `WRONG_UPLOAD_TYPE` guidance (0 missing-column errors) ✓
+- Daily sheet → Daily validate → `valid` ✓
+- Standard (exact) → Standard validate → `valid` ✓
+- Standard (UPPERCASE headers) → Standard validate → `valid` (case-insensitive) ✓
+- Standard (title row above header) → Standard validate → `valid` (header auto-detect) ✓
+- Standard → Daily validate → `invalid` + `WRONG_UPLOAD_TYPE` (symmetric) ✓
+- Daily sheet → Standard **upload** → 400 + guidance; Standard (uppercase + title row) → **upload** → `imported=1` (validation & upload consistent) ✓
+
+**Browser-level (Playwright, real UI):**
+- Relabeled buttons + "?" icon render on the Billing page ✓
+- "?" opens the comparison modal (Standard vs Daily, decision rule, template shortcut) ✓
+- Uploading the daily sheet via Standard shows the single friendly guidance message, not 8 errors ✓
+
+**Data cleanup:** The 1 test meter-reading record created during upload verification was deleted (0 remaining).
+
+### Why This Is Permanent
+
+Even if an admin picks the wrong button, the system now detects the file type and tells them exactly which button to use — the error is self-explaining. The "?" modal prevents the mistake before it happens. And case/title-row tolerance means a correct Standard file can no longer be rejected over cosmetic differences.
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*

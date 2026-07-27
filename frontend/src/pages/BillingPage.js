@@ -1,6 +1,6 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { Plus, Zap, CheckCircle, Send, RefreshCw, Upload, Download, Eye, ArrowLeft, Save } from 'lucide-react';
+import { Plus, Zap, CheckCircle, Send, RefreshCw, Upload, Download, Eye, ArrowLeft, Save, HelpCircle } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
@@ -87,6 +87,7 @@ export default function BillingPage() {
   const [pendingUploadFile, setPendingUploadFile] = useState(null);
   const [pendingUploadType, setPendingUploadType] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [showUploadHelp, setShowUploadHelp] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -634,7 +635,7 @@ export default function BillingPage() {
               <Download className="w-4 h-4 mr-1" /> Template
             </Button>
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-1" /> Upload
+              <Upload className="w-4 h-4 mr-1" /> Standard Upload
             </Button>
             <input
               ref={fileInputRef}
@@ -644,7 +645,7 @@ export default function BillingPage() {
               onChange={handleFileUpload}
             />
             <Button variant="secondary" onClick={() => dailySheetInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-1" /> Daily Sheet
+              <Upload className="w-4 h-4 mr-1" /> Daily Sheet Upload
             </Button>
             <input
               ref={dailySheetInputRef}
@@ -653,6 +654,14 @@ export default function BillingPage() {
               className="hidden"
               onChange={handleDailySheetUpload}
             />
+            <Button
+              variant="ghost"
+              onClick={() => setShowUploadHelp(true)}
+              title="Which upload should I use?"
+              aria-label="Upload help"
+            >
+              <HelpCircle className="w-4 h-4" />
+            </Button>
             <Button variant="secondary" onClick={() => setShowMeter(true)}>
               <Zap className="w-4 h-4 mr-1" /> Meter Reading
             </Button>
@@ -1369,6 +1378,45 @@ export default function BillingPage() {
         uploadType={pendingUploadType}
         loading={submitting}
       />
+
+      {/* Upload Help Modal — guides admins to the right upload type (FIX-016) */}
+      <Modal isOpen={showUploadHelp} onClose={() => setShowUploadHelp(false)} title="Which upload should I use?" size="lg">
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          {/* Standard Template */}
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center gap-2 mb-2">
+              <Download className="w-5 h-5 text-brand-navy" />
+              <h3 className="font-semibold text-gray-900">Standard Upload</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-2">One sheet named <strong>Meter Readings</strong>, one row per reading.</p>
+            <p className="text-xs text-gray-500 mb-2">Columns: Branch Code, Building, Room Number, Bed, Resident Name, Reading Date, Electric Reading (kWh), Water Reading (m³).</p>
+            <p className="text-xs text-gray-500 mb-3">Best for: individual readings entered into the official template.</p>
+            <Button variant="secondary" size="sm" onClick={() => { setShowUploadHelp(false); handleDownloadTemplate(); }}>
+              <Download className="w-3 h-3 mr-1" /> Download Template
+            </Button>
+          </div>
+
+          {/* Daily Sheet */}
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <div className="flex items-center gap-2 mb-2">
+              <Upload className="w-5 h-5 text-brand-navy" />
+              <h3 className="font-semibold text-gray-900">Daily Sheet Upload</h3>
+            </div>
+            <p className="text-sm text-gray-600 mb-2">One sheet <strong>per building</strong> (e.g. DT01, DT02), one row per resident, one column per day.</p>
+            <p className="text-xs text-gray-500 mb-2">Has columns like BED, NAME, RATE, MOVE IN, MOVE OUT plus a column for each day of the month.</p>
+            <p className="text-xs text-gray-500 mb-3">Example file: <span className="font-mono">05_DORMERS ELEC &amp; WATER - MAY 2026.xlsx</span></p>
+            <span className="inline-block text-xs px-2 py-1 rounded bg-blue-50 text-blue-700">Use this for your monthly ELEC &amp; WATER workbook</span>
+          </div>
+        </div>
+
+        <div className="mt-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
+          <p className="text-sm text-yellow-800">
+            <strong>Not sure?</strong> If your file is named like <span className="font-mono">DORMERS ELEC &amp; WATER — [MONTH] [YEAR]</span>,
+            use <strong>Daily Sheet Upload</strong>. If you downloaded the template from this page and filled it in, use <strong>Standard Upload</strong>.
+            Don't worry — if you pick the wrong one, the system will detect it and tell you which button to use.
+          </p>
+        </div>
+      </Modal>
     </div>
   );
 }

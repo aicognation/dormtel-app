@@ -702,6 +702,83 @@ async def distribute_billing(
 
 # ─── Template Validation (pre-upload structural check) ───
 
+# --- Standard meter-reading template helpers (FIX-016) ----------------------
+# Canonical column set for the standard single-reading template. Kept as a list
+# so error messages can show the original, human-readable names.
+STANDARD_REQUIRED_COLS = ["Branch Code", "Building", "Room Number", "Bed", "Resident Name",
+                          "Reading Date (YYYY-MM-DD)", "Electric Reading (kWh)", "Water Reading (m³)"]
+
+
+def _norm_header(val):
+    """Normalize a header cell for case/whitespace-insensitive comparison."""
+    if val is None:
+        return ""
+    return re.sub(r"\s+", " ", str(val).strip().lower())
+
+
+STANDARD_REQUIRED_NORM = {_norm_header(c) for c in STANDARD_REQUIRED_COLS}
+_NORM_TO_DISPLAY = {_norm_header(c): c for c in STANDARD_REQUIRED_COLS}
+
+
+def _find_standard_header(ws, max_scan_rows=5):
+    """Locate the standard-template header row by scanning the first few rows
+    and choosing the one that matches the most required columns (case and
+    whitespace insensitive). Tolerates a title row above the real header and
+    headers in any letter case.
+
+    Returns (header_row_1based, header_map, original_headers). header_map maps
+    a normalized header name to its column index; original_headers holds the
+    stripped display strings for the detected row. Returns (None, {}, []) if no
+    row matches any required column.
+    """
+    best_idx, best_map, best_headers, best_matches = None, {}, [], 0
+    for r_idx, row in enumerate(ws.iter_rows(min_row=1, max_row=max_scan_rows, values_only=True), start=1):
+        hmap, headers, matches = {}, [], 0
+        for c_idx, val in enumerate(row):
+            nh = _norm_header(val)
+            if nh and nh not in hmap:
+                hmap[nh] = c_idx
+                headers.append(str(val).strip())
+                if nh in STANDARD_REQUIRED_NORM:
+                    matches += 1
+        if matches > best_matches:
+            best_idx, best_map, best_headers, best_matches = r_idx, hmap, headers, matches
+    if best_matches == 0:
+        return None, {}, []
+    return best_idx, best_map, best_headers
+
+
+def _looks_like_daily_sheet(wb):
+    """Heuristic: does this workbook look like a daily meter sheet (one sheet
+    per building, a header row with one date column per day) rather than the
+    standard single-reading template? Used to steer users to the correct upload
+    button instead of showing a confusing wall of missing-column errors."""
+    for sheet_name in wb.sheetnames[:3]:
+        ws = wb[sheet_name]
+        for row in ws.iter_rows(min_row=1, max_row=5, values_only=True):
+            date_count = 0
+            for v in row:
+                if isinstance(v, datetime):
+                    date_count += 1
+                elif isinstance(v, str) and _parse_header_date(v):
+                    date_count += 1
+            if date_count >= 2:
+                return True
+    return False
+
+
+def _looks_like_standard_template(wb):
+    """Heuristic: does this workbook look like the standard single-reading
+    template (a 'Meter Readings' sheet whose header matches the required
+    columns)? Used to steer users to the Standard upload button."""
+    for name in wb.sheetnames:
+        if name.strip().lower() == "meter readings":
+            _, header_map, _ = _find_standard_header(wb[name])
+            if header_map and len(STANDARD_REQUIRED_NORM & set(header_map.keys())) >= 4:
+                return True
+    return False
+
+
 def _validate_standard_template(contents: bytes, filename: str):
     """Validate standard meter reading template structure."""
     from openpyxl import load_workbook
@@ -751,6 +828,20 @@ def _validate_standard_template(contents: bytes, filename: str):
             upload_type="standard", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
+    # Steer daily-sheet files to the correct upload button instead of showing a
+    # confusing wall of "missing column" errors (FIX-016).
+    if _looks_like_daily_sheet(wb):
+        issues.append(TemplateValidationIssue(
+            severity="error", code="WRONG_UPLOAD_TYPE",
+            message="This file looks like a DAILY METER SHEET (one sheet per building with a column per day), "
+                    "not the Standard Template. Please use the 'Daily Sheet Upload' button for this file. "
+                    "The Standard Template is a single 'Meter Readings' sheet with one row per reading — "
+                    "download it via the Template button, or click the ? help icon for a guide."))
+        wb.close()
+        return TemplateValidationResponse(
+            upload_type="standard", file_name=filename, file_size_bytes=len(contents),
+            overall_status="invalid", issues=issues, sheets=[], summary={})
+
     ws = None
     for name in wb.sheetnames:
         if name.strip().lower() == "meter readings":
@@ -766,15 +857,13 @@ def _validate_standard_template(contents: bytes, filename: str):
             upload_type="standard", file_name=filename, file_size_bytes=len(contents),
             overall_status="invalid", issues=issues, sheets=[], summary={})
 
-    REQUIRED_COLS = {"Branch Code", "Building", "Room Number", "Bed", "Resident Name",
-                     "Reading Date (YYYY-MM-DD)", "Electric Reading (kWh)", "Water Reading (m³)"}
-    headers = []
-    for cell in ws[1]:
-        headers.append(str(cell.value).strip() if cell.value is not None else "")
-    header_set = {h for h in headers if h}
-    detected = [h for h in headers if h]
-    missing = sorted(REQUIRED_COLS - header_set)
-    extra = sorted(header_set - REQUIRED_COLS)
+    # Robust header detection (FIX-016): scan the first few rows (tolerates a
+    # title row) and match columns case/whitespace-insensitively.
+    header_row_idx, header_map, detected = _find_standard_header(ws)
+    if header_row_idx is None:
+        header_row_idx = 1
+    missing = [_NORM_TO_DISPLAY[n] for n in sorted(STANDARD_REQUIRED_NORM - set(header_map.keys()))]
+    extra = [_NORM_TO_DISPLAY.get(n, n) for n in sorted(set(header_map.keys()) - STANDARD_REQUIRED_NORM)]
 
     for col_name in missing:
         issues.append(TemplateValidationIssue(
@@ -789,7 +878,7 @@ def _validate_standard_template(contents: bytes, filename: str):
 
     data_row_count = 0
     sample_rows = []
-    for row in ws.iter_rows(min_row=2, values_only=True):
+    for row in ws.iter_rows(min_row=header_row_idx + 1, values_only=True):
         if any(v is not None for v in row):
             data_row_count += 1
             if len(sample_rows) < 3:
@@ -805,7 +894,7 @@ def _validate_standard_template(contents: bytes, filename: str):
             message=f"Only {data_row_count} data row(s) found.", sheet="Meter Readings"))
 
     sheets_preview.append(SheetPreview(
-        name="Meter Readings", header_row_index=1,
+        name="Meter Readings", header_row_index=header_row_idx,
         detected_headers=detected, missing_headers=missing, extra_headers=extra,
         data_row_count=data_row_count, sample_rows=sample_rows))
 
@@ -872,6 +961,18 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
         issues.append(TemplateValidationIssue(
             severity="error", code="NO_SHEETS",
             message="Workbook contains no sheets."))
+        wb.close()
+        return TemplateValidationResponse(
+            upload_type="daily_sheet", file_name=filename, file_size_bytes=len(contents),
+            overall_status="invalid", issues=issues, sheets=[], summary={})
+
+    # Steer standard-template files to the correct upload button (FIX-016).
+    if _looks_like_standard_template(wb):
+        issues.append(TemplateValidationIssue(
+            severity="error", code="WRONG_UPLOAD_TYPE",
+            message="This file looks like the STANDARD TEMPLATE (a single 'Meter Readings' sheet with one row per reading), "
+                    "not a Daily Sheet. Please use the 'Standard Upload' button for this file. "
+                    "A Daily Sheet has one sheet per building with a column per day — click the ? help icon for a guide."))
         wb.close()
         return TemplateValidationResponse(
             upload_type="daily_sheet", file_name=filename, file_size_bytes=len(contents),
@@ -1048,6 +1149,15 @@ async def upload_meter_readings(
     try:
         from openpyxl import load_workbook
         wb = load_workbook(io.BytesIO(contents), data_only=True, keep_links=False)
+        # Steer daily-sheet files to the correct upload button BEFORE the sheet
+        # lookup — a daily sheet has no "Meter Readings" sheet, so checking here
+        # yields a helpful message instead of "Sheet not found" (FIX-016).
+        if _looks_like_daily_sheet(wb):
+            raise HTTPException(
+                status_code=400,
+                detail="This file looks like a DAILY METER SHEET (one sheet per building with a column per day). "
+                       "Please use the 'Daily Sheet Upload' button for this file instead of the Standard upload."
+            )
         # Look for "Meter Readings" sheet (case-insensitive)
         ws = None
         for name in wb.sheetnames:
@@ -1073,15 +1183,24 @@ async def upload_meter_readings(
             )
         raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {error_msg}")
 
-    # Read headers from first row
-    headers = [cell.value for cell in ws[1]]
-    header_map = {h: i for i, h in enumerate(headers) if h}
-
-    required_cols = {"Branch Code", "Building", "Room Number", "Bed", "Resident Name",
-                     "Reading Date (YYYY-MM-DD)", "Electric Reading (kWh)", "Water Reading (m³)"}
-    missing = required_cols - set(header_map.keys())
-    if missing:
+    # Robust header detection — must mirror the validate-template endpoint so a
+    # file that passes validation also uploads (FIX-016).
+    header_row_idx, header_map, _ = _find_standard_header(ws)
+    if header_row_idx is None:
+        header_row_idx = 1
+    missing_norm = STANDARD_REQUIRED_NORM - set(header_map.keys())
+    if missing_norm:
+        missing = [_NORM_TO_DISPLAY[n] for n in sorted(missing_norm)]
         raise HTTPException(status_code=400, detail=f"Missing required columns: {', '.join(missing)}")
+
+    # Resolved column indexes (normalized keys) for data extraction.
+    col_building = header_map.get(_norm_header("Building"))
+    col_room = header_map.get(_norm_header("Room Number"))
+    col_resident = header_map.get(_norm_header("Resident Name"))
+    col_date = header_map.get(_norm_header("Reading Date (YYYY-MM-DD)"))
+    col_electric = header_map.get(_norm_header("Electric Reading (kWh)"))
+    col_water = header_map.get(_norm_header("Water Reading (m³)"))
+    col_bed = header_map.get(_norm_header("Bed"))
 
     # Pre-load rooms and residents for lookup (scoped to property)
     room_query = select(Room)
@@ -1122,16 +1241,16 @@ async def upload_meter_readings(
     skipped = 0
     errors = []
 
-    for row in ws.iter_rows(min_row=2, values_only=True):
+    for row in ws.iter_rows(min_row=header_row_idx + 1, values_only=True):
         if not row or row[0] is None:
             continue
 
-        building = str(row[header_map.get("Building")]).strip() if header_map.get("Building") is not None and row[header_map.get("Building")] is not None else None
-        room_number = str(row[header_map.get("Room Number")]).strip() if header_map.get("Room Number") is not None and row[header_map.get("Room Number")] is not None else None
-        resident_name = str(row[header_map.get("Resident Name")]).strip() if header_map.get("Resident Name") is not None and row[header_map.get("Resident Name")] is not None else None
-        reading_date = _parse_date(row[header_map.get("Reading Date (YYYY-MM-DD)")])
-        electric = _parse_decimal(row[header_map.get("Electric Reading (kWh)")])
-        water = _parse_decimal(row[header_map.get("Water Reading (m³)")])
+        building = str(row[col_building]).strip() if col_building is not None and row[col_building] is not None else None
+        room_number = str(row[col_room]).strip() if col_room is not None and row[col_room] is not None else None
+        resident_name = str(row[col_resident]).strip() if col_resident is not None and row[col_resident] is not None else None
+        reading_date = _parse_date(row[col_date]) if col_date is not None else None
+        electric = _parse_decimal(row[col_electric]) if col_electric is not None else None
+        water = _parse_decimal(row[col_water]) if col_water is not None else None
 
         if not building or not reading_date:
             skipped += 1
@@ -1153,8 +1272,8 @@ async def upload_meter_readings(
             norm_name = _normalize_name(resident_name)
             resident = resident_lookup.get(norm_name)
             # Fallback: try short bed code lookup
-            if not resident and room_number and header_map.get("Bed") is not None:
-                bed_letter = str(row[header_map.get("Bed")]).strip() if row[header_map.get("Bed")] is not None else None
+            if not resident and room_number and col_bed is not None:
+                bed_letter = str(row[col_bed]).strip() if row[col_bed] is not None else None
                 if bed_letter:
                     short_code = f"{room_number.strip().upper()}{bed_letter.strip().upper()}"
                     resident = short_bed_lookup.get(short_code)
