@@ -1047,4 +1047,116 @@ Even if an admin picks the wrong button, the system now detects the file type an
 
 ---
 
+## FIX-017: Meter Upload — Month/Filename Mismatch Warning + Zero-Import Guard
+
+**Date:** 2026-07-29
+**Milestone:** Pre-UAT Hardening (Alibaba Cloud ECS)
+**Triggered By:** UAT incident — a file named `DORMERS ELEC & WATER JUNE 2026 - DAILY.xlsx` whose date columns were actually **May 2026**, plus a follow-up upload that imported **0 daily readings** yet still showed a green "success" toast. Both are silent data-entry traps that generate tester back-and-forth.
+**Status:** Resolved + Verified (live API 3/3 cases + browser UAT screenshot proof + deployed bundle check)
+
+---
+
+### Root Cause (two distinct traps)
+
+**Trap 1 — Month/filename mismatch.** The daily-sheet parser derives the billing month/year from the **date columns**, not the filename. A workbook named "...JUNE 2026..." whose header dates are May 2026 imports silently as **May**, with no alert. The original UAT file had exactly this defect.
+
+**Trap 2 — Silent zero-import.** Both upload handlers returned their normal success message regardless of how much was actually imported. A daily sheet with **empty day cells** returned *"Imported 183 residents with 0 daily readings"* as a **green success** toast; a standard file with blank Reading Date / reading values returned *"Imported 0 … Skipped N"* the same way. Nothing told the user the upload did nothing useful.
+
+### Fix Applied (idiot-proof, steers instead of dumping errors)
+
+1. **Month/filename mismatch warning (backend)** — `billing.py`:
+   - New `_extract_month_year_from_filename()` reads a calendar month + year out of the filename (full names and abbreviations, longest-token-first so "january" beats "jan").
+   - `_validate_daily_sheet_template()` now compares the filename month/year against the detected date-column month/year and appends a **non-blocking** `warning` issue (`MONTH_MISMATCH` / `YEAR_MISMATCH`): *"File name says 'June 2026' but the date columns are in May 2026. Readings will be saved as May 2026. If that's wrong, fix the date columns before uploading."* This surfaces in the existing Template Compatibility Check modal as an amber "Compatible with Warnings" alert **before** the user commits the upload.
+2. **Zero-import guard (frontend)** — `BillingPage.js` `handleProceedWithUpload`:
+   - Daily: if `residents_imported === 0` → red toast *"No residents matched this file. Make sure the correct property is selected…"*; else if `daily_readings_imported === 0` → red toast *"Matched N resident(s) but imported 0 daily readings. The date columns are empty — type the meter value for each day (the yellow cells)…"*.
+   - Standard: if `imported === 0` → red toast *"No readings were imported (N row(s) skipped). Fill in the Reading Date (YYYY-MM-DD) and at least one reading value…"*.
+   - A genuinely successful upload still shows the green toast; only empty uploads are escalated to a clear, actionable red message.
+3. **Pre-populated fill-in templates (deliverable)** — generated four June-2026 workbooks from the live roster (DT01 183 / DT02 76 residents present in June), two per format (Daily Sheet + Standard Template), with frozen identity columns, yellow fill-in cells, an auto-calculated `DAYS` formula (Daily Sheet), an Instructions tab (Standard), and embedded how-to comments. All four pass the live `validate-daily-sheet` / `validate-template` checks with `status=valid`, 0 issues. Files are split per property because the uploader matches residents within the selected property and DT01/DT02 share room numbers 401–444 (a mixed file could misattribute readings).
+
+**Files modified:**
+- `backend/app/routers/billing.py`
+- `frontend/src/pages/BillingPage.js`
+
+### Verification
+
+**API-level (live production, through nginx HTTPS):**
+- Mislabeled file (named JUNE, dates MAY) → `validate-daily-sheet` → `overall_status=warnings` + `MONTH_MISMATCH` ✓
+- Correct file (named JUNE, dates JUNE) → `overall_status=valid`, **no** false-positive warning ✓
+- Year mismatch (named 2025, dates 2026) → `overall_status=warnings` + `YEAR_MISMATCH` ✓
+
+**Browser-level (Playwright headless Chrome, real UI):**
+- Login (pilot) → DT01 → Billing → Meter Readings → Daily Sheet Upload of the mislabeled file → Template Compatibility Check modal renders the amber "Compatible with Warnings" banner and the exact steering message, with Proceed/Cancel intact ✓ (screenshot: `outputs/uat_proof_enhancements/05_preview_modal.png`)
+
+**Deployed-bundle check:**
+- `main.fbac72b2.js` served by the admin portal contains all four new warning strings ("imported 0 daily readings", "No residents matched this file", "No readings were imported", "the yellow cells") — confirms the frontend guard is live ✓
+
+**Data safety:** All verification used the read-only `validate-*` endpoints or a zero-match upload (no production records created).
+
+### Why This Is Permanent
+
+The month trap is now caught at the structural-check stage — before any data is written — using the file's own date columns as the source of truth, so a mislabeled file can never silently land in the wrong billing period. The zero-import trap can no longer masquerade as success: an empty upload always produces a specific red message telling the user exactly which cells to fill. Together with the pre-populated templates (correct headers, real dates, real residents), the two most common meter-upload mistakes are prevented at the source and, if they still occur, explained in plain language.
+
+---
+
+## FIX-018: Meter Reading Template Generator (Ad-hoc / Daily / Monthly) + Past-Month Matching
+
+**Date:** 2026-07-29
+**Milestone:** Pre-UAT Hardening (Alibaba Cloud ECS)
+**Triggered By:** Product decision to replace static template downloads with an on-demand generator that pre-populates the *right* residents for the job, plus the need to load past months' readings for residents who have since moved out.
+**Status:** Resolved + Verified (live API generator/roster/matching tests + browser UAT with screenshot proof + upload roundtrips, all with production-data cleanup)
+
+---
+
+### What Was Built
+
+A **"Generate Template"** button on the Billing page opens a modal with three template types, each pre-populated from the live roster and scoped to the property currently selected in the portal:
+
+| Type | Population rule | Format | Upload via |
+|------|-----------------|--------|------------|
+| **Ad-hoc** (replaces "Standard") | Residents picked in a **wizard** (searchable, room-grouped, multi-select) | one row per reading | Ad-hoc / Daily Upload |
+| **Daily** | Residents **active on a chosen date** (default today, PHT); Reading Date pre-filled | one row per reading | Ad-hoc / Daily Upload |
+| **Monthly** | Residents whose stay **overlaps a chosen month** (includes moved-out) | grid, one column per day | Monthly Grid Upload |
+
+The three templates map onto the **two existing hardened formats** from FIX-016/017, so no upload parser changed for the core feature: Ad-hoc + Daily use the row-per-reading "Meter Readings" sheet; Monthly uses the day-column "METER READINGS" grid. Because generation is server-side and property-scoped, admins no longer juggle per-property static files — the earlier "why 4 files?" problem disappears.
+
+### Key Changes
+
+1. **Backend generator** — new `app/utils/meter_templates.py` (openpyxl builders reusing the proven hardened layouts: real date headers, frozen panes, yellow fill-in cells, auto `DAYS` formula, how-to comments). New endpoints in `billing.py`:
+   - `POST /meter-readings/generate-template` `{type, resident_ids?, date?, month?, year?}` → xlsx attachment.
+   - `GET /meter-readings/template-roster` → the residents a template would include (powers the wizard + live "Includes N residents" counts).
+   - `_template_residents()` centralizes the population rules; "today" is computed in **PHT (UTC+8)**, not server time.
+2. **Past-month matching** — the grid uploader's `find_resident` was refactored to take a lookups tuple; after the active-resident lookup fails it now falls back to a lazily-built, cached lookup over residents whose stay overlapped the sheet's detected month (`status in active/moved_out`), so historical loads match people who have since moved out. Active-path behavior is unchanged.
+3. **Frontend** — new `GenerateTemplateModal` (three tabs, ad-hoc wizard with search/select-all, live counts, blob download); toolbar buttons renamed **"Standard Upload" → "Ad-hoc / Daily Upload"** and **"Daily Sheet Upload" → "Monthly Grid Upload"**; static "Template" button replaced by "Generate Template"; help modal rewritten to the three-template model. The axios interceptor now parses **blob error bodies** so generator 400s (e.g. "No active residents on that date") surface as readable toasts.
+
+**Files modified/added:**
+- `backend/app/utils/meter_templates.py` (new)
+- `backend/app/routers/billing.py`
+- `backend/app/schemas.py` (`GenerateTemplateRequest`)
+- `frontend/src/components/dashboard/GenerateTemplateModal.js` (new)
+- `frontend/src/pages/BillingPage.js`
+- `frontend/src/api/billing.js`, `frontend/src/api/client.js`
+
+### Verification
+
+**API-level (live production):**
+- Roster: current-active 184 / daily(2026-07-29) 173 / monthly(May-2026) 150 for DT01 ✓
+- `generate-template` for all three types returns valid xlsx; each passes the corresponding live validator with `status=valid`, 0 issues (adhoc 3 rows, daily 173, monthly May 150) ✓
+- **Regression (active path):** a minimal July grid for one active resident uploaded via the refactored grid uploader → `residents_imported=1, daily_readings=1`, no "not found" ✓
+- **Historical fallback:** a resident temporarily set to `moved_out` (move-out mid-July) was matched by the July grid upload via the fallback → `residents_imported=1`, no "not found"; status then reverted and test rows deleted ✓
+- **Daily roundtrip:** a generated Daily template (Reading Date pre-filled to today) with one reading uploaded via the Standard uploader → `imported=1, skipped=0`, then cleaned up ✓
+
+**Browser-level (Playwright, real UI):**
+- Toolbar shows Generate Template / Ad-hoc / Daily Upload / Monthly Grid Upload ✓
+- Generator modal: three tabs render; ad-hoc wizard lists 184 residents grouped by room with search + select-all; Daily and Monthly tabs show live counts ("Includes 173 resident(s) active in July 2026") ✓
+- "Generate & Download" produced a real download (`DORMERS_ELEC_WATER_JULY_2026_DT01.xlsx`) + success toast ✓
+- Help modal explains the three-template model ✓ (screenshots in `outputs/uat_proof_018/`)
+
+**Data safety:** every upload test used a single resident with no pre-existing data for the target month and was deleted afterward (verified `remaining=0`); the temporarily moved-out resident was restored to `active`.
+
+### Why This Is Permanent
+
+Admins can no longer download a stale or wrong-population template — the roster is computed at generation time from the authoritative DB, scoped to the selected property, and matched to the exact month/day being billed. Past-month loads now work for residents who have since moved out (the prior silent "not found" gap). Live counts and specific empty-roster errors prevent surprise blank files, and the whole flow reuses the FIX-016/017 upload hardening.
+
+---
+
 *This log should be updated with each subsequent fix or deployment milestone.*

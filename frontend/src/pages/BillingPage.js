@@ -9,7 +9,7 @@ import FormField from '../components/ui/FormField';
 import StatusBadge from '../components/ui/StatusBadge';
 import {
   listBillings, submitMeterReading, generateBilling, approveBilling, distributeBilling,
-  downloadMeterReadingTemplate, uploadMeterReadings, uploadDailyMeterSheet, listMeterReadings, previewBilling,
+  uploadMeterReadings, uploadDailyMeterSheet, listMeterReadings, previewBilling,
   getDailyMeterGrid, bulkUpsertMeterReadings, getBillingImportStatus,
   validateMeterReadingTemplate, validateDailySheetTemplate,
 } from '../api/billing';
@@ -20,6 +20,7 @@ import { BILLING_STATUSES } from '../utils/constants';
 import { formatCurrency, formatDate, formatDateTime, shortUUID } from '../utils/formatters';
 import { useProperty } from '../contexts/PropertyContext';
 import TemplatePreviewModal from '../components/dashboard/TemplatePreviewModal';
+import GenerateTemplateModal from '../components/dashboard/GenerateTemplateModal';
 
 export default function BillingPage() {
   const { propertyCode } = useProperty();
@@ -88,6 +89,7 @@ export default function BillingPage() {
   const [pendingUploadType, setPendingUploadType] = useState(null);
   const [showPreviewModal, setShowPreviewModal] = useState(false);
   const [showUploadHelp, setShowUploadHelp] = useState(false);
+  const [showGenerateTemplate, setShowGenerateTemplate] = useState(false);
 
   const fetchData = useCallback(async () => {
     setLoading(true);
@@ -372,24 +374,6 @@ export default function BillingPage() {
     } catch { /* interceptor */ }
   };
 
-  const handleDownloadTemplate = async () => {
-    try {
-      const res = await downloadMeterReadingTemplate();
-      const blob = new Blob([res], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' });
-      const url = window.URL.createObjectURL(blob);
-      const link = document.createElement('a');
-      link.href = url;
-      link.download = 'meter_reading_template.xlsx';
-      document.body.appendChild(link);
-      link.click();
-      document.body.removeChild(link);
-      window.URL.revokeObjectURL(url);
-      toast.success('Template downloaded');
-    } catch {
-      toast.error('Failed to download template');
-    }
-  };
-
   const handleFileUpload = async (e) => {
     const file = e.target.files[0];
     if (!file) return;
@@ -434,13 +418,37 @@ export default function BillingPage() {
     try {
       if (pendingUploadType === 'standard') {
         const res = await uploadMeterReadings(pendingUploadFile);
-        toast.success(res.message || `Uploaded ${res.imported} readings`);
+        if ((res.imported ?? 0) === 0) {
+          toast.error(
+            `No readings were imported (${res.skipped ?? 0} row(s) skipped). ` +
+            'Fill in the Reading Date (YYYY-MM-DD) and at least one reading value ' +
+            '(Electric or Water) for each row, then upload again.',
+            { duration: 9000 }
+          );
+        } else {
+          toast.success(res.message || `Uploaded ${res.imported} readings`);
+        }
         if (res.errors && res.errors.length > 0) {
           res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
         }
       } else {
         const res = await uploadDailyMeterSheet(pendingUploadFile);
-        toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
+        if ((res.residents_imported ?? 0) === 0) {
+          toast.error(
+            'No residents matched this file. Make sure the correct property is selected ' +
+            'and the file lists that property\'s residents.',
+            { duration: 9000 }
+          );
+        } else if ((res.daily_readings_imported ?? 0) === 0) {
+          toast.error(
+            `Matched ${res.residents_imported} resident(s) but imported 0 daily readings. ` +
+            'The date columns are empty — type the meter value for each day ' +
+            '(the yellow cells) before uploading.',
+            { duration: 9000 }
+          );
+        } else {
+          toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
+        }
         if (res.errors && res.errors.length > 0) {
           res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
         }
@@ -631,11 +639,11 @@ export default function BillingPage() {
         subtitle="Meter readings, billing generation, and distribution"
         actions={
           <div className="flex gap-2 flex-wrap">
-            <Button variant="ghost" onClick={handleDownloadTemplate}>
-              <Download className="w-4 h-4 mr-1" /> Template
+            <Button variant="ghost" onClick={() => setShowGenerateTemplate(true)}>
+              <Download className="w-4 h-4 mr-1" /> Generate Template
             </Button>
             <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-1" /> Standard Upload
+              <Upload className="w-4 h-4 mr-1" /> Ad-hoc / Daily Upload
             </Button>
             <input
               ref={fileInputRef}
@@ -645,7 +653,7 @@ export default function BillingPage() {
               onChange={handleFileUpload}
             />
             <Button variant="secondary" onClick={() => dailySheetInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-1" /> Daily Sheet Upload
+              <Upload className="w-4 h-4 mr-1" /> Monthly Grid Upload
             </Button>
             <input
               ref={dailySheetInputRef}
@@ -1379,41 +1387,41 @@ export default function BillingPage() {
         loading={submitting}
       />
 
-      {/* Upload Help Modal — guides admins to the right upload type (FIX-016) */}
-      <Modal isOpen={showUploadHelp} onClose={() => setShowUploadHelp(false)} title="Which upload should I use?" size="lg">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-          {/* Standard Template */}
-          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <div className="flex items-center gap-2 mb-2">
-              <Download className="w-5 h-5 text-brand-navy" />
-              <h3 className="font-semibold text-gray-900">Standard Upload</h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">One sheet named <strong>Meter Readings</strong>, one row per reading.</p>
-            <p className="text-xs text-gray-500 mb-2">Columns: Branch Code, Building, Room Number, Bed, Resident Name, Reading Date, Electric Reading (kWh), Water Reading (m³).</p>
-            <p className="text-xs text-gray-500 mb-3">Best for: individual readings entered into the official template.</p>
-            <Button variant="secondary" size="sm" onClick={() => { setShowUploadHelp(false); handleDownloadTemplate(); }}>
-              <Download className="w-3 h-3 mr-1" /> Download Template
-            </Button>
-          </div>
+      {/* Template Generator Modal — ad-hoc / daily / monthly (FIX-018) */}
+      <GenerateTemplateModal
+        isOpen={showGenerateTemplate}
+        onClose={() => setShowGenerateTemplate(false)}
+        propertyCode={propertyCode}
+      />
 
-          {/* Daily Sheet */}
+      {/* Upload Help Modal — guides admins to the right template + upload type (FIX-016/018) */}
+      <Modal isOpen={showUploadHelp} onClose={() => setShowUploadHelp(false)} title="Templates & uploads — quick guide" size="lg">
+        <p className="text-sm text-gray-600 mb-3">
+          Start with <strong>Generate Template</strong> to download a workbook pre-filled with the right residents. There are three kinds:
+        </p>
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
           <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
-            <div className="flex items-center gap-2 mb-2">
-              <Upload className="w-5 h-5 text-brand-navy" />
-              <h3 className="font-semibold text-gray-900">Daily Sheet Upload</h3>
-            </div>
-            <p className="text-sm text-gray-600 mb-2">One sheet <strong>per building</strong> (e.g. DT01, DT02), one row per resident, one column per day.</p>
-            <p className="text-xs text-gray-500 mb-2">Has columns like BED, NAME, RATE, MOVE IN, MOVE OUT plus a column for each day of the month.</p>
-            <p className="text-xs text-gray-500 mb-3">Example file: <span className="font-mono">05_DORMERS ELEC &amp; WATER - MAY 2026.xlsx</span></p>
-            <span className="inline-block text-xs px-2 py-1 rounded bg-blue-50 text-blue-700">Use this for your monthly ELEC &amp; WATER workbook</span>
+            <h3 className="font-semibold text-gray-900 mb-1">Ad-hoc</h3>
+            <p className="text-xs text-gray-500 mb-2">Pick specific residents in a wizard. One row per resident — fill in a date and reading.</p>
+            <span className="inline-block text-xs px-2 py-1 rounded bg-blue-50 text-blue-700">Upload via “Ad-hoc / Daily Upload”</span>
+          </div>
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <h3 className="font-semibold text-gray-900 mb-1">Daily</h3>
+            <p className="text-xs text-gray-500 mb-2">Everyone active on a given day (defaults to today), date pre-filled. Great for daily rounds.</p>
+            <span className="inline-block text-xs px-2 py-1 rounded bg-blue-50 text-blue-700">Upload via “Ad-hoc / Daily Upload”</span>
+          </div>
+          <div className="border border-gray-200 rounded-lg p-4 bg-gray-50">
+            <h3 className="font-semibold text-gray-900 mb-1">Monthly</h3>
+            <p className="text-xs text-gray-500 mb-2">A full grid (one column per day) for a chosen month — includes residents who have since moved out.</p>
+            <span className="inline-block text-xs px-2 py-1 rounded bg-blue-50 text-blue-700">Upload via “Monthly Grid Upload”</span>
           </div>
         </div>
 
         <div className="mt-4 p-3 rounded-lg bg-yellow-50 border border-yellow-200">
           <p className="text-sm text-yellow-800">
-            <strong>Not sure?</strong> If your file is named like <span className="font-mono">DORMERS ELEC &amp; WATER — [MONTH] [YEAR]</span>,
-            use <strong>Daily Sheet Upload</strong>. If you downloaded the template from this page and filled it in, use <strong>Standard Upload</strong>.
-            Don't worry — if you pick the wrong one, the system will detect it and tell you which button to use.
+            <strong>Rule of thumb:</strong> Ad-hoc and Daily files are “one row per reading” — use <strong>Ad-hoc / Daily Upload</strong>.
+            Monthly files are a “column per day” grid (like <span className="font-mono">DORMERS ELEC &amp; WATER — [MONTH] [YEAR]</span>) — use <strong>Monthly Grid Upload</strong>.
+            Don't worry — if you pick the wrong one, the system detects it and tells you which button to use.
           </p>
         </div>
       </Modal>

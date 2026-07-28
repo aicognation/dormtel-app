@@ -444,6 +444,14 @@ class MeterReadingDailySheetResult(BaseModel):
     errors: list[str]
     message: str
 
+class GenerateTemplateRequest(BaseModel):
+    """Request body for the meter-template generator (adhoc / daily / monthly)."""
+    type: str                                   # "adhoc" | "daily" | "monthly"
+    resident_ids: Optional[list[UUID]] = None   # adhoc: wizard-selected residents
+    date: Optional[str] = None                  # daily: reading date (YYYY-MM-DD, default today)
+    month: Optional[int] = None                 # monthly: 1-12
+    year: Optional[int] = None                  # monthly: e.g. 2026
+
 class BillingImportStatusOut(BaseModel):
     billing_period: str
     building: Optional[str] = None

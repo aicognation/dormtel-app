@@ -22,8 +22,18 @@ client.interceptors.request.use((config) => {
 
 client.interceptors.response.use(
   (response) => response.data,
-  (error) => {
-    const raw = error.response?.data?.detail;
+  async (error) => {
+    let data = error.response?.data;
+    // File-download endpoints use responseType 'blob', so their error bodies
+    // arrive as a Blob — parse it back to JSON to surface the real message.
+    if (data instanceof Blob) {
+      try {
+        data = JSON.parse(await data.text());
+      } catch {
+        data = null;
+      }
+    }
+    const raw = data?.detail;
     let message;
     if (Array.isArray(raw)) {
       // FastAPI 422 validation errors: array of {type, loc, msg, input, ctx}
@@ -31,7 +41,7 @@ client.interceptors.response.use(
     } else if (typeof raw === 'string') {
       message = raw;
     } else {
-      message = error.response?.data?.message || error.message || 'An unexpected error occurred';
+      message = data?.message || error.message || 'An unexpected error occurred';
     }
     if (error.response?.status === 401) {
       localStorage.removeItem('dt_token');

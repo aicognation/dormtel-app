@@ -6,11 +6,11 @@ import calendar
 from fastapi import APIRouter, Depends, HTTPException, Query, UploadFile, File
 from fastapi.responses import StreamingResponse
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func
+from sqlalchemy import select, func, or_
 from typing import Optional, List
 from decimal import Decimal
 from uuid import UUID
-from datetime import datetime, date
+from datetime import datetime, date, timezone, timedelta
 from pydantic import BaseModel, Field, field_validator
 
 from app.database import get_db
@@ -25,6 +25,7 @@ from app.schemas import (
     MeterReadingUploadResult, MeterReadingDailySheetResult,
     BillingImportStatusOut,
     TemplateValidationResponse, TemplateValidationIssue, SheetPreview,
+    GenerateTemplateRequest,
 )
 from app.utils.property_filter import get_property_buildings
 
@@ -779,6 +780,38 @@ def _looks_like_standard_template(wb):
     return False
 
 
+# Month tokens (full + common abbreviations) used to read a month out of an
+# uploaded filename so we can warn when the file's dates disagree with its name.
+_MONTH_TOKENS = {
+    "january": 1, "jan": 1, "february": 2, "feb": 2, "march": 3, "mar": 3,
+    "april": 4, "apr": 4, "may": 5, "june": 6, "jun": 6, "july": 7, "jul": 7,
+    "august": 8, "aug": 8, "september": 9, "sept": 9, "sep": 9,
+    "october": 10, "oct": 10, "november": 11, "nov": 11, "december": 12, "dec": 12,
+}
+
+
+def _extract_month_year_from_filename(filename):
+    """Best-effort parse of a calendar month number and year from a filename.
+
+    Returns (month_number_or_None, year_or_None). Used to warn when a file named
+    e.g. '... JUNE 2026 ...' actually contains date columns for a different month.
+    """
+    base = os.path.basename(filename or "").lower()
+    base = re.sub(r"\.(xlsx|xls|csv)$", "", base)
+    text = re.sub(r"[_\-.()]+", " ", base)
+    month = None
+    # Longest tokens first so 'january' wins over 'jan', 'june' over 'jun', etc.
+    for tok in sorted(_MONTH_TOKENS, key=len, reverse=True):
+        if re.search(rf"\b{tok}\b", text):
+            month = _MONTH_TOKENS[tok]
+            break
+    year = None
+    ym = re.search(r"\b(20\d{2})\b", text)
+    if ym:
+        year = int(ym.group(1))
+    return month, year
+
+
 def _validate_standard_template(contents: bytes, filename: str):
     """Validate standard meter reading template structure."""
     from openpyxl import load_workbook
@@ -983,6 +1016,10 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
             severity="info", code="MULTIPLE_SHEETS_INFO",
             message=f"{len(wb.sheetnames)} building sheet(s) detected: {', '.join(wb.sheetnames[:10])}"))
 
+    # Read a month/year out of the filename so we can warn if the date columns
+    # disagree with what the file is named (a common data-entry mistake).
+    fn_month, fn_year = _extract_month_year_from_filename(filename)
+
     total_residents = 0
     all_sheet_names = list(wb.sheetnames)
     for sheet_name in all_sheet_names[:10]:
@@ -1043,8 +1080,29 @@ def _validate_daily_sheet_template(contents: bytes, filename: str):
         date_range_end = max(date_cols).strftime("%Y-%m-%d") if date_cols else None
         month_counts = Counter(d.month for d in date_cols)
         year_counts = Counter(d.year for d in date_cols)
-        detected_month = calendar.month_name[month_counts.most_common(1)[0][0]] if month_counts else None
+        detected_month_num = month_counts.most_common(1)[0][0] if month_counts else None
         detected_year = year_counts.most_common(1)[0][0] if year_counts else None
+        detected_month = calendar.month_name[detected_month_num] if detected_month_num else None
+
+        # Idiot-proof: warn when the file name says one month/year but the date
+        # columns are in a different month/year (e.g. file named '... JUNE 2026'
+        # whose columns are actually May 2026). Non-blocking so the user can
+        # still proceed if the name is simply mislabeled.
+        if fn_month and detected_month_num and fn_month != detected_month_num:
+            fn_label = calendar.month_name[fn_month] + (f" {fn_year}" if fn_year else "")
+            issues.append(TemplateValidationIssue(
+                severity="warning", code="MONTH_MISMATCH",
+                message=f"File name says '{fn_label}' but the date columns are in "
+                        f"{detected_month} {detected_year}. Readings will be saved as "
+                        f"{detected_month} {detected_year}. If that's wrong, fix the date "
+                        f"columns before uploading.",
+                sheet=sheet_name))
+        elif fn_year and detected_year and fn_year != detected_year:
+            issues.append(TemplateValidationIssue(
+                severity="warning", code="YEAR_MISMATCH",
+                message=f"File name says '{fn_year}' but the date columns are in "
+                        f"{detected_year}. Readings will be saved as {detected_month} {detected_year}.",
+                sheet=sheet_name))
 
         has_bed = bed_header_idx is not None
         format_variant = "new_with_flag" if has_bed and bed_header_idx == 2 else ("standard" if has_bed else "no_bed_header")
@@ -1126,6 +1184,177 @@ async def download_meter_reading_template(
         media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
         headers={"Content-Disposition": "attachment; filename=meter_reading_template.xlsx"}
     )
+
+
+# ─── Template Generator (FIX-018) ────────────────────────────────────────────
+# Philippine Standard Time — "today" for the Daily template must reflect the
+# property's local day, not the server's (likely UTC) clock.
+PHT = timezone(timedelta(hours=8))
+
+_PROP_LABELS = {"DT01": "Recto", "DT02": "Sta. Mesa"}
+
+
+def _build_resident_lookups(residents_rows):
+    """Build the matching lookup dicts from (Resident, Bed, Room) rows.
+
+    Returns (resident_lookup, bed_code_lookup, short_bed_lookup, name_parts_lookup).
+    Shared by the active-resident matching and the historical (past-month) fallback.
+    """
+    resident_lookup = {}       # normalized_name -> resident
+    bed_code_lookup = {}       # uppercase bed_code -> resident
+    short_bed_lookup = {}      # "ROOM_NUMBER+BED_LETTER" -> resident
+    name_parts_lookup = {}     # last_name -> [residents]
+    for resident, bed, room in residents_rows:
+        key = _normalize_name(resident.full_name)
+        has_bed = bed is not None and bed.bed_code is not None
+        if key and key not in resident_lookup:
+            resident_lookup[key] = resident
+        elif key and has_bed:
+            resident_lookup[key] = resident
+        if has_bed:
+            bed_code_lookup[bed.bed_code.upper()] = resident
+            if room:
+                short_code = f"{room.room_number.strip().upper()}{bed.bed_code[-1].upper()}"
+                short_bed_lookup[short_code] = resident
+    for norm_name, res in resident_lookup.items():
+        parts = norm_name.split()
+        if parts:
+            name_parts_lookup.setdefault(parts[-1], []).append(res)
+    return resident_lookup, bed_code_lookup, short_bed_lookup, name_parts_lookup
+
+
+async def _template_residents(db, property_code, as_of=None, month=None, year=None, resident_ids=None):
+    """Return (Resident, Bed, Room) rows matching a template's population rule.
+
+    - resident_ids  -> ad-hoc: the wizard-selected residents (currently active only)
+    - as_of         -> daily: active on that date
+    - month/year    -> monthly: stay overlaps that month (includes moved-out, for past loads)
+    - none          -> current active residents (wizard default / roster)
+    """
+    query = (
+        select(Resident, Bed, Room)
+        .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+        .join(Room, Bed.room_id == Room.id, isouter=True)
+    )
+    if property_code:
+        query = query.where(Room.property_code == property_code)
+
+    if resident_ids is not None:
+        query = query.where(Resident.id.in_(resident_ids), Resident.status == "active")
+    elif as_of is not None:
+        query = query.where(
+            Resident.status == "active",
+            or_(Resident.move_in_date.is_(None), Resident.move_in_date <= as_of),
+            or_(Resident.move_out_date.is_(None), Resident.move_out_date >= as_of),
+        )
+    elif month and year:
+        first = date(year, month, 1)
+        last = date(year, month, calendar.monthrange(year, month)[1])
+        query = query.where(
+            Resident.status.in_(["active", "moved_out"]),
+            or_(Resident.move_in_date.is_(None), Resident.move_in_date <= last),
+            or_(Resident.move_out_date.is_(None), Resident.move_out_date >= first),
+        )
+    else:
+        query = query.where(Resident.status == "active")
+
+    query = query.order_by(Room.room_number, Bed.bed_code)
+    result = await db.execute(query)
+    return result.all()
+
+
+@router.post("/meter-readings/generate-template")
+async def generate_meter_template(
+    req: GenerateTemplateRequest,
+    current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
+    db: AsyncSession = Depends(get_db),
+):
+    """Generate a pre-populated meter-reading workbook (adhoc / daily / monthly)."""
+    from app.utils import meter_templates as mt
+
+    t = (req.type or "").lower().strip()
+    if t not in ("adhoc", "daily", "monthly"):
+        raise HTTPException(status_code=400, detail="type must be one of: adhoc, daily, monthly")
+
+    pc = property_code or "DT01"
+    today = datetime.now(PHT).date()
+
+    if t == "adhoc":
+        if not req.resident_ids:
+            raise HTTPException(status_code=400, detail="Select at least one resident for an ad-hoc template.")
+        rows = await _template_residents(db, property_code, resident_ids=req.resident_ids)
+        if not rows:
+            raise HTTPException(status_code=400, detail="None of the selected residents are currently active. Please re-select.")
+        data = mt.build_row_template(rows, pc, prefill_date=None, kind="adhoc")
+        fname = f"METER_READINGS_ADHOC_{pc}_{today.isoformat()}.xlsx"
+
+    elif t == "daily":
+        as_of = today
+        if req.date:
+            try:
+                as_of = datetime.strptime(req.date, "%Y-%m-%d").date()
+            except ValueError:
+                raise HTTPException(status_code=400, detail="Invalid date. Use YYYY-MM-DD.")
+        rows = await _template_residents(db, property_code, as_of=as_of)
+        if not rows:
+            raise HTTPException(status_code=400, detail=f"No active residents on {as_of.isoformat()}.")
+        data = mt.build_row_template(rows, pc, prefill_date=as_of, kind="daily")
+        fname = f"METER_READINGS_DAILY_{pc}_{as_of.isoformat()}.xlsx"
+
+    else:  # monthly
+        year = req.year or today.year
+        month = req.month or today.month
+        if not (1 <= month <= 12):
+            raise HTTPException(status_code=400, detail="month must be between 1 and 12.")
+        rows = await _template_residents(db, property_code, month=month, year=year)
+        if not rows:
+            raise HTTPException(status_code=400, detail=f"No residents were active in {calendar.month_name[month]} {year}.")
+        data = mt.build_monthly_template(rows, pc, year, month)
+        fname = f"DORMERS_ELEC_WATER_{calendar.month_name[month].upper()}_{year}_{pc}.xlsx"
+
+    return StreamingResponse(
+        io.BytesIO(data),
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={"Content-Disposition": f'attachment; filename="{fname}"'},
+    )
+
+
+@router.get("/meter-readings/template-roster")
+async def meter_template_roster(
+    for_date: Optional[str] = Query(None),
+    month: Optional[int] = Query(None),
+    year: Optional[int] = Query(None),
+    current_staff: models.Staff = Depends(auth.require_staff),
+    property_code: Optional[str] = Depends(auth.get_current_property),
+    db: AsyncSession = Depends(get_db),
+):
+    """List the residents a template would include (powers the wizard + live counts)."""
+    as_of = None
+    m = y = None
+    if for_date:
+        try:
+            as_of = datetime.strptime(for_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date. Use YYYY-MM-DD.")
+    if month and year:
+        m, y = month, year
+
+    rows = await _template_residents(db, property_code, as_of=as_of, month=m, year=y)
+    residents = []
+    for resident, bed, room in rows:
+        rate = getattr(bed, "rate_per_bed", None) or getattr(resident, "monthly_rate", None)
+        residents.append({
+            "id": str(resident.id),
+            "full_name": resident.full_name,
+            "room_number": room.room_number if room else None,
+            "bed_code": bed.bed_code if bed else None,
+            "bed_letter": bed.bed_code[-1].upper() if bed and bed.bed_code else None,
+            "rate": float(rate) if rate is not None else 0.0,
+            "move_in_date": resident.move_in_date.isoformat() if resident.move_in_date else None,
+            "move_out_date": resident.move_out_date.isoformat() if resident.move_out_date else None,
+        })
+    return {"count": len(residents), "residents": residents}
 
 
 @router.post("/meter-readings/upload", response_model=MeterReadingUploadResult)
@@ -1399,41 +1628,42 @@ async def upload_daily_meter_sheet(
     residents_result = await db.execute(resident_query)
     residents_rows = residents_result.all()
 
-    resident_lookup = {}       # normalized_name -> resident
-    bed_code_lookup = {}       # uppercase bed_code -> resident
-    short_bed_lookup = {}      # "ROOM_NUMBER+BED_LETTER" -> resident
+    # Matching lookups over CURRENTLY-ACTIVE residents (primary path).
+    active_lookups = _build_resident_lookups(residents_rows)
 
-    for resident, bed, room in residents_rows:
-        key = _normalize_name(resident.full_name)
-        has_bed = bed is not None and bed.bed_code is not None
-        if key and key not in resident_lookup:
-            resident_lookup[key] = resident
-        elif key and has_bed:
-            # Prefer bed-linked resident over orphan for duplicate names
-            resident_lookup[key] = resident
+    # Lazily-built cache of lookups over residents who were present in a given
+    # month (active OR moved-out), so past-month uploads can still match people
+    # who have since moved out (FIX-018). Keyed by (year, month).
+    hist_lookups_cache = {}
 
-        if has_bed:
-            # Full bed code (e.g. "DT01-401A")
-            bed_code_lookup[bed.bed_code.upper()] = resident
-            # Short bed code: room_number + last char of bed_code (e.g. "401A")
-            if room:
-                short_code = f"{room.room_number.strip().upper()}{bed.bed_code[-1].upper()}"
-                short_bed_lookup[short_code] = resident
+    async def _historical_lookups(y: int, m: int):
+        key = (y, m)
+        if key not in hist_lookups_cache:
+            first = date(y, m, 1)
+            last = date(y, m, calendar.monthrange(y, m)[1])
+            hist_query = (
+                select(Resident, Bed, Room)
+                .join(Bed, Resident.bed_id == Bed.id, isouter=True)
+                .join(Room, Bed.room_id == Room.id, isouter=True)
+                .where(Resident.status.in_(["active", "moved_out"]))
+                .where(or_(Resident.move_in_date.is_(None), Resident.move_in_date <= last))
+                .where(or_(Resident.move_out_date.is_(None), Resident.move_out_date >= first))
+            )
+            if property_code:
+                hist_query = hist_query.where(
+                    (Room.property_code == property_code) | (Room.id.is_(None))
+                )
+            hist_result = await db.execute(hist_query)
+            hist_lookups_cache[key] = _build_resident_lookups(hist_result.all())
+        return hist_lookups_cache[key]
 
-    # Build name parts index for fuzzy matching (last_name -> list of residents)
-    name_parts_lookup = {}
-    for norm_name, res in resident_lookup.items():
-        parts = norm_name.split()
-        if parts:
-            last_name = parts[-1]
-            if last_name not in name_parts_lookup:
-                name_parts_lookup[last_name] = []
-            name_parts_lookup[last_name].append(res)
-
-    def find_resident(name: str, room_number: str = None, bed_letter: str = None):
+    def find_resident(name: str, room_number: str = None, bed_letter: str = None, lookups=None):
         """Find a resident by name with bed-code fallback and fuzzy matching."""
         if not name:
             return None
+        if lookups is None:
+            lookups = active_lookups
+        resident_lookup, bed_code_lookup, short_bed_lookup, name_parts_lookup = lookups
 
         # 1. Exact normalized name match
         norm = _normalize_name(name)
@@ -1613,8 +1843,13 @@ async def upload_daily_meter_sheet(
             if not resident_name:
                 continue
 
-            # Match resident using multi-strategy lookup
+            # Match resident using multi-strategy lookup (active first, then a
+            # historical fallback for past-month sheets so residents who have
+            # since moved out can still be matched — FIX-018).
             resident = find_resident(resident_name, room_number, bed_letter)
+            if not resident:
+                hist = await _historical_lookups(year, month)
+                resident = find_resident(resident_name, room_number, bed_letter, lookups=hist)
 
             if not resident:
                 all_errors.append(f"Sheet '{sheet_name}': Resident '{resident_name}' not found (room {room_number}, bed {bed_letter}).")

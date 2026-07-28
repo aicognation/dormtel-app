@@ -30,6 +30,16 @@ export function downloadMeterReadingTemplate() {
   });
 }
 
+export function generateMeterTemplate(data) {
+  return client.post('/billings/meter-readings/generate-template', data, {
+    responseType: 'blob',
+  });
+}
+
+export function getMeterTemplateRoster(params = {}) {
+  return client.get('/billings/meter-readings/template-roster', { params });
+}
+
 export function uploadMeterReadings(file) {
   const formData = new FormData();
   formData.append('file', file);
