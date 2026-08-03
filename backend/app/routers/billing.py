@@ -2125,6 +2125,26 @@ async def upload_daily_meter_sheet(
         total_daily_readings += sheet_readings
 
     await db.commit()
+
+    # FIX-019 WP-5: Log successful upload to audit table
+    upload_log = models.MeterReadingUploadLog(
+        property_code=property_code or "DT01",
+        uploaded_by=current_staff.id if current_staff else None,
+        source_filename=file.filename,
+        template_id=fingerprint.get("template_id") if fingerprint else None,
+        template_type=fingerprint.get("template_type") if fingerprint else None,
+        upload_kind="daily_sheet",
+        rows_presented=total_residents_imported,
+        residents_matched=total_residents_imported,
+        readings_imported=total_daily_readings,
+        skipped=len(all_errors),
+        allow_missing=False,
+        result="accepted" if not all_errors else "partial",
+        issues=[{"severity": "error", "code": "IMPORT_ERROR", "message": e} for e in all_errors] if all_errors else None,
+    )
+    db.add(upload_log)
+    await db.commit()
+
     return MeterReadingDailySheetResult(
         building=", ".join(wb.sheetnames),
         year=year,

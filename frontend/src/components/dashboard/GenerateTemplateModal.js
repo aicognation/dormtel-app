@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
 import toast from 'react-hot-toast';
-import { Download, Search, Users, CalendarDays, FileSpreadsheet, Loader2 } from 'lucide-react';
+import { Download, Search, Users, CalendarDays, CalendarRange, FileSpreadsheet, Loader2 } from 'lucide-react';
 import Modal from '../ui/Modal';
 import Button from '../ui/Button';
 import { generateMeterTemplate, getMeterTemplateRoster } from '../../api/billing';
@@ -45,6 +45,11 @@ export default function GenerateTemplateModal({ isOpen, onClose, propertyCode })
   const [mYear, setMYear] = useState(now.getFullYear());
   const [monthlyCount, setMonthlyCount] = useState(null);
 
+  // Period state
+  const [pStartDate, setPStartDate] = useState(todayISO());
+  const [pEndDate, setPEndDate] = useState(todayISO());
+  const [periodCount, setPeriodCount] = useState(null);
+
   const [generating, setGenerating] = useState(false);
 
   // Load the current-active roster for the ad-hoc picker whenever the modal opens
@@ -78,6 +83,16 @@ export default function GenerateTemplateModal({ isOpen, onClose, propertyCode })
       .catch(() => { if (!cancelled) setMonthlyCount(null); });
     return () => { cancelled = true; };
   }, [isOpen, tab, mMonth, mYear]);
+
+  // Live count for the Period tab
+  useEffect(() => {
+    if (!isOpen || tab !== 'period' || !pStartDate || !pEndDate) return;
+    let cancelled = false;
+    getMeterTemplateRoster({ from_date: pStartDate, to_date: pEndDate })
+      .then((res) => { if (!cancelled) setPeriodCount(res.count); })
+      .catch(() => { if (!cancelled) setPeriodCount(null); });
+    return () => { cancelled = true; };
+  }, [isOpen, tab, pStartDate, pEndDate]);
 
   const filtered = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -125,6 +140,23 @@ export default function GenerateTemplateModal({ isOpen, onClose, propertyCode })
       } else if (tab === 'daily') {
         payload = { type: 'daily', date: dailyDate };
         filename = `METER_READINGS_DAILY_${propertyCode}_${dailyDate}.xlsx`;
+      } else if (tab === 'period') {
+        if (!pStartDate || !pEndDate) {
+          toast.error('Please select both start and end dates.');
+          return;
+        }
+        if (pStartDate >= pEndDate) {
+          toast.error('Start date must be before end date.');
+          return;
+        }
+        const diffMs = new Date(pEndDate) - new Date(pStartDate);
+        const diffDays = Math.ceil(diffMs / (1000 * 60 * 60 * 24));
+        if (diffDays > 62) {
+          toast.error('Period cannot exceed 62 days.');
+          return;
+        }
+        payload = { type: 'period', start_date: pStartDate, end_date: pEndDate };
+        filename = `DORMERS_ELEC_WATER_${pStartDate}_TO_${pEndDate}_${propertyCode}.xlsx`;
       } else {
         payload = { type: 'monthly', month: Number(mMonth), year: Number(mYear) };
         filename = `DORMERS_ELEC_WATER_${MONTHS[mMonth - 1].toUpperCase()}_${mYear}_${propertyCode}.xlsx`;
@@ -160,6 +192,7 @@ export default function GenerateTemplateModal({ isOpen, onClose, propertyCode })
         {tabBtn('adhoc', 'Ad-hoc', <Users className="w-4 h-4" />)}
         {tabBtn('daily', 'Daily', <CalendarDays className="w-4 h-4" />)}
         {tabBtn('monthly', 'Monthly', <FileSpreadsheet className="w-4 h-4" />)}
+        {tabBtn('period', 'Billing Period', <CalendarRange className="w-4 h-4" />)}
       </div>
 
       {tab === 'adhoc' && (
@@ -263,6 +296,39 @@ export default function GenerateTemplateModal({ isOpen, onClose, propertyCode })
           <div className="mt-3 text-sm text-gray-600">
             {monthlyCount === null ? 'Checking…' : (
               <>Includes <strong className="text-[#1F3A5F]">{monthlyCount}</strong> resident(s) active in {MONTHS[mMonth - 1]} {mYear}.</>
+            )}
+          </div>
+        </div>
+      )}
+
+      {tab === 'period' && (
+        <div>
+          <p className="text-sm text-gray-600 mb-3">
+            Select a <strong>date range</strong> (up to 62 days). The template includes one row per resident active at any point during the period.
+          </p>
+          <div className="flex gap-3">
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Start date</label>
+              <input
+                type="date"
+                value={pStartDate}
+                onChange={(e) => setPStartDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1F3A5F]"
+              />
+            </div>
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">End date</label>
+              <input
+                type="date"
+                value={pEndDate}
+                onChange={(e) => setPEndDate(e.target.value)}
+                className="px-3 py-2 border border-gray-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-[#1F3A5F]"
+              />
+            </div>
+          </div>
+          <div className="mt-3 text-sm text-gray-600">
+            {periodCount === null ? 'Checking…' : (
+              <>Includes <strong className="text-[#1F3A5F]">{periodCount}</strong> resident(s) active between {pStartDate} and {pEndDate}.</>
             )}
           </div>
         </div>

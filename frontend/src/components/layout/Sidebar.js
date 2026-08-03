@@ -18,6 +18,7 @@ import {
   MoreHorizontal,
   Wrench,
   Megaphone,
+  Upload,
 } from 'lucide-react';
 
 const allNavItems = [
@@ -29,6 +30,7 @@ const allNavItems = [
   { to: '/residents', icon: Users, label: 'Residents' },
   { to: '/moveins', icon: Home, label: 'Move-ins' },
   { to: '/billing', icon: Receipt, label: 'Billing' },
+  { to: '/uploads', icon: Upload, label: 'Uploads' },
   { to: '/payments', icon: CreditCard, label: 'Payments' },
   { to: '/moveouts', icon: LogOut, label: 'Move-Outs' },
   { to: '/service-requests', icon: Wrench, label: 'Service Requests' },

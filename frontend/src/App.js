@@ -21,6 +21,7 @@ import ResidentsPage from './pages/ResidentsPage';
 import MoveInsPage from './pages/MoveInsPage';
 import MiscellaneousPage from './pages/MiscellaneousPage';
 import ServiceRequestsAdminPage from './pages/ServiceRequestsAdminPage';
+import UploadsPage from './pages/UploadsPage';
 
 function ProtectedRoute({ children }) {
   const { isAuthenticated, loading } = useAuth();
@@ -59,6 +60,7 @@ function AppRoutes() {
         <Route path="/residents" element={<ResidentsPage />} />
         <Route path="/moveins" element={<MoveInsPage />} />
         <Route path="/billing" element={<BillingPage />} />
+        <Route path="/uploads" element={<UploadsPage />} />
         <Route path="/payments" element={<PaymentsPage />} />
         <Route path="/moveouts" element={<MoveOutsPage />} />
         <Route path="/miscellaneous" element={<MiscellaneousPage />} />

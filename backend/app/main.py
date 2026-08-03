@@ -1,6 +1,6 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
-from app.routers import inquiries, onboarding, billing, payments, moveouts, tenant, faq, monitoring, dashboard, auth, residents, moveins, miscellaneous, service_requests, statements, qr_campaigns
+from app.routers import inquiries, onboarding, billing, payments, moveouts, tenant, faq, monitoring, dashboard, auth, residents, moveins, miscellaneous, service_requests, statements, qr_campaigns, uploads
 import os
 
 app = FastAPI(
@@ -35,6 +35,7 @@ app.include_router(moveins.router, prefix="/api/v1/moveins", tags=["moveins"])
 app.include_router(miscellaneous.router, prefix="/api/v1/miscellaneous", tags=["miscellaneous"])
 app.include_router(service_requests.router, prefix="/api/v1/service-requests", tags=["service-requests"])
 app.include_router(statements.router, prefix="/api/v1/statements", tags=["statements"])
+app.include_router(uploads.router, prefix="/api/v1/billing", tags=["uploads"])
 
 @app.get("/health")
 async def health_check():

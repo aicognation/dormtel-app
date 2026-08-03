@@ -87,3 +87,18 @@ export function previewBilling(data) {
 export function getBillingImportStatus(params) {
   return client.get('/billings/import-status', { params });
 }
+
+// FIX-019 WP-8: Upload Monitor Dashboard API
+export const listUploads = (params = {}) => {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') query.append(k, v); });
+  return client.get(`/billings/uploads/?${query.toString()}`);
+};
+
+export const getUploadStats = (params = {}) => {
+  const query = new URLSearchParams();
+  Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') query.append(k, v); });
+  return client.get(`/billings/uploads/stats?${query.toString()}`);
+};
+
+export const getUploadDetail = (uploadId) => client.get(`/billings/uploads/${uploadId}`);
