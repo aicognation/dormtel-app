@@ -1223,12 +1223,26 @@ def _build_resident_lookups(residents_rows):
     return resident_lookup, bed_code_lookup, short_bed_lookup, name_parts_lookup
 
 
-async def _template_residents(db, property_code, as_of=None, month=None, year=None, resident_ids=None):
+def _build_roster(resident_rows):
+    """FIX-019 WP-2: Build the roster list from (Resident, Bed, Room) tuples for template signing."""
+    roster = []
+    for resident, bed, room in resident_rows:
+        roster.append({
+            "resident_id": str(resident.id),
+            "room_number": room.room_number.strip() if room and room.room_number else "",
+            "bed_code": bed.bed_code if bed and bed.bed_code else "",
+            "full_name": (resident.full_name or "").strip(),
+        })
+    return roster
+
+
+async def _template_residents(db, property_code, as_of=None, month=None, year=None, resident_ids=None, start_date=None, end_date=None):
     """Return (Resident, Bed, Room) rows matching a template's population rule.
 
     - resident_ids  -> ad-hoc: the wizard-selected residents (currently active only)
     - as_of         -> daily: active on that date
     - month/year    -> monthly: stay overlaps that month (includes moved-out, for past loads)
+    - start_date/end_date -> period: stay overlaps [start_date, end_date] (includes moved-out)
     - none          -> current active residents (wizard default / roster)
     """
     query = (
@@ -1241,6 +1255,13 @@ async def _template_residents(db, property_code, as_of=None, month=None, year=No
 
     if resident_ids is not None:
         query = query.where(Resident.id.in_(resident_ids), Resident.status == "active")
+    elif start_date and end_date:
+        # FIX-019 WP-1: Billing Period overlap rule — residents whose stay intersects [start_date, end_date]
+        query = query.where(
+            Resident.status.in_(["active", "moved_out"]),
+            or_(Resident.move_in_date.is_(None), Resident.move_in_date <= end_date),
+            or_(Resident.move_out_date.is_(None), Resident.move_out_date >= start_date),
+        )
     elif as_of is not None:
         query = query.where(
             Resident.status == "active",
@@ -1270,15 +1291,22 @@ async def generate_meter_template(
     property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
 ):
-    """Generate a pre-populated meter-reading workbook (adhoc / daily / monthly)."""
+    """Generate a pre-populated meter-reading workbook (adhoc / daily / monthly / period)."""
     from app.utils import meter_templates as mt
+    import uuid as _uuid
+    import hashlib, json
 
     t = (req.type or "").lower().strip()
-    if t not in ("adhoc", "daily", "monthly"):
-        raise HTTPException(status_code=400, detail="type must be one of: adhoc, daily, monthly")
+    if t not in ("adhoc", "daily", "monthly", "period"):
+        raise HTTPException(status_code=400, detail="type must be one of: adhoc, daily, monthly, period")
 
     pc = property_code or "DT01"
     today = datetime.now(PHT).date()
+
+    # FIX-019 WP-2: generate template UUID upfront for fingerprinting
+    template_id = _uuid.uuid4()
+    rows = None
+    period_start = period_end = None
 
     if t == "adhoc":
         if not req.resident_ids:
@@ -1286,7 +1314,8 @@ async def generate_meter_template(
         rows = await _template_residents(db, property_code, resident_ids=req.resident_ids)
         if not rows:
             raise HTTPException(status_code=400, detail="None of the selected residents are currently active. Please re-select.")
-        data = mt.build_row_template(rows, pc, prefill_date=None, kind="adhoc")
+        roster = _build_roster(rows)
+        data = mt.build_row_template(rows, pc, prefill_date=None, kind="adhoc", template_id=template_id, roster=roster)
         fname = f"METER_READINGS_ADHOC_{pc}_{today.isoformat()}.xlsx"
 
     elif t == "daily":
@@ -1299,10 +1328,12 @@ async def generate_meter_template(
         rows = await _template_residents(db, property_code, as_of=as_of)
         if not rows:
             raise HTTPException(status_code=400, detail=f"No active residents on {as_of.isoformat()}.")
-        data = mt.build_row_template(rows, pc, prefill_date=as_of, kind="daily")
+        period_start = period_end = as_of
+        roster = _build_roster(rows)
+        data = mt.build_row_template(rows, pc, prefill_date=as_of, kind="daily", template_id=template_id, roster=roster)
         fname = f"METER_READINGS_DAILY_{pc}_{as_of.isoformat()}.xlsx"
 
-    else:  # monthly
+    elif t == "monthly":
         year = req.year or today.year
         month = req.month or today.month
         if not (1 <= month <= 12):
@@ -1310,8 +1341,50 @@ async def generate_meter_template(
         rows = await _template_residents(db, property_code, month=month, year=year)
         if not rows:
             raise HTTPException(status_code=400, detail=f"No residents were active in {calendar.month_name[month]} {year}.")
-        data = mt.build_monthly_template(rows, pc, year, month)
+        period_start = date(year, month, 1)
+        period_end = date(year, month, calendar.monthrange(year, month)[1])
+        roster = _build_roster(rows)
+        data = mt.build_monthly_template(rows, pc, year, month, template_id=template_id, roster=roster)
         fname = f"DORMERS_ELEC_WATER_{calendar.month_name[month].upper()}_{year}_{pc}.xlsx"
+
+    else:  # period
+        if not req.start_date or not req.end_date:
+            raise HTTPException(status_code=400, detail="Billing Period requires both start_date and end_date (YYYY-MM-DD).")
+        try:
+            sd = datetime.strptime(req.start_date, "%Y-%m-%d").date()
+            ed = datetime.strptime(req.end_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date format. Use YYYY-MM-DD.")
+        if sd > ed:
+            raise HTTPException(status_code=400, detail="start_date must be before or equal to end_date.")
+        if (ed - sd).days > 61:
+            raise HTTPException(status_code=400, detail="Period too long. Maximum is 62 days.")
+        rows = await _template_residents(db, property_code, start_date=sd, end_date=ed)
+        if not rows:
+            raise HTTPException(status_code=400, detail=f"No residents were active during {sd.isoformat()} to {ed.isoformat()}.")
+        period_start = sd
+        period_end = ed
+        roster = _build_roster(rows)
+        data = mt.build_period_template(rows, pc, sd, ed, template_id=template_id, roster=roster)
+        fname = f"DORMERS_ELEC_WATER_{sd.strftime('%b%d').upper()}_TO_{ed.strftime('%b%d_%Y').upper()}_{pc}.xlsx"
+
+    # FIX-019 WP-2: register the template in the DB
+    roster_json = json.dumps(roster, sort_keys=True, default=str)
+    roster_hash = hashlib.sha256(roster_json.encode()).hexdigest()
+    tpl = models.MeterReadingTemplate(
+        id=template_id,
+        property_code=pc,
+        template_type=t,
+        period_start=period_start,
+        period_end=period_end,
+        roster_count=len(roster),
+        roster=roster,
+        roster_hash=roster_hash,
+        status="generated",
+        generated_by=current_staff.id if current_staff else None,
+    )
+    db.add(tpl)
+    await db.commit()
 
     return StreamingResponse(
         io.BytesIO(data),
@@ -1325,6 +1398,8 @@ async def meter_template_roster(
     for_date: Optional[str] = Query(None),
     month: Optional[int] = Query(None),
     year: Optional[int] = Query(None),
+    from_date: Optional[str] = Query(None),   # FIX-019 WP-1: Billing Period roster
+    to_date: Optional[str] = Query(None),     # FIX-019 WP-1: Billing Period roster
     current_staff: models.Staff = Depends(auth.require_staff),
     property_code: Optional[str] = Depends(auth.get_current_property),
     db: AsyncSession = Depends(get_db),
@@ -1332,6 +1407,7 @@ async def meter_template_roster(
     """List the residents a template would include (powers the wizard + live counts)."""
     as_of = None
     m = y = None
+    sd = ed = None
     if for_date:
         try:
             as_of = datetime.strptime(for_date, "%Y-%m-%d").date()
@@ -1339,8 +1415,14 @@ async def meter_template_roster(
             raise HTTPException(status_code=400, detail="Invalid date. Use YYYY-MM-DD.")
     if month and year:
         m, y = month, year
+    if from_date and to_date:
+        try:
+            sd = datetime.strptime(from_date, "%Y-%m-%d").date()
+            ed = datetime.strptime(to_date, "%Y-%m-%d").date()
+        except ValueError:
+            raise HTTPException(status_code=400, detail="Invalid date. Use YYYY-MM-DD.")
 
-    rows = await _template_residents(db, property_code, as_of=as_of, month=m, year=y)
+    rows = await _template_residents(db, property_code, as_of=as_of, month=m, year=y, start_date=sd, end_date=ed)
     residents = []
     for resident, bed, room in rows:
         rate = getattr(bed, "rate_per_bed", None) or getattr(resident, "monthly_rate", None)
@@ -1706,7 +1788,9 @@ async def upload_daily_meter_sheet(
 
     for sheet_name in wb.sheetnames:
         ws = wb[sheet_name]
-        building = sheet_name.strip()
+        # FIX-019 WP-4: building from the selected property, not the raw sheet name
+        # (fixes the "METER READINGS" pollution found in simulation)
+        building = property_code or sheet_name.strip()
         if not building:
             continue
 
@@ -1742,7 +1826,7 @@ async def upload_daily_meter_sheet(
         col_water_bill = None
         col_water_rate = None
         col_misc = {}
-        header_map = {}  # map normalized header name -> column index
+        # FIX-019 WP-4: removed duplicate header_map = {} that was wiping out the first one
 
         for idx, val in enumerate(header_row):
             if val is None:
@@ -1754,14 +1838,30 @@ async def upload_daily_meter_sheet(
                 if parsed_date:
                     date_cols.append((idx, parsed_date))
                 else:
+                    # FIX-019 WP-4: normalize header by stripping punctuation for matching
+                    # so "BED #" matches "BED", "PESO/KWH" matches "PESO KWH", etc.
                     vup = val.upper().strip()
+                    v_normalized = re.sub(r'[^\w\s]', '', vup).strip()  # strip punctuation
                     header_map[vup] = idx
-                    if vup == "TOTAL USAGE":
+                    header_map[v_normalized] = idx  # also store normalized version
+
+                    if vup == "TOTAL USAGE" or v_normalized == "TOTAL USAGE":
                         col_total_usage = idx
+                    # FIX-019 WP-4: map money columns that were previously silently dropped
+                    elif v_normalized in ("PESO KWH", "PESOKWH"):
+                        col_peso_kwh = idx
+                    elif v_normalized in ("SUB TOTAL", "SUBTOTAL"):
+                        col_sub_total = idx
+                    elif v_normalized in ("TOTAL WITH VAT", "TOTALWITHVAT"):
+                        col_total_with_vat = idx
+                    elif v_normalized in ("ELECTRICITY BILL", "ELECTRICITYBILL", "ELEC BILL"):
+                        col_elec_bill = idx
                     elif "# OF DAYS" in vup and "WATER" in vup:
                         col_water_days = idx
-                    elif vup == "WATER BILL":
+                    elif vup == "WATER BILL" or v_normalized == "WATER BILL":
                         col_water_bill = idx
+                    elif v_normalized in ("WATER RATE", "WATERRATE"):
+                        col_water_rate = idx
                     elif vup in {"LAUNDRY", "DRINKING WATER", "ICE CREAM", "HONESTY STORE", "COFFEE", "LOST KEYCARD", "REF RENTAL"}:
                         col_misc[vup] = idx
 
@@ -1793,7 +1893,8 @@ async def upload_daily_meter_sheet(
         # New format: room(0), flag(1), BED(2), name(3), rate(4), move_in(5), move_out(6)
         # Old format: room(0), BED(1), name(2), rate(3), move_in(4), move_out(5)
         # No BED header: same as old format (fallback)
-        bed_header_idx = header_map.get("BED")
+        # FIX-019 WP-4: also check normalized "BED" to handle "BED #" headers
+        bed_header_idx = header_map.get("BED") or header_map.get("BED")
         has_flag_column = bed_header_idx is not None and bed_header_idx == 2
         if has_flag_column:
             bed_col = 2
@@ -1891,16 +1992,27 @@ async def upload_daily_meter_sheet(
             water_rate_val = _parse_decimal(row[col_water_rate]) if col_water_rate is not None and len(row) > col_water_rate else None
 
             if existing_import:
+                # FIX-019 WP-4: no-blank-clobber — only update fields that the file actually provides
+                # A blank cell in the file keeps the existing DB value instead of overwriting with None
                 existing_import.building = building
-                existing_import.total_electric_usage = total_usage
-                existing_import.peso_kwh = peso_kwh
-                existing_import.sub_total = sub_total
-                existing_import.total_with_vat = total_with_vat
-                existing_import.elec_bill = elec_bill
-                existing_import.water_bill = water_bill
-                existing_import.water_days = water_days
-                existing_import.water_rate = water_rate_val
-                existing_import.misc_charges = misc_charges if misc_charges else None
+                if total_usage is not None:
+                    existing_import.total_electric_usage = total_usage
+                if peso_kwh is not None:
+                    existing_import.peso_kwh = peso_kwh
+                if sub_total is not None:
+                    existing_import.sub_total = sub_total
+                if total_with_vat is not None:
+                    existing_import.total_with_vat = total_with_vat
+                if elec_bill is not None:
+                    existing_import.elec_bill = elec_bill
+                if water_bill is not None:
+                    existing_import.water_bill = water_bill
+                if water_days is not None:
+                    existing_import.water_days = water_days
+                if water_rate_val is not None:
+                    existing_import.water_rate = water_rate_val
+                if misc_charges:
+                    existing_import.misc_charges = misc_charges
                 existing_import.source_filename = file.filename
             else:
                 imp = MeterReadingImport(

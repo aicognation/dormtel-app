@@ -180,6 +180,45 @@ class MeterReadingImport(Base):
     created_at = Column(DateTime, nullable=False, default=datetime.utcnow)
     resident = relationship("Resident")
 
+class MeterReadingTemplate(Base):
+    """FIX-019 WP-2: Signed template registry — stores the fingerprint of every generated template."""
+    __tablename__ = "meter_reading_templates"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    property_code = Column(String(20), nullable=False)
+    template_type = Column(String(20), nullable=False)  # adhoc/daily/monthly/period
+    period_start = Column(Date, nullable=True)
+    period_end = Column(Date, nullable=True)
+    roster_count = Column(Integer, nullable=False)
+    roster = Column(JSON, nullable=False)  # list of {resident_id, room_number, bed_code, full_name}
+    roster_hash = Column(String(64), nullable=False)  # SHA-256 of canonical roster
+    status = Column(String(20), nullable=False, default="generated")  # generated/consumed/void
+    generated_by = Column(UUID(as_uuid=True), ForeignKey("staff.id"), nullable=True)
+    generated_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    consumed_at = Column(DateTime, nullable=True)
+    consumed_filename = Column(String(255), nullable=True)
+
+class MeterReadingUploadLog(Base):
+    """FIX-019 WP-5: Audit log for every upload attempt (accepted and rejected)."""
+    __tablename__ = "meter_reading_upload_log"
+    id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)
+    property_code = Column(String(20), nullable=False)
+    uploaded_by = Column(UUID(as_uuid=True), ForeignKey("staff.id"), nullable=True)
+    uploaded_at = Column(DateTime, nullable=False, default=datetime.utcnow)
+    source_filename = Column(String(255), nullable=False)
+    template_id = Column(UUID(as_uuid=True), ForeignKey("meter_reading_templates.id"), nullable=True)
+    template_type = Column(String(20), nullable=True)
+    period_start = Column(Date, nullable=True)
+    period_end = Column(Date, nullable=True)
+    upload_kind = Column(String(20), nullable=False)  # daily_sheet / standard
+    rows_presented = Column(Integer, nullable=False, default=0)
+    residents_matched = Column(Integer, nullable=False, default=0)
+    readings_imported = Column(Integer, nullable=False, default=0)
+    skipped = Column(Integer, nullable=False, default=0)
+    allow_missing = Column(Boolean, nullable=False, default=False)
+    result = Column(String(20), nullable=False)  # accepted / rejected / partial
+    issues = Column(JSON, nullable=True)  # [{severity, code, message}]
+    archive_upload_id = Column(UUID(as_uuid=True), nullable=True)  # reference to archive DB
+
 class Billing(Base):
     __tablename__ = "billings"
     id = Column(UUID(as_uuid=True), primary_key=True, default=uuid.uuid4)

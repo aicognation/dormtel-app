@@ -78,11 +78,57 @@ def _to_bytes(wb):
     return buf.getvalue()
 
 
-def build_row_template(resident_rows, property_code, prefill_date=None, kind="adhoc"):
+def _add_fingerprint_sheets(wb, template_id, property_code, template_type, period_start, period_end, roster):
+    """Add hidden veryHidden sheets _dt_meta and _dt_roster for template signing (FIX-019 WP-2).
+
+    ``roster`` is a list of dicts: [{resident_id, room_number, bed_code, full_name}, ...]
+    These sheets are the ground truth for strict validation + deterministic matching.
+    """
+    import hashlib, json
+    from datetime import datetime as dt
+
+    # _dt_meta: key/value pairs
+    ws_meta = wb.create_sheet("_dt_meta")
+    ws_meta.sheet_state = "veryHidden"
+    roster_json = json.dumps(roster, sort_keys=True, default=str)
+    roster_hash = hashlib.sha256(roster_json.encode()).hexdigest()
+    meta_rows = [
+        ("template_id", str(template_id)),
+        ("template_type", template_type),
+        ("property_code", property_code),
+        ("period_start", str(period_start) if period_start else ""),
+        ("period_end", str(period_end) if period_end else ""),
+        ("generated_at", dt.utcnow().isoformat()),
+        ("generator_version", "FIX-019-v1"),
+        ("roster_count", str(len(roster))),
+        ("roster_hash", roster_hash),
+    ]
+    for i, (k, v) in enumerate(meta_rows, start=1):
+        ws_meta.cell(row=i, column=1, value=k)
+        ws_meta.cell(row=i, column=2, value=v)
+
+    # _dt_roster: one row per resident
+    ws_roster = wb.create_sheet("_dt_roster")
+    ws_roster.sheet_state = "veryHidden"
+    ws_roster.cell(row=1, column=1, value="resident_id")
+    ws_roster.cell(row=1, column=2, value="room_number")
+    ws_roster.cell(row=1, column=3, value="bed_code")
+    ws_roster.cell(row=1, column=4, value="full_name")
+    for i, r in enumerate(roster, start=2):
+        ws_roster.cell(row=i, column=1, value=r.get("resident_id", ""))
+        ws_roster.cell(row=i, column=2, value=r.get("room_number", ""))
+        ws_roster.cell(row=i, column=3, value=r.get("bed_code", ""))
+        ws_roster.cell(row=i, column=4, value=r.get("full_name", ""))
+
+    return roster_hash
+
+
+def build_row_template(resident_rows, property_code, prefill_date=None, kind="adhoc", template_id=None, roster=None):
     """Row-per-reading workbook (Ad-hoc or Daily).
 
     ``prefill_date`` (a ``date``) pre-fills the Reading Date column (Daily). When
     ``None`` (Ad-hoc) the Reading Date cell is left blank + highlighted for input.
+    ``template_id`` and ``roster`` (FIX-019 WP-2) embed hidden fingerprint sheets.
     """
     rows = _rows(resident_rows)
     wb = Workbook()
@@ -135,11 +181,19 @@ def build_row_template(resident_rows, property_code, prefill_date=None, kind="ad
             "Blank rows are skipped on upload.",
             "DormTel")
 
+    # FIX-019 WP-2: embed hidden fingerprint sheets if template_id provided
+    if template_id and roster is not None:
+        period_start = prefill_date if kind == "daily" else None
+        period_end = prefill_date if kind == "daily" else None
+        _add_fingerprint_sheets(wb, template_id, property_code, kind, period_start, period_end, roster)
+
     return _to_bytes(wb)
 
 
-def build_monthly_template(resident_rows, property_code, year, month):
-    """Grid workbook (one column per day of the month) for the Monthly Grid upload."""
+def build_monthly_template(resident_rows, property_code, year, month, template_id=None, roster=None):
+    """Grid workbook (one column per day of the month) for the Monthly Grid upload.
+    ``template_id`` and ``roster`` (FIX-019 WP-2) embed hidden fingerprint sheets.
+    """
     rows = _rows(resident_rows)
     ndays = calendar.monthrange(year, month)[1]
     wb = Workbook()
@@ -217,5 +271,123 @@ def build_monthly_template(resident_rows, property_code, year, month):
         ws.column_dimensions[get_column_letter(first_date_col + d)].width = 7
     ws.freeze_panes = "D2"
     ws.row_dimensions[1].height = 30
+
+    # FIX-019 WP-2: embed hidden fingerprint sheets if template_id provided
+    if template_id and roster is not None:
+        from datetime import date as _d
+        ps = _d(year, month, 1)
+        pe = _d(year, month, ndays)
+        _add_fingerprint_sheets(wb, template_id, property_code, "monthly", ps, pe, roster)
+
+    return _to_bytes(wb)
+
+
+def build_period_template(resident_rows, property_code, start_date, end_date, template_id=None, roster=None):
+    """Grid workbook (one column per day in the custom period) for Billing Period uploads.
+
+    Similar to ``build_monthly_template`` but spans an arbitrary date range
+    (e.g. May 31 – Jun 30). The DAYS formula is clamped to the period range.
+    Safety cap: max 62 days.
+    ``template_id`` and ``roster`` (FIX-019 WP-2) embed hidden fingerprint sheets.
+    """
+    from datetime import date, timedelta
+
+    if isinstance(start_date, str):
+        start_date = datetime.strptime(start_date, "%Y-%m-%d").date()
+    if isinstance(end_date, str):
+        end_date = datetime.strptime(end_date, "%Y-%m-%d").date()
+
+    if start_date > end_date:
+        raise ValueError("start_date must be before or equal to end_date")
+
+    total_days = (end_date - start_date).days + 1
+    if total_days > 62:
+        raise ValueError(f"Period too long ({total_days} days). Maximum is 62 days.")
+
+    rows = _rows(resident_rows)
+    wb = Workbook()
+    wb.calculation.fullCalcOnLoad = True
+    ws = wb.active
+    ws.title = "METER READINGS"
+
+    text_headers = ["ROOM", "BED", "NAME", "RATE", "MOVE IN", "MOVE OUT", "DAYS"]
+    for i, h in enumerate(text_headers, start=1):
+        c = ws.cell(row=1, column=i, value=h)
+        c.font = HEADER_FONT
+        c.fill = HEADER_FILL
+        c.alignment = CENTER
+        c.border = BORDER
+    first_date_col = len(text_headers) + 1
+
+    # One date column per day in the period
+    for d in range(total_days):
+        current_date = start_date + timedelta(days=d)
+        c = ws.cell(row=1, column=first_date_col + d, value=datetime(current_date.year, current_date.month, current_date.day))
+        c.number_format = "dd-mmm"
+        c.font = HEADER_FONT
+        c.fill = HEADER_FILL
+        c.alignment = CENTER
+        c.border = BORDER
+
+    period_label = f"{start_date.strftime('%b %d')} – {end_date.strftime('%b %d, %Y')}"
+    ws["A1"].comment = Comment(
+        f"BILLING PERIOD METER GRID — {period_label} ({property_code})\n"
+        "1. Columns A-G are pre-filled from the system.\n"
+        "2. Type the DAILY ELECTRIC meter value in the yellow date columns.\n"
+        "3. Leave a date blank if no reading was taken that day.\n"
+        "4. DAYS = auto-calculated days the resident was present in the period.\n"
+        "5. Upload via Billing > 'Daily Sheet Upload'. Do not rename the date columns.",
+        "DormTel")
+    ws["A1"].comment.width = 420
+    ws["A1"].comment.height = 200
+
+    r = 2
+    for row in rows:
+        ws.cell(row=r, column=1, value=row["room"]).alignment = CENTER
+        ws.cell(row=r, column=2, value=row["bed"]).alignment = CENTER
+        ws.cell(row=r, column=3, value=row["name"]).alignment = LEFT
+        rc = ws.cell(row=r, column=4, value=row["rate"])
+        rc.number_format = "#,##0.00"
+        rc.alignment = CENTER
+        mi = ws.cell(row=r, column=5, value=row["move_in"])
+        mi.number_format = "yyyy-mm-dd"
+        mi.alignment = CENTER
+        mo = ws.cell(row=r, column=6, value=row["move_out"])
+        mo.number_format = "yyyy-mm-dd"
+        mo.alignment = CENTER
+        # DAYS formula clamped to the period range
+        days_formula = (
+            f'=IF($E{r}="","",'
+            f'MAX(0,MIN(IF($F{r}="",DATE({end_date.year},{end_date.month},{end_date.day}),$F{r}),DATE({end_date.year},{end_date.month},{end_date.day}))'
+            f'-MAX($E{r},DATE({start_date.year},{start_date.month},{start_date.day}))+1))'
+        )
+        dc = ws.cell(row=r, column=7, value=days_formula)
+        dc.number_format = "0"
+        dc.alignment = CENTER
+        dc.font = BOLD_FONT
+        for d in range(total_days):
+            fc = ws.cell(row=r, column=first_date_col + d)
+            fc.fill = FILLIN_FILL
+            fc.alignment = CENTER
+            fc.number_format = "0.##"
+        for col in range(1, first_date_col + total_days):
+            ws.cell(row=r, column=col).border = BORDER
+        r += 1
+
+    ws.column_dimensions["A"].width = 7
+    ws.column_dimensions["B"].width = 5
+    ws.column_dimensions["C"].width = 30
+    ws.column_dimensions["D"].width = 10
+    ws.column_dimensions["E"].width = 12
+    ws.column_dimensions["F"].width = 12
+    ws.column_dimensions["G"].width = 6
+    for d in range(total_days):
+        ws.column_dimensions[get_column_letter(first_date_col + d)].width = 7
+    ws.freeze_panes = "D2"
+    ws.row_dimensions[1].height = 30
+
+    # FIX-019 WP-2: embed hidden fingerprint sheets if template_id provided
+    if template_id and roster is not None:
+        _add_fingerprint_sheets(wb, template_id, property_code, "period", start_date, end_date, roster)
 
     return _to_bytes(wb)

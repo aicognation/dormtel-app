@@ -17,6 +17,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # FIX-019 WP-7: Upload Data Store — immutable archive DB
+  archive-db:
+    image: postgres:15
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dormtel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-dormtel_dev}
+      POSTGRES_DB: ${ARCHIVE_DB:-dormtel_archive}
+    ports:
+      - "127.0.0.1:5433:5432"
+    volumes:
+      - archive_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dormtel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7
     ports:
@@ -33,6 +50,7 @@ services:
       - "8000:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dormtel}:${POSTGRES_PASSWORD:-dormtel_dev}@db:5432/${POSTGRES_DB:-dormtel}
+      ARCHIVE_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dormtel}:${POSTGRES_PASSWORD:-dormtel_dev}@archive-db:5432/${ARCHIVE_DB:-dormtel_archive}
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: http://localhost:3000,http://localhost:3100
       STATEMENTS_DIR: /app/statements
@@ -40,8 +58,11 @@ services:
       - ./backend/app:/app/app
       - statements_data:/app/statements
       - proofs_data:/app/proofs
+      - archive_files:/app/archive_files
     depends_on:
       db:
+        condition: service_healthy
+      archive-db:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -62,5 +83,7 @@ services:
 
 volumes:
   postgres_data:
+  archive_data:
+  archive_files:
   statements_data:
   proofs_data:

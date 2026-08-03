@@ -15,6 +15,23 @@ services:
       timeout: 5s
       retries: 5
 
+  # FIX-019 WP-7: Upload Data Store — immutable archive DB
+  archive-db:
+    image: postgres:15
+    container_name: dormtel-archive-db
+    restart: always
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-dormtel}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?Set POSTGRES_PASSWORD in .env}
+      POSTGRES_DB: ${ARCHIVE_DB:-dormtel_archive}
+    volumes:
+      - archive_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-dormtel}"]
+      interval: 5s
+      timeout: 5s
+      retries: 5
+
   redis:
     image: redis:7
     container_name: dormtel-redis
@@ -33,14 +50,18 @@ services:
       - "8090:8000"
     environment:
       DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dormtel}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB:-dormtel}
+      ARCHIVE_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-dormtel}:${POSTGRES_PASSWORD}@archive-db:5432/${ARCHIVE_DB:-dormtel_archive}
       REDIS_URL: redis://redis:6379/0
       CORS_ORIGINS: ${CORS_ORIGINS:-https://dormtel.quriosity.cloud}
       STATEMENTS_DIR: /app/statements
     volumes:
       - statements_data:/app/statements
       - proofs_data:/app/proofs
+      - archive_files:/app/archive_files
     depends_on:
       db:
+        condition: service_healthy
+      archive-db:
         condition: service_healthy
       redis:
         condition: service_healthy
@@ -65,5 +86,7 @@ services:
 
 volumes:
   postgres_data:
+  archive_data:
+  archive_files:
   statements_data:
   proofs_data:
