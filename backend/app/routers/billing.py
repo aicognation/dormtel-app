@@ -1688,6 +1688,48 @@ async def upload_daily_meter_sheet(
             )
         raise HTTPException(status_code=400, detail=f"Failed to read Excel file: {error_msg}")
 
+    # FIX-019 WP-3: Strict validation gate (feature flag controlled)
+    from app.utils.upload_validation import read_fingerprint, validate_template_fingerprint
+    require_template = os.getenv("REQUIRE_GENERATED_TEMPLATE", "true").lower() == "true"
+    fingerprint = read_fingerprint(wb)
+    
+    if require_template and fingerprint:
+        # Look up template in registry
+        template_query = select(models.MeterReadingTemplate).where(
+            models.MeterReadingTemplate.id == fingerprint.get("template_id")
+        )
+        template_result = await db.execute(template_query)
+        db_template = template_result.scalar_one_or_none()
+        
+        # Validate fingerprint
+        fp_issues = validate_template_fingerprint(fingerprint, db_template, property_code or "DT01")
+        blocking_errors = [i for i in fp_issues if i["severity"] == "error"]
+        
+        if blocking_errors:
+            # Log to audit table
+            log = models.MeterReadingUploadLog(
+                property_code=property_code or "DT01",
+                uploaded_by=current_staff.id if current_staff else None,
+                source_filename=file.filename,
+                template_id=fingerprint.get("template_id"),
+                template_type=fingerprint.get("template_type"),
+                upload_kind="daily_sheet",
+                rows_presented=0,
+                residents_matched=0,
+                readings_imported=0,
+                skipped=0,
+                allow_missing=False,
+                result="rejected",
+                issues=blocking_errors,
+            )
+            db.add(log)
+            await db.commit()
+            
+            raise HTTPException(
+                status_code=400,
+                detail=f"Template validation failed: {'; '.join(e['message'] for e in blocking_errors)}"
+            )
+
     # Pre-load rooms and residents for matching (scoped to property if available)
     room_query = select(Room)
     if property_code:
