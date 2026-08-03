@@ -637,58 +637,14 @@ export default function BillingPage() {
       <PageHeader
         title="Auto-Billing Engine"
         subtitle="Meter readings, billing generation, and distribution"
-        actions={
-          <div className="flex gap-2 flex-wrap">
-            <Button variant="ghost" onClick={() => setShowGenerateTemplate(true)}>
-              <Download className="w-4 h-4 mr-1" /> Generate Template
-            </Button>
-            <Button variant="secondary" onClick={() => fileInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-1" /> Ad-hoc / Daily Upload
-            </Button>
-            <input
-              ref={fileInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleFileUpload}
-            />
-            <Button variant="secondary" onClick={() => dailySheetInputRef.current?.click()}>
-              <Upload className="w-4 h-4 mr-1" /> Monthly Grid Upload
-            </Button>
-            <input
-              ref={dailySheetInputRef}
-              type="file"
-              accept=".xlsx,.xls"
-              className="hidden"
-              onChange={handleDailySheetUpload}
-            />
-            <Button
-              variant="ghost"
-              onClick={() => setShowUploadHelp(true)}
-              title="Which upload should I use?"
-              aria-label="Upload help"
-            >
-              <HelpCircle className="w-4 h-4" />
-            </Button>
-            <Button variant="secondary" onClick={() => setShowMeter(true)}>
-              <Zap className="w-4 h-4 mr-1" /> Meter Reading
-            </Button>
-            <Button variant="secondary" onClick={() => { setTab('preview-billing'); setPreviewData(null); }}>
-              <Plus className="w-4 h-4 mr-1" /> Preview Billing
-            </Button>
-            <Button onClick={() => { setTab('statements'); setShowStatementModal(true); }}>
-              <Plus className="w-4 h-4 mr-1" /> Generate Statements
-            </Button>
-          </div>
-        }
       />
 
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-4">
         {[
-          { key: 'billings', label: 'Billings' },
           { key: 'meter-readings', label: 'Meter Readings' },
-          { key: 'preview-billing', label: 'Preview Billing' },
+          { key: 'billings', label: 'Billings' },
+          { key: 'preview-billing', label: 'Generate Billing' },
           { key: 'statements', label: 'Statements' },
         ].map((t) => (
           <button
@@ -708,6 +664,19 @@ export default function BillingPage() {
       {/* Billings Tab */}
       {tab === 'billings' && (
         <>
+          {/* Actions */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Billing Actions</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="secondary" size="sm" onClick={() => { setTab('preview-billing'); setPreviewData(null); }}>
+                <Plus className="w-4 h-4 mr-1" /> Generate New Billing
+              </Button>
+              <Button variant="ghost" size="sm" onClick={fetchData}>
+                <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+              </Button>
+            </div>
+          </div>
+
           <div className="flex flex-wrap gap-3 mb-4">
             <select
               value={filters.status}
@@ -732,6 +701,48 @@ export default function BillingPage() {
       {/* Meter Readings Tab */}
       {tab === 'meter-readings' && (
         <div className="space-y-4">
+          {/* Upload Actions */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Upload Meter Readings</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button variant="ghost" size="sm" onClick={() => setShowGenerateTemplate(true)}>
+                <Download className="w-4 h-4 mr-1" /> Generate Template
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+                <Upload className="w-4 h-4 mr-1" /> Ad-hoc / Daily Upload
+              </Button>
+              <input
+                ref={fileInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={handleFileUpload}
+              />
+              <Button variant="secondary" size="sm" onClick={() => dailySheetInputRef.current?.click()}>
+                <Upload className="w-4 h-4 mr-1" /> Monthly Grid Upload
+              </Button>
+              <input
+                ref={dailySheetInputRef}
+                type="file"
+                accept=".xlsx,.xls"
+                className="hidden"
+                onChange={handleDailySheetUpload}
+              />
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setShowUploadHelp(true)}
+                title="Which upload should I use?"
+                aria-label="Upload help"
+              >
+                <HelpCircle className="w-4 h-4" />
+              </Button>
+              <Button variant="secondary" size="sm" onClick={() => setShowMeter(true)}>
+                <Zap className="w-4 h-4 mr-1" /> Single Meter Reading
+              </Button>
+            </div>
+          </div>
+
           {/* Controls */}
           <div className="flex flex-wrap items-end gap-3">
             <div>
@@ -1150,14 +1161,22 @@ export default function BillingPage() {
       {/* Statements Tab */}
       {tab === 'statements' && (
         <div className="space-y-4">
-          <div className="flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-semibold">Billing Statements</h3>
-              <p className="text-sm text-gray-500">Generated PDF statements with resident, room, floor, or property scope.</p>
+          {/* Actions */}
+          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
+            <h3 className="text-sm font-semibold text-gray-700 mb-3">Statement Actions</h3>
+            <div className="flex flex-wrap gap-2">
+              <Button size="sm" onClick={() => setShowStatementModal(true)}>
+                <Plus className="w-4 h-4 mr-1" /> Generate Statements
+              </Button>
+              <Button variant="ghost" size="sm" onClick={fetchStatements}>
+                <RefreshCw className="w-4 h-4 mr-1" /> Refresh
+              </Button>
             </div>
-            <Button onClick={() => setShowStatementModal(true)}>
-              <Plus className="w-4 h-4 mr-1" /> Generate Statements
-            </Button>
+          </div>
+
+          <div>
+            <h3 className="text-lg font-semibold">Billing Statements</h3>
+            <p className="text-sm text-gray-500">Generated PDF statements with resident, room, floor, or property scope.</p>
           </div>
           <DataTable
             columns={[
