@@ -92,13 +92,13 @@ export function getBillingImportStatus(params) {
 export const listUploads = (params = {}) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') query.append(k, v); });
-  return client.get(`/billings/uploads/?${query.toString()}`);
+  return client.get(`/billing/uploads/?${query.toString()}`);
 };
 
 export const getUploadStats = (params = {}) => {
   const query = new URLSearchParams();
   Object.entries(params).forEach(([k, v]) => { if (v != null && v !== '') query.append(k, v); });
-  return client.get(`/billings/uploads/stats?${query.toString()}`);
+  return client.get(`/billing/uploads/stats?${query.toString()}`);
 };
 
-export const getUploadDetail = (uploadId) => client.get(`/billings/uploads/${uploadId}`);
+export const getUploadDetail = (uploadId) => client.get(`/billing/uploads/${uploadId}`);
