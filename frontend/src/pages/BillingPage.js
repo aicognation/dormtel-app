@@ -642,7 +642,7 @@ export default function BillingPage() {
       {/* Tabs */}
       <div className="flex border-b border-gray-200 mb-4">
         {[
-          { key: 'meter-readings', label: 'Meter Readings' },
+          { key: 'meter-readings', label: 'Daily Grid' },
           { key: 'billings', label: 'Billings' },
           { key: 'preview-billing', label: 'Generate Billing' },
           { key: 'statements', label: 'Statements' },
@@ -701,48 +701,6 @@ export default function BillingPage() {
       {/* Meter Readings Tab */}
       {tab === 'meter-readings' && (
         <div className="space-y-4">
-          {/* Upload Actions */}
-          <div className="bg-gray-50 rounded-lg p-4 border border-gray-200">
-            <h3 className="text-sm font-semibold text-gray-700 mb-3">Upload Meter Readings</h3>
-            <div className="flex flex-wrap gap-2">
-              <Button variant="ghost" size="sm" onClick={() => setShowGenerateTemplate(true)}>
-                <Download className="w-4 h-4 mr-1" /> Generate Template
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
-                <Upload className="w-4 h-4 mr-1" /> Ad-hoc / Daily Upload
-              </Button>
-              <input
-                ref={fileInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                className="hidden"
-                onChange={handleFileUpload}
-              />
-              <Button variant="secondary" size="sm" onClick={() => dailySheetInputRef.current?.click()}>
-                <Upload className="w-4 h-4 mr-1" /> Monthly Grid Upload
-              </Button>
-              <input
-                ref={dailySheetInputRef}
-                type="file"
-                accept=".xlsx,.xls"
-                className="hidden"
-                onChange={handleDailySheetUpload}
-              />
-              <Button
-                variant="ghost"
-                size="sm"
-                onClick={() => setShowUploadHelp(true)}
-                title="Which upload should I use?"
-                aria-label="Upload help"
-              >
-                <HelpCircle className="w-4 h-4" />
-              </Button>
-              <Button variant="secondary" size="sm" onClick={() => setShowMeter(true)}>
-                <Zap className="w-4 h-4 mr-1" /> Single Meter Reading
-              </Button>
-            </div>
-          </div>
-
           {/* Controls */}
           <div className="flex flex-wrap items-end gap-3">
             <div>

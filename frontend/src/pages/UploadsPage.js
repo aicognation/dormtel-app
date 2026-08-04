@@ -1,11 +1,14 @@
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useRef } from 'react';
 import toast from 'react-hot-toast';
-import { RefreshCw, Upload, CheckCircle, XCircle, AlertTriangle, FileText, Users, Hash, Search } from 'lucide-react';
+import { RefreshCw, Upload, CheckCircle, XCircle, AlertTriangle, FileText, Users, Hash, Search, Download, Zap } from 'lucide-react';
 import PageHeader from '../components/layout/PageHeader';
 import DataTable from '../components/ui/DataTable';
 import Button from '../components/ui/Button';
 import Modal from '../components/ui/Modal';
-import { listUploads, getUploadStats, getUploadDetail } from '../api/billing';
+import FormField from '../components/ui/FormField';
+import GenerateTemplateModal from '../components/dashboard/GenerateTemplateModal';
+import TemplatePreviewModal from '../components/dashboard/TemplatePreviewModal';
+import { listUploads, getUploadStats, getUploadDetail, uploadMeterReadings, uploadDailyMeterSheet, validateMeterReadingTemplate, validateDailySheetTemplate, submitMeterReading } from '../api/billing';
 import { formatDateTime } from '../utils/formatters';
 import { useProperty } from '../contexts/PropertyContext';
 
@@ -63,6 +66,19 @@ export default function UploadsPage() {
   const [detailOpen, setDetailOpen] = useState(false);
   const [detailData, setDetailData] = useState(null);
   const [detailLoading, setDetailLoading] = useState(false);
+
+  // Upload actions state
+  const [showGenerateTemplate, setShowGenerateTemplate] = useState(false);
+  const [showPreviewModal, setShowPreviewModal] = useState(false);
+  const [validationResult, setValidationResult] = useState(null);
+  const [validationLoading, setValidationLoading] = useState(false);
+  const [pendingUploadFile, setPendingUploadFile] = useState(null);
+  const [pendingUploadType, setPendingUploadType] = useState(null);
+  const [showMeter, setShowMeter] = useState(false);
+  const [meterForm, setMeterForm] = useState({ building: '', room_id: '', resident_id: '', reading_date: '', electric_reading: '', water_reading: '' });
+  const [submitting, setSubmitting] = useState(false);
+  const fileInputRef = useRef(null);
+  const dailySheetInputRef = useRef(null);
 
   const fetchStats = useCallback(async () => {
     setStatsLoading(true);
@@ -130,6 +146,125 @@ export default function UploadsPage() {
   const rejectionRate = stats?.total_uploads > 0
     ? ((stats.rejected / stats.total_uploads) * 100).toFixed(1) + '%'
     : '0%';
+
+  const handleFileUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setValidationLoading(true);
+    try {
+      const result = await validateMeterReadingTemplate(file);
+      setValidationResult(result);
+      setPendingUploadFile(file);
+      setPendingUploadType('standard');
+      setShowPreviewModal(true);
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to validate file';
+      toast.error(msg);
+    } finally {
+      setValidationLoading(false);
+    }
+  };
+
+  const handleDailySheetUpload = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    e.target.value = '';
+    setValidationLoading(true);
+    try {
+      const result = await validateDailySheetTemplate(file);
+      setValidationResult(result);
+      setPendingUploadFile(file);
+      setPendingUploadType('daily_sheet');
+      setShowPreviewModal(true);
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to validate file';
+      toast.error(msg);
+    } finally {
+      setValidationLoading(false);
+    }
+  };
+
+  const handleProceedWithUpload = async () => {
+    if (!pendingUploadFile) return;
+    setSubmitting(true);
+    try {
+      if (pendingUploadType === 'standard') {
+        const res = await uploadMeterReadings(pendingUploadFile);
+        if ((res.imported ?? 0) === 0) {
+          toast.error(
+            `No readings were imported (${res.skipped ?? 0} row(s) skipped). ` +
+            'Fill in the Reading Date (YYYY-MM-DD) and at least one reading value ' +
+            '(Electric or Water) for each row, then upload again.',
+            { duration: 9000 }
+          );
+        } else {
+          toast.success(res.message || `Uploaded ${res.imported} readings`);
+        }
+        if (res.errors && res.errors.length > 0) {
+          res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
+        }
+      } else {
+        const res = await uploadDailyMeterSheet(pendingUploadFile);
+        if ((res.residents_imported ?? 0) === 0) {
+          toast.error(
+            'No residents matched this file. Make sure the correct property is selected ' +
+            'and the file lists that property\'s residents.',
+            { duration: 9000 }
+          );
+        } else if ((res.daily_readings_imported ?? 0) === 0) {
+          toast.error(
+            `Matched ${res.residents_imported} resident(s) but imported 0 daily readings. ` +
+            'The date columns are empty — type the meter value for each day ' +
+            '(the yellow cells) before uploading.',
+            { duration: 9000 }
+          );
+        } else {
+          toast.success(res.message || `Uploaded daily sheet for ${res.building}`);
+        }
+        if (res.errors && res.errors.length > 0) {
+          res.errors.forEach((err) => toast.error(err, { duration: 6000 }));
+        }
+      }
+      setShowPreviewModal(false);
+      setPendingUploadFile(null);
+      setValidationResult(null);
+      // Refresh uploads list and stats
+      fetchUploads();
+      fetchStats();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Upload failed';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  const handleMeterSubmit = async (e) => {
+    e.preventDefault();
+    setSubmitting(true);
+    try {
+      const payload = {
+        ...meterForm,
+        room_id: meterForm.room_id || null,
+        resident_id: meterForm.resident_id || null,
+        electric_reading: meterForm.electric_reading ? Number(meterForm.electric_reading) : null,
+        water_reading: meterForm.water_reading ? Number(meterForm.water_reading) : null,
+      };
+      const result = await submitMeterReading(payload);
+      toast.success(`Meter reading submitted (variance: ${result?.variance_pct ?? 'N/A'}%)`);
+      setShowMeter(false);
+      setMeterForm({ building: '', room_id: '', resident_id: '', reading_date: '', electric_reading: '', water_reading: '' });
+      // Refresh uploads list and stats
+      fetchUploads();
+      fetchStats();
+    } catch (err) {
+      const msg = err.response?.data?.detail || 'Failed to submit meter reading';
+      toast.error(msg);
+    } finally {
+      setSubmitting(false);
+    }
+  };
 
   const columns = [
     {
@@ -208,6 +343,27 @@ export default function UploadsPage() {
           </Button>
         }
       />
+
+      {/* Upload Actions */}
+      <div className="bg-gray-50 rounded-lg p-4 border border-gray-200 mb-4">
+        <h3 className="text-sm font-semibold text-gray-700 mb-3">Upload Meter Readings</h3>
+        <div className="flex flex-wrap gap-2">
+          <Button variant="ghost" size="sm" onClick={() => setShowGenerateTemplate(true)}>
+            <Download className="w-4 h-4 mr-1" /> Generate Template
+          </Button>
+          <Button variant="secondary" size="sm" onClick={() => fileInputRef.current?.click()}>
+            <Upload className="w-4 h-4 mr-1" /> Ad-hoc / Daily Upload
+          </Button>
+          <input ref={fileInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleFileUpload} />
+          <Button variant="secondary" size="sm" onClick={() => dailySheetInputRef.current?.click()}>
+            <Upload className="w-4 h-4 mr-1" /> Monthly Grid Upload
+          </Button>
+          <input ref={dailySheetInputRef} type="file" accept=".xlsx,.xls" className="hidden" onChange={handleDailySheetUpload} />
+          <Button variant="secondary" size="sm" onClick={() => setShowMeter(true)}>
+            <Zap className="w-4 h-4 mr-1" /> Single Meter Reading
+          </Button>
+        </div>
+      </div>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-3 mb-6">
@@ -443,6 +599,39 @@ export default function UploadsPage() {
         ) : (
           <div className="text-center py-8 text-gray-400 text-sm">Could not load upload detail.</div>
         )}
+      </Modal>
+
+      <GenerateTemplateModal
+        isOpen={showGenerateTemplate}
+        onClose={() => setShowGenerateTemplate(false)}
+        propertyCode={propertyCode}
+      />
+
+      <TemplatePreviewModal
+        isOpen={showPreviewModal}
+        onClose={() => setShowPreviewModal(false)}
+        onProceed={handleProceedWithUpload}
+        validationResult={validationResult}
+        uploadType={pendingUploadType}
+        loading={submitting}
+      />
+
+      {/* Meter Reading Modal */}
+      <Modal isOpen={showMeter} onClose={() => setShowMeter(false)} title="Submit Meter Reading">
+        <form onSubmit={handleMeterSubmit} className="space-y-4">
+          <FormField label="Building" name="building" required value={meterForm.building}
+            onChange={(e) => setMeterForm({ ...meterForm, building: e.target.value })} placeholder="e.g. DT01" />
+          <FormField label="Reading Date" name="reading_date" type="date" required value={meterForm.reading_date}
+            onChange={(e) => setMeterForm({ ...meterForm, reading_date: e.target.value })} />
+          <FormField label="Electric Reading (kWh)" name="electric_reading" type="number" value={meterForm.electric_reading}
+            onChange={(e) => setMeterForm({ ...meterForm, electric_reading: e.target.value })} />
+          <FormField label="Water Reading (m³)" name="water_reading" type="number" value={meterForm.water_reading}
+            onChange={(e) => setMeterForm({ ...meterForm, water_reading: e.target.value })} />
+          <div className="flex justify-end gap-2 pt-2">
+            <Button variant="secondary" type="button" onClick={() => setShowMeter(false)}>Cancel</Button>
+            <Button type="submit" loading={submitting}>Submit Reading</Button>
+          </div>
+        </form>
       </Modal>
     </div>
   );
