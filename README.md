@@ -83,3 +83,6 @@ dormtel-app/
 ## License
 
 Proprietary — Dormtel Operations
+
+
+<!-- Security scan triggered at 2026-09-05 07:20:47 -->
